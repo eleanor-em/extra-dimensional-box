@@ -38,8 +38,18 @@ public class Crypto {
      */
     public static String decryptMessage(SecretKey secretKey, String message)
             throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException,
-            IllegalBlockSizeException {
-        String payload = Document.parse(message).getString("payload");
+            IllegalBlockSizeException, ResponseFormatException {
+        // Safely extract the payload
+        Document received = Document.parse(message);
+        if (!received.containsKey("payload")) {
+            throw new ResponseFormatException("Received message does not contain payload");
+        }
+        Object payloadVal = received.get("payload");
+        if (!(payloadVal instanceof String)) {
+            throw new ResponseFormatException("Received message contains malformed payload");
+        }
+        String payload = (String)payloadVal;
+
         Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
         cipher.init(Cipher.DECRYPT_MODE, secretKey);
         return new String(cipher.doFinal(Base64.getDecoder().decode(payload.getBytes())));

@@ -1,9 +1,6 @@
 package unimelb.bitbox.client;
 
-import unimelb.bitbox.util.Configuration;
-import unimelb.bitbox.util.Crypto;
-import unimelb.bitbox.util.Document;
-import unimelb.bitbox.util.SSHPublicKey;
+import unimelb.bitbox.util.*;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -58,8 +55,7 @@ public class Server {
                             break;
                         }
                     }
-                } catch (IOException | IllegalBlockSizeException | InvalidKeyException | BadPaddingException
-                        | NoSuchAlgorithmException | NoSuchPaddingException e) {
+                } catch (IOException | IllegalBlockSizeException | InvalidKeyException | BadPaddingException | NoSuchAlgorithmException | NoSuchPaddingException | ResponseFormatException e) {
                     e.printStackTrace();
                 }
             }
@@ -71,7 +67,7 @@ public class Server {
 
     private static void handleMessage(String message, BufferedWriter out)
             throws IOException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException,
-            NoSuchAlgorithmException, NoSuchPaddingException {
+            NoSuchAlgorithmException, NoSuchPaddingException, ResponseFormatException {
         System.out.println(message);
         // Parse the message. If there is a payload key, then we need to decrypt the payload to get the actual message
         Document document = Document.parse(message);
