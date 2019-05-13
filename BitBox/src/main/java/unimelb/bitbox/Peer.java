@@ -1,8 +1,5 @@
 package unimelb.bitbox;
 
-import unimelb.bitbox.clients.ClientServer;
-import unimelb.bitbox.util.Configuration;
-
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.util.logging.Logger;
@@ -17,7 +14,5 @@ public class Peer
         log.info("BitBox Peer starting...");
         
         new ServerMain();
-
-        new ClientServer(Integer.parseInt(Configuration.getConfigurationValue("clientPort")));
     }
 }

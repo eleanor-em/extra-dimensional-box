@@ -1,5 +1,6 @@
 package unimelb.bitbox.client;
 
+import unimelb.bitbox.ServerMain;
 import unimelb.bitbox.util.*;
 
 import javax.crypto.BadPaddingException;
@@ -18,14 +19,21 @@ import java.util.Optional;
  * An example class that acts as a server for the client.
  * To integrate with the project, this code should be adapted to fit into ServerMain.
  */
-public class Server {
+public class Server implements Runnable{
     private static final int clientPort = Integer.parseInt(Configuration.getConfigurationValue("clientPort"));
     private static final String authorized_keys = Configuration.getConfigurationValue("authorized_keys");
     private static final ArrayList<SSHPublicKey> keys = new ArrayList<>();
     private static SecretKey key;
     private static boolean authenticated;
 
-    public static void main(String[] args) {
+    private ServerMain server;
+
+    public Server(ServerMain server){
+        this.server = server;
+    }
+
+    @Override
+    public void run(){
         // Load the public keys
         String[] keyStrings = authorized_keys.split(",");
         for (String keyString : keyStrings) {
@@ -63,7 +71,6 @@ public class Server {
             e.printStackTrace();
         }
     }
-
 
     private static void handleMessage(String message, BufferedWriter out)
             throws IOException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException,

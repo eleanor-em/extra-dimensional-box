@@ -1,6 +1,17 @@
 package unimelb.bitbox;
 
-import java.io.*;
+import org.jetbrains.annotations.NotNull;
+import unimelb.bitbox.client.Server;
+import unimelb.bitbox.messages.*;
+import unimelb.bitbox.util.Configuration;
+import unimelb.bitbox.util.Document;
+import unimelb.bitbox.util.FileSystemManager;
+import unimelb.bitbox.util.FileSystemManager.FileSystemEvent;
+import unimelb.bitbox.util.FileSystemObserver;
+
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -12,14 +23,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-
-import org.jetbrains.annotations.NotNull;
-import unimelb.bitbox.messages.*;
-import unimelb.bitbox.util.Configuration;
-import unimelb.bitbox.util.Document;
-import unimelb.bitbox.util.FileSystemManager;
-import unimelb.bitbox.util.FileSystemObserver;
-import unimelb.bitbox.util.FileSystemManager.FileSystemEvent;
 
 /**
  * The ServerThread collects messages from the various PeerConnections, and then does something with them.
@@ -563,6 +566,9 @@ public class ServerMain implements FileSystemObserver {
 
 	private final Set<String> peerAddresses = ConcurrentHashMap.newKeySet();
 
+	// for client-peer connection
+	private final int clientPort;
+
 	public ServerMain() throws NumberFormatException, IOException, NoSuchAlgorithmException {
 		// initialise some stuff
 		fileSystemManager = new FileSystemManager(
@@ -572,13 +578,20 @@ public class ServerMain implements FileSystemObserver {
 		advertisedName = Configuration.getConfigurationValue("advertisedName");
 		createNames();
 
+		// for client-peer connection
+		clientPort = Integer.parseInt(Configuration.getConfigurationValue("clientPort"));
+
 		// create the processor thread
 		processor.start();
 		log.info("Processor thread started");
 
-		// create the server thread
+		// create the server main thread
 		new Thread(this::acceptConnections).start();
-		log.info("Server thread started");
+		log.info("Peer-to-Peer server thread started");
+
+		// create the client server thread
+		new Thread(new Server(this)).start();
+		log.info("Client-to-server thread started");
 
 		// connect to each of the listed peers
 		String[] addresses = Configuration.getConfigurationValue("peers").split(",");
