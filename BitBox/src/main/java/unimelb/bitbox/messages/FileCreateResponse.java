@@ -1,8 +1,9 @@
 package unimelb.bitbox.messages;
 
 import unimelb.bitbox.ServerMain;
-import unimelb.bitbox.util.Document;
+import unimelb.bitbox.util.JsonDocument;
 import unimelb.bitbox.util.FileSystemManager;
+import unimelb.bitbox.util.ResponseFormatException;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
@@ -11,14 +12,13 @@ public class FileCreateResponse extends Message {
     private static final String SUCCESS = "file loader ready";
 
     public final boolean successful;
-    public FileCreateResponse(FileSystemManager fsManager, Document json, String pathName) {
+    public FileCreateResponse(FileSystemManager fsManager, String pathName, JsonDocument fileDescriptor) {
         String reply;
-        Document fileDescriptor = (Document) json.get("fileDescriptor");
         try {
             if (!fsManager.isSafePathName(pathName)) {
                 reply = "unsafe pathname given: " + pathName;
             } else {
-                reply = generateFileLoader(fsManager, json);
+                reply = generateFileLoader(fsManager, pathName, fileDescriptor);
             }
         } catch (Exception e) {
             reply = "there was a problem creating the file: " + pathName;
@@ -34,12 +34,11 @@ public class FileCreateResponse extends Message {
 
     // ELEANOR: Moved this method here so that we aren't creating two loaders, and so we can check the loader for
     //          errors before responding.
-    private String generateFileLoader(FileSystemManager fsManager, Document document){
-        String pathName = document.getString("pathName");
-        Document fileDescriptor = (Document) document.get("fileDescriptor");
-        String md5 = fileDescriptor.getString("md5");
-        long length = fileDescriptor.getLong("fileSize");
-        long lastModified = fileDescriptor.getLong("lastModified");
+    private String generateFileLoader(FileSystemManager fsManager, String pathName, JsonDocument fileDescriptor)
+        throws ResponseFormatException {
+        String md5 = fileDescriptor.require("md5");
+        long length = fileDescriptor.require("fileSize");
+        long lastModified = fileDescriptor.require("lastModified");
         try {
             boolean done = fsManager.createFileLoader(pathName, md5, length, lastModified);
             if (done){
