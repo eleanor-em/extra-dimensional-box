@@ -1,8 +1,8 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="2" type="Application" factoryName="Application" singleton="false">
+  <configuration default="false" name="Peer 1" type="Application" factoryName="Application" singleton="false">
     <option name="MAIN_CLASS_NAME" value="unimelb.bitbox.Peer" />
     <module name="bitbox" />
-    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/config2" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/config1" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>
