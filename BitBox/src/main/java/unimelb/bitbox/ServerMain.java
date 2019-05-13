@@ -80,18 +80,20 @@ class MessageProcessingThread extends Thread {
 	/**
 	 * Respond to the message, after error checking and parsing.
 	 */
-	// TODO: more general validation method? Andrea: Refactored some methods, see below
-	private void respondToMessage(PeerConnection peer, String command, JsonDocument document)
+	private void respondToMessage(PeerConnection peer, @NotNull String command, JsonDocument document)
             throws ResponseFormatException {
         switch (command) {
             /*
              * File and directory requests
              */
             case Message.FILE_CREATE_REQUEST:
+				validateFileDescriptor(document);
+
                 String pathName = document.require("pathName");
                 JsonDocument fileDescriptor = document.require("fileDescriptor");
                 String md5 = fileDescriptor.require("md5");
-                if (!fileCreated(peer, md5, pathName)) {
+
+                if (!fileAlreadyExists(peer, md5, pathName)) {
                     ServerMain.log.info(peer.name + ": file " + pathName +
                             " not available locally. Send a FILE_BYTES_REQUEST");
                     // ELEANOR: Check that the response was successful before opening the file loader.
@@ -103,8 +105,10 @@ class MessageProcessingThread extends Thread {
                 }
                 break;
             case Message.FILE_MODIFY_REQUEST:
+				validateFileDescriptor(document);
                 pathName = document.require("pathName");
                 fileDescriptor = document.require("fileDescriptor");
+
                 FileModifyResponse response = new FileModifyResponse(server.fileSystemManager, fileDescriptor, pathName);
                 peer.sendMessage(response);
                 if (response.successful) {
@@ -112,20 +116,30 @@ class MessageProcessingThread extends Thread {
                 }
                 break;
             case Message.FILE_BYTES_REQUEST:
+            	validateFileDescriptor(document);
+            	document.<String>require("pathName");
+            	document.<Long>require("position");
+            	document.<Long>require("length");
+
                 rwManager.readFile(peer, document);
                 break;
             case Message.FILE_DELETE_REQUEST:
+				validateFileDescriptor(document);
                 pathName = document.require("pathName");
-                peer.sendMessage(new FileDeleteResponse(server.fileSystemManager, document, pathName));
+				fileDescriptor = document.require("fileDescriptor");
+
+                peer.sendMessage(new FileDeleteResponse(server.fileSystemManager, fileDescriptor, pathName));
                 break;
 
             case Message.DIRECTORY_CREATE_REQUEST:
                 pathName = document.require("pathName");
+
                 peer.sendMessage(new DirectoryCreateResponse(server.fileSystemManager, pathName));
                 break;
 
             case Message.DIRECTORY_DELETE_REQUEST:
                 pathName = document.require("pathName");
+
                 peer.sendMessage(new DirectoryDeleteResponse(server.fileSystemManager, pathName));
                 break;
 
@@ -135,15 +149,27 @@ class MessageProcessingThread extends Thread {
             case Message.FILE_CREATE_RESPONSE:
             case Message.FILE_DELETE_RESPONSE:
             case Message.FILE_MODIFY_RESPONSE:
+				validateFileDescriptor(document);
             case Message.DIRECTORY_CREATE_RESPONSE:
             case Message.DIRECTORY_DELETE_RESPONSE:
-                if (!document.<Boolean>require("status")) {
+				document.<String>require("pathName");
+				String message = document.require("message");
+				boolean status = document.<Boolean>require("status");
+
+                if (!status) {
                     // ELEANOR: Log any unsuccessful responses.
-                    ServerMain.log.warning("Failed response: " + command + ": " + document.require("message"));
+                    ServerMain.log.warning("Failed response: " + command + ": " + message);
                 }
                 break;
 
             case Message.FILE_BYTES_RESPONSE:
+            	validateFileDescriptor(document);
+            	document.<String>require("pathName");
+            	document.<Long>require("length");
+            	document.<String>require("content");
+            	document.<String>require("message");
+            	document.<Boolean>require("status");
+
                 rwManager.writeFile(peer, document);
                 break;
 
@@ -153,11 +179,12 @@ class MessageProcessingThread extends Thread {
             case Message.HANDSHAKE_REQUEST:
             	try {
 					JsonDocument hostPort = document.require("hostPort");
+					String host = hostPort.require("host");
+					long port = hostPort.require("port");
+
 					if (peer.getState() == PeerConnection.State.WAIT_FOR_REQUEST) {
 						// we need to pass the host and port we received, as the socket's data may not be accurate
 						// (since this socket was an accepted connection)
-						String host = hostPort.require("host");
-						int port = (int) (long) hostPort.<Long>require("port");
 						ServerMain.log.info("Received connection request from " + host + ":" + port);
 
 						// ELEANOR: this has to be done here because we don't know the foreign port until now
@@ -184,6 +211,10 @@ class MessageProcessingThread extends Thread {
                 break;
 
             case Message.HANDSHAKE_RESPONSE:
+            	JsonDocument hostPort = document.require("hostPort");
+            	hostPort.<String>require("host");
+            	hostPort.<Long>require("port");
+
                 if (peer.getState() == PeerConnection.State.WAIT_FOR_RESPONSE) {
                     peer.activate();
                     // synchronise with this peer
@@ -199,13 +230,13 @@ class MessageProcessingThread extends Thread {
                     invalidProtocolResponse(peer, "unexpected CONNECTION_REFUSED");
                 }
                 peer.close();
+                ServerMain.log.info("Connection refused: " + document.<String>require("message"));
+
                 // now try to connect to the provided peer list
-                // the Document interface sucks, so this code also sucks
                 ArrayList<JsonDocument> peers = document.require("peers");
-                for (JsonDocument doc : peers) {
-                    String host = doc.require("host");
-                    // the parser sucks, so the port becomes a long
-                    long port = doc.require("port");
+                for (JsonDocument peerHostPort : peers) {
+                    String host = peerHostPort.require("host");
+                    long port = peerHostPort.require("port");
 
                     String address = host + ":" + port;
 
@@ -231,16 +262,23 @@ class MessageProcessingThread extends Thread {
         }
 	}
 
+	private void validateFileDescriptor(JsonDocument document) throws ResponseFormatException {
+		JsonDocument fileDescriptor = document.require("fileDescriptor");
+		fileDescriptor.<String>require("md5");
+		fileDescriptor.<Long>require("lastModified");
+		fileDescriptor.<Long>require("fileSize");
+	}
+
 	/**
 	 * This method checks if a file was created with the same name and content.
 	 */
-	private boolean fileCreated(PeerConnection peer, String md5, String pathName){
-		boolean fileExist = server.fileSystemManager.fileNameExists(pathName, md5);
-		if (fileExist){
+	private boolean fileAlreadyExists(PeerConnection peer, String md5, String pathName){
+		boolean fileExists = server.fileSystemManager.fileNameExists(pathName, md5);
+		if (fileExists){
 			ServerMain.log.info(peer.name + ": file " + pathName + " created already." +
 					" No file create request is needed");
 		}
-		return fileExist;
+		return fileExists;
 	}
 
 	/**
@@ -481,9 +519,21 @@ public class ServerMain implements FileSystemObserver {
 		getPeers().forEach(peer -> peer.sendMessage(message));
 	}
 
+	private JsonDocument docFileDescriptor(FileSystemManager.FileDescriptor fd) {
+		if (fd == null) {
+			return null;
+		}
+
+		JsonDocument doc = new JsonDocument();
+		doc.append("md5", fd.md5);
+		doc.append("lastModified", fd.lastModified);
+		doc.append("fileSize", fd.fileSize);
+		return doc;
+	}
 
 	@Override
 	public void processFileSystemEvent(FileSystemEvent fileSystemEvent) {
+		JsonDocument fileDescriptor = docFileDescriptor(fileSystemEvent.fileDescriptor);
 		switch (fileSystemEvent.event) {
 			case DIRECTORY_CREATE:
 				broadcastMessage(new DirectoryCreateRequest(fileSystemEvent.pathName));
@@ -492,13 +542,13 @@ public class ServerMain implements FileSystemObserver {
 				broadcastMessage(new DirectoryDeleteRequest(fileSystemEvent.pathName));
 				break;
 			case FILE_CREATE:
-				broadcastMessage(new FileCreateRequest(fileSystemEvent.fileDescriptor, fileSystemEvent.pathName));
+				broadcastMessage(new FileCreateRequest(fileDescriptor, fileSystemEvent.pathName));
 				break;
 			case FILE_DELETE:
-				broadcastMessage(new FileDeleteRequest(fileSystemEvent.fileDescriptor, fileSystemEvent.pathName));
+				broadcastMessage(new FileDeleteRequest(fileDescriptor, fileSystemEvent.pathName));
 				break;
 			case FILE_MODIFY:
-				broadcastMessage(new FileModifyRequest(fileSystemEvent.fileDescriptor, fileSystemEvent.pathName));
+				broadcastMessage(new FileModifyRequest(fileDescriptor, fileSystemEvent.pathName));
 				break;
 		}
 	}
@@ -516,7 +566,7 @@ public class ServerMain implements FileSystemObserver {
 	 */
 	public void synchroniseFiles() {
 		fileSystemManager.generateSyncEvents()
-				.forEach(this::processFileSystemEvent);
+					     .forEach(this::processFileSystemEvent);
 	}
 
 	private void regularlySynchronise() {
