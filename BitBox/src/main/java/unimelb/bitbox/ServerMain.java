@@ -253,6 +253,7 @@ class MessageProcessingThread extends Thread {
 									String address = host + ":" + port;
 
 									server.addPeerAddress(address);
+									server.tryPeer(address);
 									ServerMain.log.info("Added peer `" + address + "`");
 								} catch (ClassCastException e) {
 									ServerMain.log.warning("Failed to parse peer `" + obj + "`");
@@ -261,7 +262,6 @@ class MessageProcessingThread extends Thread {
 								}
 							}
 						}
-						server.retryPeers();
 					}
 					break;
 
@@ -566,9 +566,6 @@ public class ServerMain implements FileSystemObserver {
 
 	private final Set<String> peerAddresses = ConcurrentHashMap.newKeySet();
 
-	// for client-peer connection
-	private final int clientPort;
-
 	public ServerMain() throws NumberFormatException, IOException, NoSuchAlgorithmException {
 		// initialise some stuff
 		fileSystemManager = new FileSystemManager(
@@ -578,9 +575,6 @@ public class ServerMain implements FileSystemObserver {
 		advertisedName = Configuration.getConfigurationValue("advertisedName");
 		createNames();
 
-		// for client-peer connection
-		clientPort = Integer.parseInt(Configuration.getConfigurationValue("clientPort"));
-
 		// create the processor thread
 		processor.start();
 		log.info("Processor thread started");
@@ -589,9 +583,10 @@ public class ServerMain implements FileSystemObserver {
 		new Thread(this::acceptConnections).start();
 		log.info("Peer-to-Peer server thread started");
 
-		// create the client server thread
+		// ELEANOR: terminology is confusing, so we introduce consistency
+		// create the server thread for the client
 		new Thread(new Server(this)).start();
-		log.info("Client-to-server thread started");
+		log.info("Server thread started");
 
 		// connect to each of the listed peers
 		String[] addresses = Configuration.getConfigurationValue("peers").split(",");
@@ -728,21 +723,21 @@ public class ServerMain implements FileSystemObserver {
 	 * This method needs to be called when a new set of peers are added.
 	 */
 	public void retryPeers() {
-		for (Iterator<String> i = peerAddresses.iterator(); i.hasNext(); ) {
-			if(retryPeer(i.next())){
-				i.remove();
-			}
-		}
+		// Remove all peers that successfully connect.
+		peerAddresses.removeIf(this::tryPeer);
 	}
 
-	public Boolean retryPeer(String peerAddress){
-		String addr = peerAddress;
-		if (getConnectedAddresses().contains(addr)) {
+	public boolean tryPeer(String peerAddress){
+		// if it's already in our set, this does nothing, so just make sure (in case the peer is temporarily
+		// unavailable)
+		addPeerAddress(peerAddress);
+
+		if (getConnectedAddresses().contains(peerAddress)) {
 			return false;
 		}
 		// separate the address into a hostname and port
 		// HostPort doesn't handle this safely
-		String[] parts = addr.trim().split(":");
+		String[] parts = peerAddress.trim().split(":");
 		if (parts.length > 1) {
 			String hostname = parts[0];
 			int port = Integer.parseInt(parts[1]);
@@ -757,40 +752,18 @@ public class ServerMain implements FileSystemObserver {
 						this,
 						PeerConnection.State.WAIT_FOR_RESPONSE));
 				// success: remove this peer from the set of peers to connect to
-				log.info("Connected to peer " + name + " (" + addr + ")");
+				log.info("Connected to peer " + name + " (" + peerAddress + ")");
 				return true;
 			} catch (IOException e) {
-				log.warning("Connection to peer `" + addr + "` failed: " + e.getMessage());
+				log.warning("Connection to peer `" + peerAddress + "` failed: " + e.getMessage());
 			}
 		}
 		return false;
-
 	}
 
-	public Boolean retryPeer(String hostname, int port){
+	public boolean tryPeer(String hostname, int port){
 		String addr = hostname + ":" + port;
-		if (getConnectedAddresses().contains(addr)) {
-			return false;
-		}
-
-		try {
-			Socket socket = new Socket(hostname, port);
-
-			// find a name
-			String name = getName();
-			peers.add(new PeerConnection(formatName(name),
-					socket,
-					this,
-					PeerConnection.State.WAIT_FOR_RESPONSE));
-			// success: remove this peer from the set of peers to connect to
-			log.info("Connected to peer " + name + " (" + addr + ")");
-			return true;
-		} catch (IOException e) {
-			log.warning("Connection to peer `" + addr + "` failed: " + e.getMessage());
-		}
-
-		return false;
-
+		return tryPeer(addr);
 	}
 
 	/**
