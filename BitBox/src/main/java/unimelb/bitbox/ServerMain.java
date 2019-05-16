@@ -1,13 +1,11 @@
 package unimelb.bitbox;
 
 import org.jetbrains.annotations.NotNull;
+import org.json.simple.parser.ParseException;
 import unimelb.bitbox.client.Server;
 import unimelb.bitbox.messages.*;
-import unimelb.bitbox.util.Configuration;
-import unimelb.bitbox.util.Document;
-import unimelb.bitbox.util.FileSystemManager;
+import unimelb.bitbox.util.*;
 import unimelb.bitbox.util.FileSystemManager.FileSystemEvent;
-import unimelb.bitbox.util.FileSystemObserver;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -32,7 +30,7 @@ class MessageProcessingThread extends Thread {
 	public final FileReadWriteThreadPool rwManager;
 	final BlockingQueue<ReceivedMessage> messages = new LinkedBlockingQueue<>();
 
-	public MessageProcessingThread(ServerMain server) {
+    public MessageProcessingThread(ServerMain server) {
 		this.server = server;
 		this.rwManager = new FileReadWriteThreadPool(this.server);
 	}
@@ -54,267 +52,244 @@ class MessageProcessingThread extends Thread {
 	 */
 	private void processMessage(@NotNull ReceivedMessage message) {
 		String text = message.text;
-		Document document;
+		JsonDocument document;
 		// first check the message is correct JSON
 		try {
-			document = Document.parse(text);
-		} catch (NullPointerException e) {
+			document = JsonDocument.parse(text);
+		} catch (ParseException e) {
 			ServerMain.log.warning("Error parsing `" + message + "`.");
 			invalidProtocolResponse(message.peer, "message must be valid JSON data");
 			return;
 		}
 
-		// try to find the command, and a "friendly name" (my extension, for debugging)
-		String command = document.getString("command");
-		String friendlyName = document.getString("friendlyName");
+		// try to respond to the message
+        String command;
+		try {
+            command = document.require("command");
+            Optional<String> friendlyName = document.get("friendlyName");
 
-		if (command == null) {
-			ServerMain.log.warning("Message `" + message + "` missing command name.");
-			invalidProtocolResponse(message.peer, "message must contain a command field as string");
-			return;
-		}
-
-		// if we got a friendly name, log it
-		String logMessage = message.peer.name + " received: " + command;
-		if (friendlyName != null) {
-			logMessage += " (via " + friendlyName + ")";
-		}
-		ServerMain.log.info(logMessage);
-
-		respondToMessage(message.peer, command, document);
+            // if we got a friendly name, log it
+            String logMessage = message.peer.name + " received: " + command
+                                + friendlyName.map(name -> " (via " + name + ")").orElse("");
+            ServerMain.log.info(logMessage);
+            respondToMessage(message.peer, command, document);
+        } catch (ResponseFormatException e){
+            invalidProtocolResponse(message.peer, e.getMessage());
+        }
 	}
 
 	/**
 	 * Respond to the message, after error checking and parsing.
 	 */
-	// TODO: more general validation method? Andrea: Refactored some methods, see below
-	private void respondToMessage(PeerConnection peer, String command, Document document) {
-		try {
-			String pathName = document.getString("pathName");
+	private void respondToMessage(PeerConnection peer, @NotNull String command, JsonDocument document)
+            throws ResponseFormatException {
+        switch (command) {
+            /*
+             * File and directory requests
+             */
+            case Message.FILE_CREATE_REQUEST:
+				validateFileDescriptor(document);
 
-			switch (command) {
-				/*
-				 * File and directory requests
-				 */
-				case Message.FILE_CREATE_REQUEST:
-					if (hasValidPathName(peer, document) && hasValidFileDescriptor(peer, document)){
-						if (!fileCreated(peer, document)) {
-							ServerMain.log.info(peer.name + ": file " + pathName +
-									" not available locally. Send a FILE_BYTES_REQUEST");
-							// ELEANOR: Check that the response was successful before opening the file loader.
-							FileCreateResponse response = new FileCreateResponse(server.fileSystemManager, document, pathName);
-							peer.sendMessage(response);
-							if (response.successful && noLocalCopies(peer, document)) {
-								rwManager.addFile(peer, document);
-							}
-						}
-					}
-					break;
-				case Message.FILE_MODIFY_REQUEST:
-					if (hasValidPathName(peer, document) && hasValidFileDescriptor(peer, document)){
-						FileModifyResponse response = new FileModifyResponse(server.fileSystemManager, document, pathName);
-						peer.sendMessage(response);
-						if (response.successful) {
-							rwManager.addFile(peer, document);
-						}
-					}
-					break;
-				case Message.FILE_BYTES_REQUEST:
-					if (hasValidFileDescriptor(peer, document) &&
-							hasValidPathName(peer, document) &&
-							hasValidPosition(peer, document) &&
-							hasValidLength(peer, document)){
-						rwManager.readFile(peer, document);
-					}
-					break;
-				case Message.FILE_DELETE_REQUEST:
-					if (hasValidPathName(peer, document) && hasValidFileDescriptor(peer, document)){
-						peer.sendMessage(new FileDeleteResponse(server.fileSystemManager, document, pathName));
-					}
-					break;
+                String pathName = document.require("pathName");
+                JsonDocument fileDescriptor = document.require("fileDescriptor");
+                String md5 = fileDescriptor.require("md5");
 
-				case Message.DIRECTORY_CREATE_REQUEST:
-					if (hasValidPathName(peer, document)) {
-						peer.sendMessage(new DirectoryCreateResponse(server.fileSystemManager, pathName));
-					}
-					break;
+                if (!fileAlreadyExists(peer, md5, pathName)) {
+                    ServerMain.log.info(peer.name + ": file " + pathName +
+                            " not available locally. Send a FILE_BYTES_REQUEST");
+                    // ELEANOR: Check that the response was successful before opening the file loader.
+                    FileCreateResponse response = new FileCreateResponse(server.fileSystemManager, pathName, fileDescriptor);
+                    peer.sendMessage(response);
+                    if (response.successful && noLocalCopies(peer, pathName)) {
+                        rwManager.addFile(peer, pathName, fileDescriptor);
+                    }
+                }
+                break;
+            case Message.FILE_MODIFY_REQUEST:
+				validateFileDescriptor(document);
+                pathName = document.require("pathName");
+                fileDescriptor = document.require("fileDescriptor");
 
-				case Message.DIRECTORY_DELETE_REQUEST:
-					if (hasValidPathName(peer, document)) {
-						peer.sendMessage(new DirectoryDeleteResponse(server.fileSystemManager, pathName));
-					}
-					break;
+                FileModifyResponse response = new FileModifyResponse(server.fileSystemManager, fileDescriptor, pathName);
+                peer.sendMessage(response);
+                if (response.successful) {
+                    rwManager.addFile(peer, pathName, fileDescriptor);
+                }
+                break;
+            case Message.FILE_BYTES_REQUEST:
+            	validateFileDescriptor(document);
+            	document.<String>require("pathName");
+            	document.<Long>require("position");
+            	document.<Long>require("length");
 
-				/*
-				 * File and directory responses
-				 */
-				case Message.FILE_CREATE_RESPONSE:
-				case Message.FILE_DELETE_RESPONSE:
-				case Message.FILE_MODIFY_RESPONSE:
-					// Close the peer if any fields are missed
-					hasValidFileDescriptor(peer, document);
-					hasValidPathName(peer, document);
-					hasValidMessage(peer, document);
-					hasValidStatus(peer, document);
-					if (!document.getBoolean("status")) {
-						// ELEANOR: Log any unsuccessful responses.
-						ServerMain.log.warning("Failed response: " + command + ": " + document.getString("message"));
-					}
-					break;
+                rwManager.readFile(peer, document);
+                break;
+            case Message.FILE_DELETE_REQUEST:
+				validateFileDescriptor(document);
+                pathName = document.require("pathName");
+				fileDescriptor = document.require("fileDescriptor");
 
-				case Message.FILE_BYTES_RESPONSE:
-					if (hasValidStatus(peer, document) &&
-							hasValidMessage(peer, document) &&
-							hasValidFileDescriptor(peer, document) &&
-							hasValidPathName(peer, document) &&
-							hasValidPosition(peer, document) &&
-							hasValidLength(peer, document) &&
-							hasValidContent(peer, document)){
-						rwManager.writeFile(peer, document);
-					}
-					break;
-				case Message.DIRECTORY_CREATE_RESPONSE:
-				case Message.DIRECTORY_DELETE_RESPONSE:
-					// Close the peer if any fields are missed
-					hasValidPathName(peer, document);
-					hasValidMessage(peer, document);
-					hasValidStatus(peer, document);
-					if (!document.getBoolean("status")) {
-						// ELEANOR: Log any unsuccessful responses.
-						ServerMain.log.warning("Failed response: " + command + ": " + document.getString("message"));
-					}
-					break;
+                peer.sendMessage(new FileDeleteResponse(server.fileSystemManager, fileDescriptor, pathName));
+                break;
 
-				/*
-				 * Handshake request and responses
-				 */
-				case Message.HANDSHAKE_REQUEST:
-					if (invalidHostPort(document)) {
-						invalidProtocolResponse(peer, "malformed hostPort field");
-					} else {
-						Document hostPort = (Document) document.get("hostPort");
-						if (peer.getState() == PeerConnection.State.WAIT_FOR_REQUEST) {
-							// we need to pass the host and port we received, as the socket's data may not be accurate
-							// (since this socket was an accepted connection)
-							String host = hostPort.getString("host");
-							int port = (int) hostPort.getLong("port");
-							ServerMain.log.info("Received connection request from " + host + ":" + port);
+            case Message.DIRECTORY_CREATE_REQUEST:
+                pathName = document.require("pathName");
 
-							// ELEANOR: this has to be done here because we don't know the foreign port until now
-							// refuse connection if we are already connected to this address
-							if (server.getConnectedAddresses().contains(host + ":" + port)) {
-								peer.activate(host, port);
-								peer.sendMessageAndClose(new ConnectionRefused(server.getPeers()));
-								ServerMain.log.info("Already connected to " + host + ":" + port);
-							} else {
-								peer.activate(host, port);
-								peer.sendMessage(new HandshakeResponse(peer.getLocalHost(), peer.getLocalPort()));
-								// synchronise with this peer
-								server.synchroniseFiles();
-							}
+                peer.sendMessage(new DirectoryCreateResponse(server.fileSystemManager, pathName));
+                break;
+
+            case Message.DIRECTORY_DELETE_REQUEST:
+                pathName = document.require("pathName");
+
+                peer.sendMessage(new DirectoryDeleteResponse(server.fileSystemManager, pathName));
+                break;
+
+            /*
+             * File and directory responses
+             */
+            case Message.FILE_CREATE_RESPONSE:
+            case Message.FILE_DELETE_RESPONSE:
+            case Message.FILE_MODIFY_RESPONSE:
+				validateFileDescriptor(document);
+            case Message.DIRECTORY_CREATE_RESPONSE:
+            case Message.DIRECTORY_DELETE_RESPONSE:
+				document.<String>require("pathName");
+				String message = document.require("message");
+				boolean status = document.<Boolean>require("status");
+
+                if (!status) {
+                    // ELEANOR: Log any unsuccessful responses.
+                    ServerMain.log.warning("Failed response: " + command + ": " + message);
+                }
+                break;
+
+            case Message.FILE_BYTES_RESPONSE:
+            	validateFileDescriptor(document);
+            	document.<String>require("pathName");
+            	document.<Long>require("length");
+            	document.<String>require("content");
+            	document.<String>require("message");
+            	document.<Boolean>require("status");
+
+                rwManager.writeFile(peer, document);
+                break;
+
+            /*
+             * Handshake request and responses
+             */
+            case Message.HANDSHAKE_REQUEST:
+            	try {
+					JsonDocument hostPort = document.require("hostPort");
+					String host = hostPort.require("host");
+					long port = hostPort.require("port");
+
+					if (peer.getState() == PeerConnection.State.WAIT_FOR_REQUEST) {
+						// we need to pass the host and port we received, as the socket's data may not be accurate
+						// (since this socket was an accepted connection)
+						ServerMain.log.info("Received connection request from " + host + ":" + port);
+
+						// ELEANOR: this has to be done here because we don't know the foreign port until now
+						// refuse connection if we are already connected to this address
+						if (server.getConnectedAddresses().contains(host + ":" + port)) {
+							peer.activate(host, port);
+							peer.sendMessageAndClose(new ConnectionRefused(server.getPeers()));
+							ServerMain.log.info("Already connected to " + host + ":" + port);
 						} else {
-							invalidProtocolResponse(peer, "unexpected HANDSHAKE_REQUEST");
-						}
-					}
-					break;
-
-				case Message.HANDSHAKE_RESPONSE:
-					if (invalidHostPort(document)) {
-						invalidProtocolResponse(peer, "malformed hostPort field");
-					} else {
-						if (peer.getState() == PeerConnection.State.WAIT_FOR_RESPONSE) {
-							peer.activate();
+							peer.activate(host, port);
+							peer.sendMessage(new HandshakeResponse(peer.getLocalHost(), peer.getLocalPort()));
 							// synchronise with this peer
 							server.synchroniseFiles();
-						} else {
-							invalidProtocolResponse(peer, "unexpected HANDSHAKE_RESPONSE");
 						}
+					} else {
+						invalidProtocolResponse(peer, "unexpected HANDSHAKE_REQUEST");
 					}
-					break;
+				} catch (ResponseFormatException e) {
+            		// In case there was an issue with the format, the peer needs to be activated so it can provide
+					// a useful response. Then, re-throw the exception.
+            		peer.activate();
+            		throw e;
+				}
+                break;
 
-				case Message.CONNECTION_REFUSED:
-					if (peer.getState() != PeerConnection.State.WAIT_FOR_RESPONSE) {
-						// why did they send this to us..?
-						invalidProtocolResponse(peer, "unexpected CONNECTION_REFUSED");
-					}
-					peer.close();
-					// now try to connect to the provided peer list
-					// the Document interface sucks, so this code also sucks
-					Object peers = document.get("peers");
-					if (peers instanceof ArrayList) {
-						for (Object obj : (ArrayList) peers) {
-							if (obj instanceof Document) {
-								Document doc = (Document) obj;
-								try {
-									String host = doc.getString("host");
-									// the parser sucks, so the port becomes a long
-									long port = doc.getLong("port");
+            case Message.HANDSHAKE_RESPONSE:
+            	JsonDocument hostPort = document.require("hostPort");
+            	hostPort.<String>require("host");
+            	hostPort.<Long>require("port");
 
-									String address = host + ":" + port;
+                if (peer.getState() == PeerConnection.State.WAIT_FOR_RESPONSE) {
+                    peer.activate();
+                    // synchronise with this peer
+                    server.synchroniseFiles();
+                } else {
+                    invalidProtocolResponse(peer, "unexpected HANDSHAKE_RESPONSE");
+                }
+                break;
 
-									server.addPeerAddress(address);
-									server.tryPeer(address);
-									ServerMain.log.info("Added peer `" + address + "`");
-								} catch (ClassCastException e) {
-									ServerMain.log.warning("Failed to parse peer `" + obj + "`");
-								} catch (NullPointerException e) {
-									ServerMain.log.warning("Invalid host-port list");
-								}
-							}
-						}
-					}
-					break;
+            case Message.CONNECTION_REFUSED:
+                if (peer.getState() != PeerConnection.State.WAIT_FOR_RESPONSE) {
+                    // why did they send this to us..?
+                    invalidProtocolResponse(peer, "unexpected CONNECTION_REFUSED");
+                }
+                peer.close();
+                ServerMain.log.info("Connection refused: " + document.<String>require("message"));
 
-				/*
-				 * Invalid protocol messages
-				 */
-				case Message.INVALID_PROTOCOL:
-					// crap.
-					ServerMain.log.severe("Invalid protocol response from "
-							+ peer.name + ": " + document.getString("message"));
-					peer.close();
-					break;
+                // now try to connect to the provided peer list
+                ArrayList<JsonDocument> peers = document.require("peers");
+                for (JsonDocument peerHostPort : peers) {
+                    String host = peerHostPort.require("host");
+                    long port = peerHostPort.require("port");
 
-				default:
-					invalidProtocolResponse(peer, "unrecognised command `" + command + "`");
-					break;
-			}
-		} catch (ClassCastException e){
-			invalidProtocolResponse(peer, "invalid type of a required field");
-		} catch (NullPointerException e){
-			e.printStackTrace();
-			invalidProtocolResponse(peer, "missing a required field");
-		} catch (Exception e){
-			e.printStackTrace();
-			invalidProtocolResponse(peer, "invalid message received");
-		}
+                    String address = host + ":" + port;
+
+                    server.addPeerAddress(address);
+                    ServerMain.log.info("Added peer `" + address + "`");
+                    server.retryPeers();
+                }
+                break;
+
+            /*
+             * Invalid protocol messages
+             */
+            case Message.INVALID_PROTOCOL:
+                // crap.
+                ServerMain.log.severe("Invalid protocol response from "
+                        + peer.name + ": " + document.require("message"));
+                peer.close();
+                break;
+
+            default:
+                invalidProtocolResponse(peer, "unrecognised command `" + command + "`");
+                break;
+        }
+	}
+
+	private void validateFileDescriptor(JsonDocument document) throws ResponseFormatException {
+		JsonDocument fileDescriptor = document.require("fileDescriptor");
+		fileDescriptor.<String>require("md5");
+		fileDescriptor.<Long>require("lastModified");
+		fileDescriptor.<Long>require("fileSize");
 	}
 
 	/**
 	 * This method checks if a file was created with the same name and content.
 	 */
-	private boolean fileCreated(PeerConnection peer, Document document){
-
-		Document fileDescriptor = (Document) document.get("fileDescriptor");
-		String pathName = document.getString("pathName");
-
-		boolean fileExist = server.fileSystemManager.fileNameExists(pathName, fileDescriptor.getString("md5"));
-		if (fileExist){
+	private boolean fileAlreadyExists(PeerConnection peer, String md5, String pathName){
+		boolean fileExists = server.fileSystemManager.fileNameExists(pathName, md5);
+		if (fileExists){
 			ServerMain.log.info(peer.name + ": file " + pathName + " created already." +
 					" No file create request is needed");
 		}
-		return fileExist;
+		return fileExists;
 	}
 
 	/**
 	 * This method checks if any local file has the same content. If any, copy the content and
 	 * close the file loader.
 	 */
-	private boolean noLocalCopies(PeerConnection peer, Document document){
+	private boolean noLocalCopies(PeerConnection peer, String pathName){
 		boolean notExist = false;
-		String pathName = document.getString("pathName");
 		try {
-			notExist = server.fileSystemManager.checkShortcut(document.getString("pathName"));
+			notExist = server.fileSystemManager.checkShortcut(pathName);
 		}
 		catch (IOException | NoSuchAlgorithmException e){
 			ServerMain.log.severe(peer.name + ": error checking shortcut for " + pathName);
@@ -323,225 +298,11 @@ class MessageProcessingThread extends Thread {
 	}
 
 	/**
-	 * This method checks if the response has a pathName field with a String type.
-	 * @param peer A PeerConnection managing the incoming and outgoing connections of this peer
-	 * @param document Content of the message received via incoming connections
-	 * @return true if the field exists with the right type; otherwise,
-	 * call {@link #invalidProtocolResponse(PeerConnection, String)} and send INVALID_PROTOCOL message
-	 */
-	private boolean hasValidPathName(@NotNull PeerConnection peer, Document document){
-		return hasString(peer, document, "pathName");
-	}
-
-	/**
-	 * This method checks if the response has a position field with a Integer type.
-	 * @param peer A PeerConnection managing the incoming and outgoing connections of this peer
-	 * @param document Content of the message received via incoming connections
-	 * @return true if the field exists with the right type; otherwise,
-	 * call {@link #invalidProtocolResponse(PeerConnection, String)} and send INVALID_PROTOCOL message
-	 */
-	private boolean hasValidPosition(@NotNull PeerConnection peer, Document document){
-		return hasInteger(peer, document, "position");
-	}
-
-	/**
-	 * This method checks if the response has a length field with a Integer type.
-	 * @param peer A PeerConnection managing the incoming and outgoing connections of this peer
-	 * @param document Content of the message received via incoming connections
-	 * @return true if the field exists with the right type; otherwise,
-	 * call {@link #invalidProtocolResponse(PeerConnection, String)} and send INVALID_PROTOCOL message
-	 */
-	private boolean hasValidLength(@NotNull PeerConnection peer, Document document){
-		return hasInteger(peer, document, "length");
-	}
-
-	/**
-	 * This method checks if the response has a status field with a Boolean type.
-	 * @param peer A PeerConnection managing the incoming and outgoing connections of this peer
-	 * @param document Content of the message received via incoming connections
-	 * @return true if the field exists with the right type; otherwise,
-	 * call {@link #invalidProtocolResponse(PeerConnection, String)} and send INVALID_PROTOCOL message
-	 */
-	private boolean hasValidStatus(@NotNull PeerConnection peer, Document document){
-		return hasBoolean(peer, document, "status");
-	}
-
-	/**
-	 * This method checks if the response has a message field with a String type.
-	 * @param peer A PeerConnection managing the incoming and outgoing connections of this peer
-	 * @param document Content of the message received via incoming connections
-	 * @return true if the field exists with the right type; otherwise,
-	 * call {@link #invalidProtocolResponse(PeerConnection, String)} and send INVALID_PROTOCOL message
-	 */
-	private boolean hasValidMessage(@NotNull PeerConnection peer, Document document){
-		return hasString(peer, document, "message");
-	}
-
-	/**
-	 * This method checks if the response has a fileDescriptor field with a Document type
-	 * and the required fields - md5(a String), lastModified(an Integer), and fileSize(an Integer).
-	 * @param peer A PeerConnection managing the incoming and outgoing connections of this peer
-	 * @param document Content of the message received via incoming connections
-	 * @return true if the field exists with the right type; otherwise,
-	 * call {@link #invalidProtocolResponse(PeerConnection, String)} and send INVALID_PROTOCOL message
-	 */
-	private boolean hasValidFileDescriptor(@NotNull PeerConnection peer, Document document){
-		if (!hasDocument(peer, document, "fileDescriptor")) {
-			return false;
-		}
-
-		Document fileDescriptor = (Document) document.get("fileDescriptor");
-
-		return hasString(peer, fileDescriptor, "md5") &&
-				hasInteger(peer, fileDescriptor, "lastModified") &&
-				hasInteger(peer, fileDescriptor, "fileSize");
-	}
-
-	/**
-	 * This method checks if the response has a content field with a String type.
-	 * @param peer A PeerConnection managing the incoming and outgoing connections of this peer
-	 * @param document Content of the message received via incoming connections
-	 * @return true if the field exists with the right type; otherwise,
-	 * call {@link #invalidProtocolResponse(PeerConnection, String)} and send INVALID_PROTOCOL message
-	 */
-	private boolean hasValidContent(@NotNull PeerConnection peer, Document document){
-		return hasString(peer, document, "content");
-	}
-
-	/**
-	 * A helper method to generate and format the error message for a missing message.
-	 * @param field The name of the field in the message
-	 * @return The error message to be used by {@link #invalidProtocolResponse(PeerConnection, String)} ()}
-	 */
-	private String formatMissedFieldMessage(String field){
-		return "must provide " + field + " field with reply";
-	}
-
-	/**
-	 * A helper method to generate and format the error message for an incorrect field type.
-	 * @param field The name of the field in the message
-	 * @return The error message to be used by {@link #invalidProtocolResponse(PeerConnection, String)} ()}
-	 */
-	private String formatInvalidFieldTypeMessage(String field){
-		return "invalid type of the " + field + " field";
-	}
-
-	/**
-	 * This method checks if the response has the right field with the String type.
-	 */
-	private boolean hasString(@NotNull PeerConnection peer, Document document, String field){
-		boolean isValid = false;
-
-		try {
-			if (!document.containsKey(field)) {
-				invalidProtocolResponse(peer, formatMissedFieldMessage(field));
-			}
-			document.getString(field);
-			isValid = true;
-		}
-		catch (ClassCastException e){
-			invalidProtocolResponse(peer, formatInvalidFieldTypeMessage(field));
-		}
-
-		return isValid;
-	}
-
-	/**
-	 * This method checks if the response has the right field with the Integer type.
-	 */
-	private boolean hasInteger(@NotNull PeerConnection peer, Document document, String field){
-		boolean isValid = false;
-
-		try {
-			if (!document.containsKey(field)) {
-				invalidProtocolResponse(peer, formatMissedFieldMessage(field));
-			}
-			document.getLong(field);
-			isValid = true;
-		}
-		catch (ClassCastException e){
-			invalidProtocolResponse(peer, formatInvalidFieldTypeMessage(field));
-		}
-
-		return isValid;
-	}
-
-	/**
-	 * This method checks if the response has the right field with the Boolean type
-	 */
-	private boolean hasBoolean(@NotNull PeerConnection peer, Document document, String field){
-		boolean isValid = false;
-
-		try {
-			if (!document.containsKey(field)) {
-				invalidProtocolResponse(peer, formatMissedFieldMessage(field));
-			}
-			document.getBoolean(field);
-			isValid = true;
-		}
-		catch (ClassCastException e){
-			invalidProtocolResponse(peer, formatInvalidFieldTypeMessage(field));
-		}
-
-		return isValid;
-	}
-
-	/**
-	 * This method checks if the response has the right field with the Document type
-	 */
-	private boolean hasDocument(@NotNull PeerConnection peer, Document document, String field){
-		boolean isValid = false;
-
-		try {
-			if (!document.containsKey(field)) {
-				invalidProtocolResponse(peer, formatMissedFieldMessage(field));
-			}
-			Document doc = (Document) document.get(field);
-			isValid = true;
-		}
-		catch (ClassCastException e){
-			invalidProtocolResponse(peer, formatInvalidFieldTypeMessage(field));
-		}
-
-		return isValid;
-	}
-
-	/**
 	 * A helper method to send an INVALID_PROTOCOL message.
 	 */
 	private void invalidProtocolResponse(@NotNull PeerConnection peer, String message) {
 		ServerMain.log.info("Closing connection to " + peer.name + ": " + message);
 		peer.sendMessageAndClose(new InvalidProtocol(message));
-	}
-
-	/**
-	 * This method validates that the document contains a correctly-constructed hostPort field
-	 * (we don't actually care about the data stored therein).
-	 */
-	private boolean invalidHostPort(Document document) {
-		// first check that we can actually parse the field correctly
-		Document hostPort;
-		try {
-			hostPort = (Document) document.get("hostPort");
-		} catch (ClassCastException e) {
-			return true;
-		}
-		if (hostPort == null) {
-			return true;
-		}
-
-		try {
-			String host = hostPort.getString("host");
-			// the parser sucks, so the port becomes a long
-			hostPort.getLong("port");
-			if (host == null) {
-				return true;
-			}
-		} catch (ClassCastException e) {
-			return true;
-		}
-
-		return false;
 	}
 }
 
@@ -785,9 +546,21 @@ public class ServerMain implements FileSystemObserver {
 		getPeers().forEach(peer -> peer.sendMessage(message));
 	}
 
+	private JsonDocument docFileDescriptor(FileSystemManager.FileDescriptor fd) {
+		if (fd == null) {
+			return null;
+		}
+
+		JsonDocument doc = new JsonDocument();
+		doc.append("md5", fd.md5);
+		doc.append("lastModified", fd.lastModified);
+		doc.append("fileSize", fd.fileSize);
+		return doc;
+	}
 
 	@Override
 	public void processFileSystemEvent(FileSystemEvent fileSystemEvent) {
+		JsonDocument fileDescriptor = docFileDescriptor(fileSystemEvent.fileDescriptor);
 		switch (fileSystemEvent.event) {
 			case DIRECTORY_CREATE:
 				broadcastMessage(new DirectoryCreateRequest(fileSystemEvent.pathName));
@@ -796,13 +569,13 @@ public class ServerMain implements FileSystemObserver {
 				broadcastMessage(new DirectoryDeleteRequest(fileSystemEvent.pathName));
 				break;
 			case FILE_CREATE:
-				broadcastMessage(new FileCreateRequest(fileSystemEvent.fileDescriptor, fileSystemEvent.pathName));
+				broadcastMessage(new FileCreateRequest(fileDescriptor, fileSystemEvent.pathName));
 				break;
 			case FILE_DELETE:
-				broadcastMessage(new FileDeleteRequest(fileSystemEvent.fileDescriptor, fileSystemEvent.pathName));
+				broadcastMessage(new FileDeleteRequest(fileDescriptor, fileSystemEvent.pathName));
 				break;
 			case FILE_MODIFY:
-				broadcastMessage(new FileModifyRequest(fileSystemEvent.fileDescriptor, fileSystemEvent.pathName));
+				broadcastMessage(new FileModifyRequest(fileDescriptor, fileSystemEvent.pathName));
 				break;
 		}
 	}
@@ -820,7 +593,7 @@ public class ServerMain implements FileSystemObserver {
 	 */
 	public void synchroniseFiles() {
 		fileSystemManager.generateSyncEvents()
-				.forEach(this::processFileSystemEvent);
+					     .forEach(this::processFileSystemEvent);
 	}
 
 	private void regularlySynchronise() {
