@@ -1,17 +1,14 @@
 package unimelb.bitbox;
-import org.jetbrains.annotations.NotNull;
-import unimelb.bitbox.messages.*;
-import unimelb.bitbox.util.Configuration;
-import unimelb.bitbox.util.Document;
-import unimelb.bitbox.util.FileSystemManager;
+import unimelb.bitbox.messages.HandshakeRequest;
+import unimelb.bitbox.messages.InvalidProtocol;
+import unimelb.bitbox.messages.Message;
+import unimelb.bitbox.messages.ReceivedMessage;
 
 import java.io.*;
 import java.net.Socket;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
-import java.util.concurrent.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * A PeerConnection is a combination of an OutgoingConnection (used to write to the socket) and an IncomingConnection
@@ -255,6 +252,8 @@ class IncomingConnection extends Thread {
                 String message = in.readLine();
                 if (message != null) {
                     consumer.receiveMessage(message);
+                } else {
+                    consumer.close();
                 }
             }
         } catch (IOException e) {
