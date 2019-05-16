@@ -250,11 +250,11 @@ class IncomingConnection extends Thread {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
             while (true) {
                 String message = in.readLine();
-                if (message != null) {
-                    consumer.receiveMessage(message);
-                } else {
+                if (message == null) {
                     consumer.close();
+                    break;
                 }
+                consumer.receiveMessage(message);
             }
         } catch (IOException e) {
             if (consumer.getState() != PeerConnection.State.CLOSED) {
