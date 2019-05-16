@@ -137,6 +137,7 @@ public class Server implements Runnable{
                 int port = document.getInteger("port");
                 final String SUCCESS = "connected to peer";
                 String reply = SUCCESS;
+                server.addPeerAddress(host + ":" + port);
                 if (!server.retryPeer(host, port)){
                     reply = "connection failed";
                 }
