@@ -3,6 +3,7 @@ package unimelb.bitbox.messages;
 import unimelb.bitbox.util.Document;
 
 public class HandshakeRequest extends Message {
+
     public HandshakeRequest(String host, int port) {
         document.append("command", HANDSHAKE_REQUEST);
 

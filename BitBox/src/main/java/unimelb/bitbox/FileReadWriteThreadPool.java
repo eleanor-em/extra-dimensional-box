@@ -3,6 +3,7 @@ package unimelb.bitbox;
 import org.jetbrains.annotations.NotNull;
 import unimelb.bitbox.messages.FileBytesRequest;
 import unimelb.bitbox.messages.FileBytesResponse;
+import unimelb.bitbox.util.Configuration;
 import unimelb.bitbox.util.Document;
 import unimelb.bitbox.util.FileSystemManager;
 
@@ -153,7 +154,6 @@ public class FileReadWriteThreadPool {
      * The parent class of all file read and file write worker thread classes.
      */
     abstract class Worker implements Runnable {
-
         PeerConnection peer;
         Document document;
         Document fileDescriptor;
@@ -250,7 +250,8 @@ public class FileReadWriteThreadPool {
 
         public ReadWorker(PeerConnection peer, Document document, long position, long length) {
             super(peer, document, position);
-            this.length = length;
+            this.length = Configuration.getConfigurationValue("mode") == "udp" ? Math.min(length,8192) : length;
+
         }
 
 

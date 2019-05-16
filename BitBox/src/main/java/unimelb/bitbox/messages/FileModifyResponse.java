@@ -1,7 +1,5 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.FileReadWriteThreadPool;
-import unimelb.bitbox.PeerConnection;
 import unimelb.bitbox.util.Document;
 import unimelb.bitbox.util.FileSystemManager;
 
