@@ -95,27 +95,25 @@ class MessageProcessingThread extends Thread {
 
                 String pathName = document.require("pathName");
                 JsonDocument fileDescriptor = document.require("fileDescriptor");
-                String md5 = fileDescriptor.require("md5");
 
-                if (!fileAlreadyExists(peer, md5, pathName)) {
-                    ServerMain.log.info(peer.name + ": file " + pathName +
-                            " not available locally. Send a FILE_BYTES_REQUEST");
-                    // ELEANOR: Check that the response was successful before opening the file loader.
-                    FileCreateResponse response = new FileCreateResponse(server.fileSystemManager, pathName, fileDescriptor);
-                    peer.sendMessage(response);
-                    if (response.successful && noLocalCopies(peer, pathName)) {
-                        rwManager.addFile(peer, pathName, fileDescriptor);
-                    }
-                }
+				FileCreateResponse createResponse = new FileCreateResponse(server.fileSystemManager, pathName, fileDescriptor);
+				peer.sendMessage(createResponse);
+				if (createResponse.successful && noLocalCopies(peer, pathName)) {
+				ServerMain.log.info(peer.name + ": file " + pathName +
+						" not available locally. Send a FILE_BYTES_REQUEST");
+				// ELEANOR: Check that the createResponse was successful before opening the file loader.
+
+					rwManager.addFile(peer, pathName, fileDescriptor);
+				}
                 break;
             case Message.FILE_MODIFY_REQUEST:
                 validateFileDescriptor(document);
                 pathName = document.require("pathName");
                 fileDescriptor = document.require("fileDescriptor");
 
-                FileModifyResponse response = new FileModifyResponse(server.fileSystemManager, fileDescriptor, pathName);
-                peer.sendMessage(response);
-                if (response.successful) {
+                FileModifyResponse modifyResponse = new FileModifyResponse(server.fileSystemManager, fileDescriptor, pathName);
+                peer.sendMessage(modifyResponse);
+                if (modifyResponse.successful) {
                     rwManager.addFile(peer, pathName, fileDescriptor);
                 }
                 break;
@@ -162,7 +160,7 @@ class MessageProcessingThread extends Thread {
 
                 if (!status) {
                     // ELEANOR: Log any unsuccessful responses.
-                    ServerMain.log.warning("Failed response: " + command + ": " + message);
+                    ServerMain.log.warning("Failed createResponse: " + command + ": " + message);
                 }
                 break;
 
@@ -208,7 +206,7 @@ class MessageProcessingThread extends Thread {
                     }
                 } catch (ResponseFormatException e) {
                     // In case there was an issue with the format, the peer needs to be activated so it can provide
-                    // a useful response. Then, re-throw the exception.
+                    // a useful createResponse. Then, re-throw the exception.
                     peer.activate();
                     throw e;
                 }
@@ -255,7 +253,7 @@ class MessageProcessingThread extends Thread {
              */
             case Message.INVALID_PROTOCOL:
                 // crap.
-                ServerMain.log.severe("Invalid protocol response from "
+                ServerMain.log.severe("Invalid protocol createResponse from "
                         + peer.name + ": " + document.require("message"));
                 peer.close();
                 break;
@@ -273,19 +271,7 @@ class MessageProcessingThread extends Thread {
         fileDescriptor.<Long>require("fileSize");
     }
 
-    /**
-     * This method checks if a file was created with the same name and content.
-     */
-    private boolean fileAlreadyExists(PeerConnection peer, String md5, String pathName) {
-        boolean fileExists = server.fileSystemManager.fileNameExists(pathName, md5);
-        if (fileExists) {
-            ServerMain.log.info(peer.name + ": file " + pathName + " created already." +
-                    " No file create request is needed");
-        }
-        return fileExists;
-    }
-
-    /**
+	/**
      * This method checks if any local file has the same content. If any, copy the content and
      * close the file loader.
      */

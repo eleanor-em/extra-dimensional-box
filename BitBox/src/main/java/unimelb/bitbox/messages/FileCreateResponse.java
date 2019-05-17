@@ -12,16 +12,17 @@ public class FileCreateResponse extends Message {
     private static final String SUCCESS = "file loader ready";
 
     public final boolean successful;
-    public FileCreateResponse(FileSystemManager fsManager, String pathName, JsonDocument fileDescriptor) {
+    public FileCreateResponse(FileSystemManager fsManager, String pathName, JsonDocument json)
+            throws ResponseFormatException {
         String reply;
-        try {
-            if (!fsManager.isSafePathName(pathName)) {
-                reply = "unsafe pathname given: " + pathName;
-            } else {
-                reply = generateFileLoader(fsManager, pathName, fileDescriptor);
-            }
-        } catch (Exception e) {
-            reply = "there was a problem creating the file: " + pathName;
+        JsonDocument fileDescriptor = json.require("fileDescriptor");
+
+        if (fileAlreadyExists(fileDescriptor, pathName, fsManager)) {
+            reply = "file already exists locally";
+        } else if (!fsManager.isSafePathName(pathName)) {
+            reply = "unsafe pathname given: " + pathName;
+        } else {
+            reply = generateFileLoader(fsManager, pathName, fileDescriptor);
         }
 
         successful = reply == SUCCESS;
@@ -63,5 +64,18 @@ public class FileCreateResponse extends Message {
             ServerMain.log.severe("error generating file loader for " + pathName);
             return "misc error: " + e.getMessage() + ": " + pathName;
         }
+    }
+
+    /**
+     * This method checks if a file was created with the same name and content.
+     */
+    private boolean fileAlreadyExists(JsonDocument fileDescriptor, String pathName, FileSystemManager fsManager)
+            throws ResponseFormatException {
+        boolean fileExist = fsManager.fileNameExists(pathName, fileDescriptor.require("md5"));
+        if (fileExist){
+            ServerMain.log.info("file " + pathName + " created already." +
+                    " No file create request is needed");
+        }
+        return fileExist;
     }
 }
