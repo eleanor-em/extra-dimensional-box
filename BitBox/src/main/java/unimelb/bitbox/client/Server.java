@@ -1,5 +1,7 @@
 package unimelb.bitbox.client;
 
+import unimelb.bitbox.PeerConnection;
+import unimelb.bitbox.ServerMain;
 import unimelb.bitbox.util.*;
 
 import javax.crypto.BadPaddingException;
@@ -18,14 +20,20 @@ import java.util.Optional;
  * An example class that acts as a server for the client.
  * To integrate with the project, this code should be adapted to fit into ServerMain.
  */
-public class Server {
+public class Server implements Runnable{
     private static final int clientPort = Integer.parseInt(Configuration.getConfigurationValue("clientPort"));
     private static final String authorized_keys = Configuration.getConfigurationValue("authorized_keys");
     private static final ArrayList<SSHPublicKey> keys = new ArrayList<>();
     private static SecretKey key;
     private static boolean authenticated;
+    private static ServerMain server;
 
-    public static void main(String[] args) {
+    public Server(ServerMain server){
+        this.server = server;
+    }
+
+    @Override
+    public void run(){
         // Load the public keys
         String[] keyStrings = authorized_keys.split(",");
         for (String keyString : keyStrings) {
@@ -63,7 +71,6 @@ public class Server {
             e.printStackTrace();
         }
     }
-
 
     private static void handleMessage(String message, BufferedWriter out)
             throws IOException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException,
@@ -109,16 +116,46 @@ public class Server {
                 break;
 
             case "LIST_PEERS_REQUEST":
-                // This is just some dummy data to show a full client procedure
                 response.append("command", "LIST_PEERS_RESPONSE");
 
+                // add all peers currently connected to and previously
+                // connected to by this peer
                 ArrayList<Document> peers = new ArrayList<>();
-                Document dummyPeer = new Document();
-                dummyPeer.append("host", "bigdata.cis.unimelb.edu.au");
-                dummyPeer.append("port", 8500L);
-                peers.add(dummyPeer);
-
+                for (PeerConnection peer: server.getPeers()){
+                    Document peerItem = new Document();
+                    peerItem.append("host", peer.getHost());
+                    peerItem.append("port", peer.getPort());
+                    peers.add(peerItem);
+                }
                 response.append("peers", peers);
+                break;
+
+            case "CONNECT_PEER_REQUEST":
+                response.append("command", "CONNECT_PEER_RESPONSE");
+
+                String host = document.getString("host");
+                int port = document.getInteger("port");
+                final String SUCCESS = "connected to peer";
+                String reply = SUCCESS;
+                server.addPeerAddress(host + ":" + port);
+                if (!server.retryPeer(host, port)){
+                    reply = "connection failed";
+                }
+                response.append("status", reply == SUCCESS);
+                response.append("message", reply);
+                break;
+
+            case "DISCONNECT_PEER_REQUEST":
+                // This is just some dummy data to show a full client procedure
+                response.append("command", "DISCONNECT_PEER_RESPONSE");
+
+//                ArrayList<Document> peers = new ArrayList<>();
+//                Document dummyPeer = new Document();
+//                dummyPeer.append("host", "bigdata.cis.unimelb.edu.au");
+//                dummyPeer.append("port", 8500L);
+//                peers.add(dummyPeer);
+//
+//                response.append("peers", peers);
                 break;
         }
 
