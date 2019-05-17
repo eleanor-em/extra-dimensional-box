@@ -1,18 +1,22 @@
 package unimelb.bitbox;
 
-import org.apache.commons.cli.*;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.Options;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
+import org.json.simple.parser.ParseException;
 import unimelb.bitbox.client.AuthResponseParser;
 import unimelb.bitbox.client.ClientProtocol;
+import unimelb.bitbox.client.IClientProtocol;
 import unimelb.bitbox.util.Crypto;
 import unimelb.bitbox.util.HostPort;
 import unimelb.bitbox.util.JsonDocument;
 import unimelb.bitbox.util.ResponseFormatException;
 
-import org.json.simple.parser.ParseException;
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
@@ -78,7 +82,7 @@ public class Client {
 
         // Find the address we want to connect to, and create the message to be sent post-authentication
         HostPort hostPort;
-        ClientProtocol message;
+        IClientProtocol message;
         try {
             // Load the server address and perform error checking
             String serverAddress = opts.getOptionValue("s");

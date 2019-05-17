@@ -7,7 +7,7 @@ import unimelb.bitbox.util.ResponseFormatException;
 
 /**
  * ConnectPeerResponse generates the message content in response to
- * the connect_peer request sent by a client.
+ * the connect_peer request sent by a Client.
  */
 public class ConnectPeerResponse extends IPeerResponse {
 

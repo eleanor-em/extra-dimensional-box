@@ -7,7 +7,7 @@ import unimelb.bitbox.util.HostPort;
 /**
  * A message that can be sent by the Client.
  */
-public class ClientProtocol {
+public class ClientProtocol extends IClientProtocol{
     private final Document document = new Document();
 
     /**
@@ -16,7 +16,7 @@ public class ClientProtocol {
      * @return the generated message
      * @throws IllegalArgumentException in case the options are incorrectly formatted
      */
-    public static ClientProtocol generateMessage(CommandLine opts)
+    public static IClientProtocol generateMessage(CommandLine opts)
         throws IllegalArgumentException {
         String command = opts.getOptionValue("c");
         if (command == null) {
@@ -39,9 +39,29 @@ public class ClientProtocol {
      * Constructor. Intended for use only by subclasses.
      * @param command the command to send
      */
+//    protected ClientRequestProtocol(String command) {
+//        document.append("command", command);
+//    }
     protected ClientProtocol(String command) {
-        document.append("command", command);
+        super(command);
     }
+
+    protected ClientProtocol(String command, String peerAddress)
+            throws IllegalArgumentException {
+        super(command, peerAddress);
+    }
+
+//
+//    protected ClientProtocol(String command, String peerAddress)
+//            throws IllegalArgumentException {
+//        super(command);
+//
+//        if (peerAddress == null) {
+//            throw new IllegalArgumentException("missing command line option: -p");
+//        }
+//        HostPort hostPort = new HostPort(peerAddress);
+//        appendHostPort(hostPort);
+//    }
 
     /**
      * Adds host and port information, where appropriate.
@@ -61,33 +81,45 @@ public class ClientProtocol {
     }
 }
 
-class ListPeersRequest extends ClientProtocol {
+class ListPeersRequest extends IClientProtocol {
     ListPeersRequest() {
         super("LIST_PEERS_REQUEST");
     }
 }
 
-class PeerProtocol extends ClientProtocol {
-    public PeerProtocol(String command, String peerAddress)
-            throws IllegalArgumentException {
-        super(command);
 
-        if (peerAddress == null) {
-            throw new IllegalArgumentException("missing command line option: -p");
-        }
-        HostPort hostPort = new HostPort(peerAddress);
-        appendHostPort(hostPort);
-    }
-}
-
-class ConnectPeerRequest extends PeerProtocol {
+class ConnectPeerRequest extends IClientProtocol {
     public ConnectPeerRequest(String peerAddress) throws IllegalArgumentException {
         super("CONNECT_PEER_REQUEST", peerAddress);
     }
 }
 
-class DisconnectPeerRequest extends PeerProtocol {
+class DisconnectPeerRequest extends IClientProtocol {
     public DisconnectPeerRequest(String peerAddress) throws IllegalArgumentException {
         super("DISCONNECT_PEER_REQUEST", peerAddress);
     }
 }
+//class PeerProtocol extends ClientRequestProtocol {
+//    public PeerProtocol(String command, String peerAddress)
+//            throws IllegalArgumentException {
+//        super(command);
+//
+//        if (peerAddress == null) {
+//            throw new IllegalArgumentException("missing command line option: -p");
+//        }
+//        HostPort hostPort = new HostPort(peerAddress);
+//        appendHostPort(hostPort);
+//    }
+//}
+//
+//class ConnectPeerRequest extends PeerProtocol {
+//    public ConnectPeerRequest(String peerAddress) throws IllegalArgumentException {
+//        super("CONNECT_PEER_REQUEST", peerAddress);
+//    }
+//}
+//
+//class DisconnectPeerRequest extends PeerProtocol {
+//    public DisconnectPeerRequest(String peerAddress) throws IllegalArgumentException {
+//        super("DISCONNECT_PEER_REQUEST", peerAddress);
+//    }
+//}
