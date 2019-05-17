@@ -1,4 +1,4 @@
-package unimelb.bitbox.client;
+package unimelb.bitbox.client.responses;
 
 import unimelb.bitbox.ServerMain;
 import unimelb.bitbox.util.Configuration;
@@ -6,12 +6,12 @@ import unimelb.bitbox.util.JsonDocument;
 import unimelb.bitbox.util.ResponseFormatException;
 
 /**
- * ConnectPeerResponse generates the message content in response to
- * the connect_peer request sent by a Client.
+ * Generates the message content of CONNECT_PEER_RESPONSE
+ * to be sent by a Peer to a Client.
  */
-public class ConnectPeerResponse extends IPeerResponse {
+public class ConnectPeerResponse extends IClientResponse {
 
-    protected ConnectPeerResponse(ServerMain server, JsonDocument document) throws ResponseFormatException {
+    public ConnectPeerResponse(ServerMain server, JsonDocument document) throws ResponseFormatException {
         super(server, document);
 
         response.append("command", "CONNECT_PEER_RESPONSE");

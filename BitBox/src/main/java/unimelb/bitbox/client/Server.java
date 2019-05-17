@@ -2,6 +2,9 @@ package unimelb.bitbox.client;
 
 import org.json.simple.parser.ParseException;
 import unimelb.bitbox.ServerMain;
+import unimelb.bitbox.client.responses.ConnectPeerResponse;
+import unimelb.bitbox.client.responses.DisconnectPeerResponse;
+import unimelb.bitbox.client.responses.ListPeerResponse;
 import unimelb.bitbox.util.*;
 
 import javax.crypto.BadPaddingException;
@@ -139,7 +142,7 @@ public class Server implements Runnable {
         }
 
         String responseMessage = response.toJson();
-        
+
         if (authenticated) {
             responseMessage = Crypto.encryptMessage(key, responseMessage);
         }

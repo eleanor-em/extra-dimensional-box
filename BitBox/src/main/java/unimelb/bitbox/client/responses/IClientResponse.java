@@ -1,21 +1,21 @@
-package unimelb.bitbox.client;
+package unimelb.bitbox.client.responses;
 
 import unimelb.bitbox.ServerMain;
 import unimelb.bitbox.util.JsonDocument;
 
 /**
- * Parent class of peer responses to client requests
+ * Parent class of responses to client requests
  */
-abstract public class IPeerResponse {
+abstract public class IClientResponse {
     ServerMain server;
     JsonDocument response;
 
-    public IPeerResponse(ServerMain server, JsonDocument response) {
+    public IClientResponse(ServerMain server, JsonDocument response) {
         this.server = server;
         this.response = response;
     }
 
-    protected JsonDocument getResponse(){
+    public JsonDocument getResponse(){
         return response;
     }
 }

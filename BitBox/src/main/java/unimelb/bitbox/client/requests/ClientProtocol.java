@@ -1,21 +1,18 @@
-package unimelb.bitbox.client;
+package unimelb.bitbox.client.requests;
 
 import org.apache.commons.cli.CommandLine;
-import unimelb.bitbox.util.Document;
 
 /**
- * A message that can be sent by the Client.
+ * Process client commands into messages that can be sent to a Peer.
  */
 public class ClientProtocol {
-    private final Document document = new Document();
-
     /**
      * Given a set of command line options, produces the appropriate message to send.
      * @param opts the command line options
      * @return the generated message
      * @throws IllegalArgumentException in case the options are incorrectly formatted
      */
-    public static IClientProtocol generateMessage(CommandLine opts)
+    public static IClientRequest generateMessage(CommandLine opts)
         throws IllegalArgumentException {
         String command = opts.getOptionValue("c");
         if (command == null) {
@@ -32,24 +29,5 @@ public class ClientProtocol {
             default:
                 throw new IllegalArgumentException("invalid command: " + command);
         }
-    }
-}
-
-class ListPeersRequest extends IClientProtocol {
-    ListPeersRequest() {
-        super("LIST_PEERS_REQUEST");
-    }
-}
-
-
-class ConnectPeerRequest extends IClientProtocol {
-    public ConnectPeerRequest(String peerAddress) throws IllegalArgumentException {
-        super("CONNECT_PEER_REQUEST", peerAddress);
-    }
-}
-
-class DisconnectPeerRequest extends IClientProtocol {
-    public DisconnectPeerRequest(String peerAddress) throws IllegalArgumentException {
-        super("DISCONNECT_PEER_REQUEST", peerAddress);
     }
 }

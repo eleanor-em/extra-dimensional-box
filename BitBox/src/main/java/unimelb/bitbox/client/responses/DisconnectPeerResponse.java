@@ -1,13 +1,17 @@
-package unimelb.bitbox.client;
+package unimelb.bitbox.client.responses;
 
 import unimelb.bitbox.PeerConnection;
 import unimelb.bitbox.ServerMain;
 import unimelb.bitbox.util.JsonDocument;
 import unimelb.bitbox.util.ResponseFormatException;
 
-public class DisconnectPeerResponse extends IPeerResponse{
+/**
+ * Generates the message content of DISCONNECT_PEER_RESPONSE
+ * to be sent by a Peer to a Client.
+ */
+public class DisconnectPeerResponse extends IClientResponse {
 
-    protected DisconnectPeerResponse(ServerMain server, JsonDocument document) throws ResponseFormatException {
+    public DisconnectPeerResponse(ServerMain server, JsonDocument document) throws ResponseFormatException {
         super(server, document);
 
         response.append("command", "DISCONNECT_PEER_RESPONSE");
@@ -22,10 +26,8 @@ public class DisconnectPeerResponse extends IPeerResponse{
             server.closeConnection(peer);
         }
         catch (NullPointerException e){
-            // When a peer is not active or we cannot find a peer in our active peer list
-            // because "localhost" is being stored as "127.0.0.1"
-            // as Bitbox does not store peers' IP addresses instead - existing design issue
-            // so we just have to cope with it
+            // The design is not good. Host names are stored as IP addresses sometime. Unpredictable.
+            // If localhost is stored as IP address, cancelling by the alias will fail!
             reply = "connection not active";
             e.printStackTrace();
         }

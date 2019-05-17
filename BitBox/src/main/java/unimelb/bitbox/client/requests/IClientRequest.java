@@ -1,23 +1,23 @@
-package unimelb.bitbox.client;
+package unimelb.bitbox.client.requests;
 
 import unimelb.bitbox.util.Document;
 import unimelb.bitbox.util.HostPort;
 
 /**
- * Parent class of messages that can be sent by the Client.
+ * Parent class of requests sent by the Client to a Peer.
  */
-abstract public class IClientProtocol {
+abstract public class IClientRequest {
     private final Document document = new Document();
 
     /**
      * Constructor. Intended for use only by subclasses.
      * @param command the command to send
      */
-    protected IClientProtocol(String command) {
+    protected IClientRequest(String command) {
         document.append("command", command);
     }
 
-    protected IClientProtocol(String command, String peerAddress)
+    protected IClientRequest(String command, String peerAddress)
             throws IllegalArgumentException {
         document.append("command", command);
 

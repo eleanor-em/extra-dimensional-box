@@ -10,8 +10,8 @@ import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.json.simple.parser.ParseException;
 import unimelb.bitbox.client.AuthResponseParser;
-import unimelb.bitbox.client.ClientProtocol;
-import unimelb.bitbox.client.IClientProtocol;
+import unimelb.bitbox.client.requests.ClientProtocol;
+import unimelb.bitbox.client.requests.IClientRequest;
 import unimelb.bitbox.util.Crypto;
 import unimelb.bitbox.util.HostPort;
 import unimelb.bitbox.util.JsonDocument;
@@ -82,7 +82,7 @@ public class Client {
 
         // Find the address we want to connect to, and create the message to be sent post-authentication
         HostPort hostPort;
-        IClientProtocol message;
+        IClientRequest message;
         try {
             // Load the server address and perform error checking
             String serverAddress = opts.getOptionValue("s");
