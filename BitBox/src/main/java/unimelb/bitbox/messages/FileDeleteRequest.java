@@ -1,8 +1,6 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.FileReadWriteThreadPool;
-import unimelb.bitbox.util.Document;
-import unimelb.bitbox.util.FileSystemManager;
+import unimelb.bitbox.util.JsonDocument;
 
 /**
  * @Auther Benjamin(Jingyi Li) Li
@@ -11,15 +9,9 @@ import unimelb.bitbox.util.FileSystemManager;
  * @Date 2019-04-19 17:25
  */
 public class FileDeleteRequest extends Message{
-    public FileDeleteRequest(FileSystemManager.FileDescriptor fileDescriptor, String pathName){
+    public FileDeleteRequest(JsonDocument fileDescriptor, String pathName){
         document.append("command", FILE_DELETE_REQUEST);
-
-        Document jsonFileDescriptor = new Document();
-        jsonFileDescriptor.append("md5", fileDescriptor.md5);
-        jsonFileDescriptor.append("lastModified", fileDescriptor.lastModified);
-        jsonFileDescriptor.append("fileSize", fileDescriptor.fileSize);
-        document.append("fileDescriptor", jsonFileDescriptor);
-
+        document.append("fileDescriptor", fileDescriptor);
         document.append("pathName", pathName);
     }
 }

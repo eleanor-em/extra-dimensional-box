@@ -1,17 +1,16 @@
-package unimelb.bitbox;
+package unimelb.bitbox.client;
 
 import org.apache.commons.cli.*;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
-import unimelb.bitbox.client.AuthResponse;
-import unimelb.bitbox.client.ClientMessage;
 import unimelb.bitbox.util.Crypto;
-import unimelb.bitbox.util.Document;
 import unimelb.bitbox.util.HostPort;
+import unimelb.bitbox.util.JsonDocument;
 import unimelb.bitbox.util.ResponseFormatException;
 
+import org.json.simple.parser.ParseException;
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
@@ -63,7 +62,7 @@ public class Client {
         CommandLine opts;
         try {
             opts = parser.parse(generateCLIOptions(), args);
-        } catch (ParseException e) {
+        } catch (org.apache.commons.cli.ParseException e) {
             System.out.println("Failed to parse command line options: " + e.getMessage());
             return;
         }
@@ -135,10 +134,12 @@ public class Client {
 
             // Wait for response
             String encryptedResponse = in.readLine();
-            System.out.println(Crypto.decryptMessage(key, encryptedResponse));
+            if (encryptedResponse != null) {
+                System.out.println(Crypto.decryptMessage(key, encryptedResponse));
+            }
         } catch (IOException e) {
             System.out.println("Error reading/writing socket: " + e.getMessage());
-        } catch (ResponseFormatException e) {
+        } catch (ParseException | ResponseFormatException e) {
             System.out.println("Peer sent invalid response: " + e.getMessage());
         } catch (NoSuchPaddingException | NoSuchAlgorithmException | InvalidKeyException | IllegalBlockSizeException
                 | BadPaddingException e) {
@@ -159,7 +160,7 @@ public class Client {
      * @return the JSON message to send
      */
     private static String generateAuthRequest(String ident) {
-        Document authRequest = new Document();
+        JsonDocument authRequest = new JsonDocument();
         authRequest.append("command", "AUTH_REQUEST");
         authRequest.append("identity", ident);
         return authRequest.toJson();

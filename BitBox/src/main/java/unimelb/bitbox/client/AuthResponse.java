@@ -1,6 +1,7 @@
 package unimelb.bitbox.client;
 
-import unimelb.bitbox.util.Document;
+import org.json.simple.parser.ParseException;
+import unimelb.bitbox.util.JsonDocument;
 import unimelb.bitbox.util.ResponseFormatException;
 
 import javax.crypto.*;
@@ -24,39 +25,17 @@ public class AuthResponse {
      * @throws ResponseFormatException in case the provided message is malformed
      */
     public AuthResponse(String message) throws ResponseFormatException {
-        Document doc = Document.parse(message);
-
-        // Safely check the status
-        if (doc.containsKey("status")) {
-            Object statusVal = doc.get("status");
-            if (statusVal instanceof Boolean) {
-                status = (boolean) statusVal;
-            } else {
-                throw new ResponseFormatException("status field malformed");
-            }
-        } else {
-            throw new ResponseFormatException("status field missing");
+        JsonDocument doc;
+        try {
+            doc = JsonDocument.parse(message);
+        } catch (ParseException e) {
+            throw new ResponseFormatException("Error parsing message: " + e.getMessage());
         }
 
-        // Safely extract the key
-        if (status) {
-            if (doc.containsKey("AES128")) {
-                Object keyVal = doc.get("AES128");
-                if (keyVal instanceof String) {
-                    key = Base64.getDecoder().decode((String) keyVal);
-                } else {
-                    throw new ResponseFormatException("AES128 field malformed");
-                }
-            } else {
-                throw new ResponseFormatException("AES128 field missing");
-            }
-        }
-
-        // Safely extract the message for user information in case of failure
-        Object messageVal = doc.get("message");
-        if (messageVal instanceof String) {
-            message = (String)messageVal;
-        }
+        status = doc.require("status");
+        String keyVal = doc.require("AES128");
+        key = Base64.getDecoder().decode(keyVal);
+        this.message = doc.require("message");
     }
 
     /**
