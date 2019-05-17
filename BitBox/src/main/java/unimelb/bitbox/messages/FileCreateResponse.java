@@ -1,8 +1,9 @@
 package unimelb.bitbox.messages;
 
 import unimelb.bitbox.ServerMain;
-import unimelb.bitbox.util.Document;
+import unimelb.bitbox.util.JsonDocument;
 import unimelb.bitbox.util.FileSystemManager;
+import unimelb.bitbox.util.ResponseFormatException;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
@@ -11,11 +12,10 @@ public class FileCreateResponse extends Message {
     private static final String SUCCESS = "file loader ready";
 
     public final boolean successful;
-    public FileCreateResponse(FileSystemManager fsManager, Document json, String pathName) {
+    public FileCreateResponse(FileSystemManager fsManager, String pathName, JsonDocument fileDescriptor) {
         String reply;
-        Document fileDescriptor = (Document) json.get("fileDescriptor");
 
-        if (fileCreated(document, fsManager)) {
+        if (fileCreated(fileDescriptor, pathName, fsManager)) {
             reply = "file already exists locally";
         } else {
             try {
@@ -39,12 +39,11 @@ public class FileCreateResponse extends Message {
 
     // ELEANOR: Moved this method here so that we aren't creating two loaders, and so we can check the loader for
     //          errors before responding.
-    private String generateFileLoader(FileSystemManager fsManager, Document document){
-        String pathName = document.getString("pathName");
-        Document fileDescriptor = (Document) document.get("fileDescriptor");
-        String md5 = fileDescriptor.getString("md5");
-        long length = fileDescriptor.getLong("fileSize");
-        long lastModified = fileDescriptor.getLong("lastModified");
+    private String generateFileLoader(FileSystemManager fsManager, String pathName, JsonDocument fileDescriptor)
+        throws ResponseFormatException {
+        String md5 = fileDescriptor.require("md5");
+        long length = fileDescriptor.require("fileSize");
+        long lastModified = fileDescriptor.require("lastModified");
         try {
             boolean done = fsManager.createFileLoader(pathName, md5, length, lastModified);
             if (done){
@@ -74,12 +73,9 @@ public class FileCreateResponse extends Message {
     /**
      * This method checks if a file was created with the same name and content.
      */
-    private boolean fileCreated(Document document, FileSystemManager fsManager){
-
-        Document fileDescriptor = (Document) document.get("fileDescriptor");
-        String pathName = document.getString("pathName");
-
-        boolean fileExist = fsManager.fileNameExists(pathName, fileDescriptor.getString("md5"));
+    private boolean fileCreated(JsonDocument fileDescriptor, String pathName, FileSystemManager fsManager)
+        throws ResponseFormatException {
+        boolean fileExist = fsManager.fileNameExists(pathName, fileDescriptor.require("md5"));
         if (fileExist){
             ServerMain.log.info("file " + pathName + " created already." +
                     " No file create request is needed");

@@ -1,5 +1,7 @@
 package unimelb.bitbox.util;
 
+import org.json.simple.parser.ParseException;
+
 import javax.crypto.*;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -37,22 +39,15 @@ public class Crypto {
      * Returns the decrypted ciphertext.
      */
     public static String decryptMessage(SecretKey secretKey, String message)
-            throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException,
-            IllegalBlockSizeException, ResponseFormatException {
+            throws NoSuchPaddingException, NoSuchAlgorithmException, BadPaddingException, IllegalBlockSizeException,
+            ResponseFormatException, ParseException, InvalidKeyException {
         // Safely extract the payload
-        Document received = Document.parse(message);
-        if (!received.containsKey("payload")) {
-            throw new ResponseFormatException("Received message does not contain payload");
-        }
-        Object payloadVal = received.get("payload");
-        if (!(payloadVal instanceof String)) {
-            throw new ResponseFormatException("Received message contains malformed payload");
-        }
-        String payload = (String)payloadVal;
+        JsonDocument received = JsonDocument.parse(message);
+        String payload = received.require("payload");
 
         Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
         cipher.init(Cipher.DECRYPT_MODE, secretKey);
-        return new String(cipher.doFinal(Base64.getDecoder().decode(payload.getBytes())));
+        return new String(cipher.doFinal(Base64.getDecoder().decode(payload)));
     }
 
     /**
@@ -64,7 +59,8 @@ public class Crypto {
             IllegalBlockSizeException, InvalidKeyException {
         Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
         cipher.init(Cipher.ENCRYPT_MODE, secretKey);
-        Document encrypted = new Document();
+
+        JsonDocument encrypted = new JsonDocument();
         encrypted.append("payload", Base64.getEncoder().encodeToString(cipher.doFinal(message.getBytes())));
         return encrypted.toJson();
     }
