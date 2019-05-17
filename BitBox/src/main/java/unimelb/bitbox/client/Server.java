@@ -94,6 +94,9 @@ public class Server implements Runnable {
 
         String command = document.require("command");
         Optional<String> maybeIdent = document.get("identity");
+        String host;
+        int port;
+        final String SUCCESS;
         switch (command) {
             case "AUTH_REQUEST":
 
@@ -144,28 +147,35 @@ public class Server implements Runnable {
         case "CONNECT_PEER_REQUEST":
             response.append("command", "CONNECT_PEER_RESPONSE");
 
-            String host = document.require("host");
-            int port = (int)(long) document.require("port");
-            final String SUCCESS = "connected to peer";
-            String reply = SUCCESS;
+            host = document.require("host");
+            port = (int)(long) document.require("port");
+            SUCCESS = "connected to peer";
+            String connectPeerReply = SUCCESS;
             if (!server.tryPeer(host, port)){
-                reply = "connection failed";
+                connectPeerReply = "connection failed";
             }
-            response.append("status", reply == SUCCESS);
-            response.append("message", reply);
+            response.append("host", host);
+            response.append("port", port);
+            response.append("status", connectPeerReply == SUCCESS);
+            response.append("message", connectPeerReply);
             break;
 
         case "DISCONNECT_PEER_REQUEST":
-            // This is just some dummy data to show a full client procedure
             response.append("command", "DISCONNECT_PEER_RESPONSE");
 
-        //                ArrayList<Document> peers = new ArrayList<>();
-        //                Document dummyPeer = new Document();
-        //                dummyPeer.append("host", "bigdata.cis.unimelb.edu.au");
-        //                dummyPeer.append("port", 8500L);
-        //                peers.add(dummyPeer);
-        //
-        //                response.append("peers", peers);
+            host = document.require("host");
+            port = (int)(long) document.require("port");
+            SUCCESS = "disconnected from peer";
+            String disconnectPeerReply = SUCCESS;
+            if (server.isConnected(host, port)){
+                server.closeConnection(server.getPeer(host, port));
+            } else {
+                disconnectPeerReply = "connection not active";
+            }
+            response.append("host", host);
+            response.append("port", port);
+            response.append("status", disconnectPeerReply == SUCCESS);
+            response.append("message", disconnectPeerReply);
             break;
         }
 

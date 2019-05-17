@@ -349,6 +349,7 @@ public class ServerMain implements FileSystemObserver {
 	 */
 	public void closeConnection(PeerConnection peer) {
 		peer.close();
+
 		peers.remove(peer);
 		processor.rwManager.cancelPeerFiles(peer);
 
@@ -390,6 +391,15 @@ public class ServerMain implements FileSystemObserver {
 		return peers.stream()
 				.filter(peer -> peer.getState() == PeerConnection.State.ACTIVE)
 				.collect(Collectors.toList());
+	}
+
+	public PeerConnection getPeer(String host, int port) {
+		for (PeerConnection peer: getPeers()){
+			if (peer.getHost() == host && peer.getPort() == port){
+				return peer;
+			}
+		}
+		return null;
 	}
 
 	private long getIncomingPeerCount() {
@@ -590,5 +600,16 @@ public class ServerMain implements FileSystemObserver {
 			}
 			synchroniseFiles();
 		}
+	}
+
+	public boolean isConnected(String host, int port){
+		boolean found = false;
+		for (PeerConnection peer: this.getPeers()){
+			if (host == peer.getHost() && port == peer.getPort()){
+				found = true;
+				break;
+			}
+		}
+		return found;
 	}
 }
