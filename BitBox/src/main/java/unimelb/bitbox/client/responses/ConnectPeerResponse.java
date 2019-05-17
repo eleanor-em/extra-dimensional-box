@@ -28,7 +28,7 @@ public class ConnectPeerResponse extends IClientResponse {
             // failed if maximumIncommingConnections is reached
             reply = "connection failed";
         } else if (!server.tryPeer(host, port)){
-            // failed if the target peer is not connected
+            // failed if the target peer is offline/not available
             reply = "connection failed";
         }
         response.append("host", host);
