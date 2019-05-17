@@ -8,7 +8,7 @@ import unimelb.bitbox.util.JsonDocument;
  */
 abstract public class IPeerResponse {
     ServerMain server;
-    JsonDocument response = new JsonDocument();
+    JsonDocument response;
 
     public IPeerResponse(ServerMain server, JsonDocument response) {
         this.server = server;

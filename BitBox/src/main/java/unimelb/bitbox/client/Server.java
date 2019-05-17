@@ -139,7 +139,7 @@ public class Server implements Runnable {
         }
 
         String responseMessage = response.toJson();
-
+        
         if (authenticated) {
             responseMessage = Crypto.encryptMessage(key, responseMessage);
         }
