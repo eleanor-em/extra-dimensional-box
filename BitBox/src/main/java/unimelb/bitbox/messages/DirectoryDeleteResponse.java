@@ -5,7 +5,12 @@ import unimelb.bitbox.util.FileSystemManager;
 public class DirectoryDeleteResponse extends Message {
     private static final String SUCCESS = "directory deleted";
 
-    public DirectoryDeleteResponse(FileSystemManager fsManager, String pathName) {
+    public DirectoryDeleteResponse(FileSystemManager fsManager, String pathName, boolean dryRun) {
+        super("DIRECTORY_DELETE:" + pathName);
+
+        if (dryRun) {
+            return;
+        }
         String reply = SUCCESS;
         if (!fsManager.isSafePathName(pathName)) {
             reply = "unsafe pathname given";

@@ -292,7 +292,7 @@ public class FileReadWriteThreadPool {
                         position + "/" + fileSize + "]: " + e.getMessage());
             }
             try {
-                peer.sendMessage(new FileBytesResponse(document, pathName, length, position, content, reply));
+                peer.sendMessage(new FileBytesResponse(document.require("fileDescriptor"), pathName, length, position, content, reply, false));
             } catch (ResponseFormatException e) {
                 peer.sendMessageAndClose(new InvalidProtocol("Malformed message: " + e.getMessage()));
             }

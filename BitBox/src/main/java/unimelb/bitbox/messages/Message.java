@@ -1,12 +1,13 @@
 package unimelb.bitbox.messages;
 
 import unimelb.bitbox.util.JsonDocument;
+import unimelb.bitbox.util.ResponseFormatException;
 
 /*
  * Base class for all Messages that peers can send.
  * Optionally, a peer can provide its friendly name (e.g. Alice-localhost:8111) for debugging.
  */
-public class Message {
+public abstract class Message {
     public static final String INVALID_PROTOCOL = "INVALID_PROTOCOL";
     public static final String CONNECTION_REFUSED = "CONNECTION_REFUSED";
     public static final String HANDSHAKE_REQUEST = "HANDSHAKE_REQUEST";
@@ -25,8 +26,10 @@ public class Message {
     public static final String DIRECTORY_DELETE_RESPONSE = "DIRECTORY_DELETE_RESPONSE";
 
     protected JsonDocument document;
+    private String summary;
 
-    public Message() {
+    public Message(String summary) {
+        this.summary = summary;
         document = new JsonDocument();
     }
 
@@ -36,8 +39,18 @@ public class Message {
         }
     }
 
-    public String getType() {
+    public String getCommand() {
         return document.<String>get("command").orElse("N/A");
+    }
+
+    public boolean isRequest() {
+        return document.<String>get("command")
+                       .orElse("")
+                       .contains("REQUEST");
+    }
+
+    public String getSummary() {
+        return summary;
     }
 
     public String encode() {

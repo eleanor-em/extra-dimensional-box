@@ -4,6 +4,7 @@ import unimelb.bitbox.messages.HandshakeRequest;
 import unimelb.bitbox.messages.InvalidProtocol;
 import unimelb.bitbox.messages.Message;
 import unimelb.bitbox.messages.ReceivedMessage;
+import unimelb.bitbox.util.Configuration;
 
 import java.io.*;
 import java.net.DatagramPacket;
@@ -11,6 +12,8 @@ import java.net.DatagramSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -112,14 +115,14 @@ public abstract class PeerConnection {
     /**
      * Send a message to this peer. Validates the state first.
      */
-    void sendMessage(Message message) {
+    public void sendMessage(Message message) {
         sendMessage(message, () -> {});
     }
 
     /**
      * Send a message to this peer, and then close the connection.
      */
-    void sendMessageAndClose(Message message) {
+    public void sendMessageAndClose(Message message) {
         sendMessage(message, this::close);
         deactivate();
     }
@@ -127,7 +130,7 @@ public abstract class PeerConnection {
     /**
      * Implementation of the actual sendMessage code, to allow default parameters.
      */
-    public void sendMessage(Message message, Runnable onSent) {
+    private void sendMessage(Message message, Runnable onSent) {
         State state = getState();
         if (state == State.ACTIVE) {
             sendMessageInternal(message, onSent);
@@ -151,17 +154,21 @@ public abstract class PeerConnection {
      */
     protected void sendMessageInternal(Message message, Runnable onSent) {
         message.setFriendlyName(name);
-        ServerMain.log.info(name + " sent: " + message.getType());
+        ServerMain.log.info(name + " sent: " + message.getCommand());
         outConn.messages.add(new OutgoingMessage(message.encode(), onSent));
     }
 
     /**
      * This method is called when a message is received from this peer.
      */
-    void receiveMessage(String message) {
+    public void receiveMessage(String message) {
         server.enqueueMessage(new ReceivedMessage(message, this));
     }
 
+    /**
+     * This method is called when a message has been received from this peer and successfuly parsed.
+     */
+    public void notify(Message message) {}
 
     public String toString() {
         return name + " (" + host + ":" + port + ")";
@@ -217,6 +224,54 @@ class PeerTCP extends PeerConnection {
 }
 
 class PeerUDP extends PeerConnection {
+    private HashMap<String, RetryThread> retryThreads = new HashMap<>();
+
+    private class RetryThread extends Thread {
+        private Message message;
+        private PeerUDP parent;
+        private final int RETRY_COUNT;
+        private final int RETRY_TIME;
+
+        public RetryThread(PeerUDP parent, Message message) {
+            this.parent = parent;
+            this.message = message;
+
+            // Load settings, or use default value
+            int retryTime;
+            int retryCount;
+            try {
+                retryCount = Integer.parseInt(Configuration.getConfigurationValue("udpRetries"));
+            } catch (NumberFormatException ignored) {
+                retryCount = 5;
+            }
+
+            try {
+                retryTime = Integer.parseInt(Configuration.getConfigurationValue("udpTimeout"));
+            } catch (NumberFormatException ignored) {
+                retryTime = 1000;
+            }
+
+            RETRY_COUNT = retryCount;
+            RETRY_TIME = retryTime;
+
+        }
+
+        @Override
+        public void run() {
+            for (int retries = 0; retries < RETRY_COUNT; ++retries) {
+                try {
+                    Thread.sleep(RETRY_TIME);
+                } catch (InterruptedException e) {
+                    // Pretty sure this only happens if we get a successful response.
+                    ServerMain.log.info("Stopping retry thread");
+                    return;
+                }
+                ServerMain.log.info(parent.name + ": resending "  + message.getCommand() + ": expecting " + message.getSummary());
+                parent.retryMessage(message);
+            }
+            parent.close();
+        }
+    }
 
     @Override
     void activate(String host, long port) {
@@ -236,7 +291,6 @@ class PeerUDP extends PeerConnection {
         if (state == State.WAIT_FOR_RESPONSE) {
             ServerMain.log.info(name + ": Sending UDP handshake request");
             sendMessageInternal(new HandshakeRequest(getLocalHost(), getLocalPort()));
-
         }
     }
 
@@ -250,6 +304,30 @@ class PeerUDP extends PeerConnection {
             ServerMain.log.info("Connection to peer `" + name + "` closed.");
             state = State.CLOSED;
             server.closeConnection(this);
+        }
+    }
+
+    public void retryMessage(Message message) {
+        super.sendMessageInternal(message);
+    }
+
+    @Override
+    protected void sendMessageInternal(Message message, Runnable onSent) {
+        if (message.isRequest() && !retryThreads.containsKey(message.getSummary())) {
+            ServerMain.log.info(name + ": waiting for response: " + message.getSummary());
+            RetryThread thread = new RetryThread(this, message);
+            retryThreads.put(message.getSummary(), thread);
+            thread.start();
+        }
+        super.sendMessageInternal(message, onSent);
+    }
+
+    @Override
+    public void notify(Message message) {
+        if (!message.isRequest()) {
+            ServerMain.log.info(name + ": notified response: " + message.getSummary());
+            Optional.ofNullable(retryThreads.get(message.getSummary()))
+                    .ifPresent(Thread::interrupt);
         }
     }
 }
@@ -303,7 +381,6 @@ class OutgoingConnection extends Thread {
             while (true) {
                 try {
                     OutgoingMessage message = messages.take();
-                    ServerMain.log.info(message.message);
 
                     // Datagram packets need to be null terminated.
                     byte[] buffer = Arrays.copyOf(message.message.getBytes(), message.message.length() + 1);

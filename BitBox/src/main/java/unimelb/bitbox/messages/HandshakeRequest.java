@@ -5,6 +5,7 @@ import unimelb.bitbox.util.JsonDocument;
 public class HandshakeRequest extends Message {
 
     public HandshakeRequest(String host, int port) {
+        super("HANDSHAKE");
         document.append("command", HANDSHAKE_REQUEST);
 
         JsonDocument hostPort = new JsonDocument();

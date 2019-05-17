@@ -10,6 +10,7 @@ import unimelb.bitbox.util.JsonDocument;
  */
 public class FileDeleteRequest extends Message{
     public FileDeleteRequest(JsonDocument fileDescriptor, String pathName){
+        super("FILE_DELETE:" + pathName + ":" + fileDescriptor.toJson());
         document.append("command", FILE_DELETE_REQUEST);
         document.append("fileDescriptor", fileDescriptor);
         document.append("pathName", pathName);

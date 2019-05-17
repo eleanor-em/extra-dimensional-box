@@ -12,10 +12,14 @@ public class FileCreateResponse extends Message {
     private static final String SUCCESS = "file loader ready";
 
     public final boolean successful;
-    public FileCreateResponse(FileSystemManager fsManager, String pathName, JsonDocument json)
+    public FileCreateResponse(FileSystemManager fsManager, String pathName, JsonDocument fileDescriptor, boolean dryRun)
             throws ResponseFormatException {
+        super("FILE_CREATE:" + pathName + ":" + fileDescriptor.toJson());
+        if (dryRun) {
+            successful = false;
+            return;
+        }
         String reply;
-        JsonDocument fileDescriptor = json.require("fileDescriptor");
 
         if (fileAlreadyExists(fileDescriptor, pathName, fsManager)) {
             reply = "file already exists locally";

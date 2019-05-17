@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 public class ConnectionRefused extends Message {
     public ConnectionRefused(List<PeerConnection> peers) {
+        super(CONNECTION_REFUSED);
         document.append("command", CONNECTION_REFUSED);
         document.append("message", "connection limit reached");
         ArrayList<Document> peersDoc = peers.stream().map(peer -> {

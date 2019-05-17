@@ -9,8 +9,13 @@ public class FileModifyResponse extends Message {
     private static final String SUCCESS = "file loader ready";
     public final boolean successful;
 
-    public FileModifyResponse(FileSystemManager fsManager, JsonDocument fileDescriptor, String pathName)
+    public FileModifyResponse(FileSystemManager fsManager, JsonDocument fileDescriptor, String pathName, boolean dryRun)
             throws ResponseFormatException {
+        super("MODIFY:" + pathName + ":" + fileDescriptor.toJson());
+        if (dryRun) {
+            successful = false;
+            return;
+        }
         document.append("command", FILE_MODIFY_RESPONSE);
         document.append("fileDescriptor", fileDescriptor);
 

@@ -76,6 +76,7 @@ class MessageProcessingThread extends Thread {
             ServerMain.log.info(logMessage);
             respondToMessage(message.peer, command, document);
         } catch (ResponseFormatException e) {
+            e.printStackTrace();
             invalidProtocolResponse(message.peer, e.getMessage());
         }
     }
@@ -86,6 +87,7 @@ class MessageProcessingThread extends Thread {
 
     private void respondToMessage(PeerConnection peer, @NotNull String command, JsonDocument document)
             throws ResponseFormatException {
+        Message parsedResponse = null;
         switch (command) {
             /*
              * File and directory requests
@@ -96,7 +98,7 @@ class MessageProcessingThread extends Thread {
                 String pathName = document.require("pathName");
                 JsonDocument fileDescriptor = document.require("fileDescriptor");
 
-				FileCreateResponse createResponse = new FileCreateResponse(server.fileSystemManager, pathName, fileDescriptor);
+				FileCreateResponse createResponse = new FileCreateResponse(server.fileSystemManager, pathName, fileDescriptor, false);
 				peer.sendMessage(createResponse);
 				if (createResponse.successful && noLocalCopies(peer, pathName)) {
 				ServerMain.log.info(peer.name + ": file " + pathName +
@@ -111,7 +113,7 @@ class MessageProcessingThread extends Thread {
                 pathName = document.require("pathName");
                 fileDescriptor = document.require("fileDescriptor");
 
-                FileModifyResponse modifyResponse = new FileModifyResponse(server.fileSystemManager, fileDescriptor, pathName);
+                FileModifyResponse modifyResponse = new FileModifyResponse(server.fileSystemManager, fileDescriptor, pathName, false);
                 peer.sendMessage(modifyResponse);
                 if (modifyResponse.successful) {
                     rwManager.addFile(peer, pathName, fileDescriptor);
@@ -130,38 +132,46 @@ class MessageProcessingThread extends Thread {
                 pathName = document.require("pathName");
                 fileDescriptor = document.require("fileDescriptor");
 
-                peer.sendMessage(new FileDeleteResponse(server.fileSystemManager, fileDescriptor, pathName));
+                peer.sendMessage(new FileDeleteResponse(server.fileSystemManager, fileDescriptor, pathName, false));
                 break;
 
             case Message.DIRECTORY_CREATE_REQUEST:
                 pathName = document.require("pathName");
 
-                peer.sendMessage(new DirectoryCreateResponse(server.fileSystemManager, pathName));
+                peer.sendMessage(new DirectoryCreateResponse(server.fileSystemManager, pathName, false));
                 break;
 
             case Message.DIRECTORY_DELETE_REQUEST:
                 pathName = document.require("pathName");
 
-                peer.sendMessage(new DirectoryDeleteResponse(server.fileSystemManager, pathName));
+                peer.sendMessage(new DirectoryDeleteResponse(server.fileSystemManager, pathName, false));
                 break;
 
             /*
              * File and directory responses
              */
             case Message.FILE_CREATE_RESPONSE:
+                validateFileDescriptor(document);
+                checkStatus(document);
+                parsedResponse = new FileCreateResponse(server.fileSystemManager, document.require("pathName"), document.require("fileDescriptor"), true);
+                break;
             case Message.FILE_DELETE_RESPONSE:
+                validateFileDescriptor(document);
+                checkStatus(document);
+                parsedResponse = new FileDeleteResponse(server.fileSystemManager, document.require("fileDescriptor"), document.require("pathName"), true);
+                break;
             case Message.FILE_MODIFY_RESPONSE:
                 validateFileDescriptor(document);
+                checkStatus(document);
+                parsedResponse = new FileModifyResponse(server.fileSystemManager, document.require("fileDescriptor"), document.require("pathName"), true);
+                break;
             case Message.DIRECTORY_CREATE_RESPONSE:
+                checkStatus(document);
+                parsedResponse = new DirectoryCreateResponse(server.fileSystemManager, document.require("pathName"), true);
+                break;
             case Message.DIRECTORY_DELETE_RESPONSE:
-                document.<String>require("pathName");
-                String message = document.require("message");
-                boolean status = document.<Boolean>require("status");
-
-                if (!status) {
-                    // ELEANOR: Log any unsuccessful responses.
-                    ServerMain.log.warning("Failed createResponse: " + command + ": " + message);
-                }
+                checkStatus(document);
+                parsedResponse = new DirectoryDeleteResponse(server.fileSystemManager, document.require("pathName"), true);
                 break;
 
             case Message.FILE_BYTES_RESPONSE:
@@ -171,6 +181,12 @@ class MessageProcessingThread extends Thread {
                 document.<String>require("content");
                 document.<String>require("message");
                 document.<Boolean>require("status");
+                parsedResponse = new FileBytesResponse(document.require("fileDescriptor"),
+                                                       document.require("pathName"),
+                                                       document.require("length"),
+                                                       document.require("position"),
+                                                       document.require("content"),
+                                                  "", false);
 
                 rwManager.writeFile(peer, document);
                 break;
@@ -197,7 +213,7 @@ class MessageProcessingThread extends Thread {
                             ServerMain.log.info("Already connected to " + host + ":" + port);
                         } else {
                             peer.activate(host, port);
-                            peer.sendMessage(new HandshakeResponse(peer.getLocalHost(), peer.getLocalPort()));
+                            peer.sendMessage(new HandshakeResponse(peer.getLocalHost(), peer.getLocalPort(), false));
                             // synchronise with this peer
                             server.synchroniseFiles();
                         }
@@ -214,8 +230,7 @@ class MessageProcessingThread extends Thread {
 
             case Message.HANDSHAKE_RESPONSE:
                 JsonDocument hostPort = document.require("hostPort");
-                hostPort.<String>require("host");
-                hostPort.<Long>require("port");
+                parsedResponse = new HandshakeResponse(hostPort.require("host"), hostPort.require("port"), true);
 
                 if (peer.getState() == PeerConnection.State.WAIT_FOR_RESPONSE) {
                     peer.activate();
@@ -262,6 +277,9 @@ class MessageProcessingThread extends Thread {
                 invalidProtocolResponse(peer, "unrecognised command `" + command + "`");
                 break;
         }
+        if (parsedResponse != null) {
+            peer.notify(parsedResponse);
+        }
     }
 
     private void validateFileDescriptor(JsonDocument document) throws ResponseFormatException {
@@ -271,7 +289,17 @@ class MessageProcessingThread extends Thread {
         fileDescriptor.<Long>require("fileSize");
     }
 
-	/**
+    private void checkStatus(JsonDocument document) throws ResponseFormatException {
+        String message = document.require("message");
+        boolean status = document.require("status");
+
+        if (!status) {
+            // ELEANOR: Log any unsuccessful responses.
+            ServerMain.log.warning("Failed createResponse: " + document.require("command") + ": " + message);
+        }
+    }
+
+    /**
      * This method checks if any local file has the same content. If any, copy the content and
      * close the file loader.
      */

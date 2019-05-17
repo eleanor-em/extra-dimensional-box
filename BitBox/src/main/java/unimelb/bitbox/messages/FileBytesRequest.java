@@ -6,6 +6,7 @@ import unimelb.bitbox.util.ResponseFormatException;
 
 public class FileBytesRequest extends Message {
     public FileBytesRequest(String pathName, JsonDocument fileDescriptor, long position) throws ResponseFormatException {
+        super("BYTES:" + pathName + ":" + fileDescriptor.toJson() + ":" + position);
         // ELEANOR: the modulus is a good idea, but it's a bit complicated and I don't think it worked
         // this is simpler and works correctly
         final long BLOCK_SIZE = Long.parseLong(Configuration.getConfigurationValue("blockSize"));
@@ -17,6 +18,7 @@ public class FileBytesRequest extends Message {
         document.append("pathName", pathName);
         document.append("position", position);
         document.append("length", bytesLeft);
+
     }
 
 }
