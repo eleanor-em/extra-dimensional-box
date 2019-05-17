@@ -12,7 +12,8 @@ public class FileCreateResponse extends Message {
     private static final String SUCCESS = "file loader ready";
 
     public final boolean successful;
-    public FileCreateResponse(FileSystemManager fsManager, String pathName, JsonDocument fileDescriptor) {
+    public FileCreateResponse(FileSystemManager fsManager, String pathName, JsonDocument fileDescriptor)
+            throws ResponseFormatException {
         String reply;
 
         if (fileCreated(fileDescriptor, pathName, fsManager)) {
@@ -22,7 +23,7 @@ public class FileCreateResponse extends Message {
                 if (!fsManager.isSafePathName(pathName)) {
                     reply = "unsafe pathname given: " + pathName;
                 } else {
-                    reply = generateFileLoader(fsManager, json);
+                    reply = generateFileLoader(fsManager, pathName, fileDescriptor);
                 }
             } catch (Exception e) {
                 reply = "there was a problem creating the file: " + pathName;

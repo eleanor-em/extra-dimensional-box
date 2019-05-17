@@ -1,8 +1,15 @@
 package unimelb.bitbox;
 
+import org.jetbrains.annotations.NotNull;
 import org.json.simple.parser.ParseException;
 import unimelb.bitbox.client.Server;
-import java.io.*;
+import unimelb.bitbox.messages.*;
+import unimelb.bitbox.util.*;
+import unimelb.bitbox.util.FileSystemManager.FileSystemEvent;
+
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -14,14 +21,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-
-import org.jetbrains.annotations.NotNull;
-import unimelb.bitbox.messages.*;
-import unimelb.bitbox.util.Configuration;
-import unimelb.bitbox.util.Document;
-import unimelb.bitbox.util.FileSystemManager;
-import unimelb.bitbox.util.FileSystemObserver;
-import unimelb.bitbox.util.FileSystemManager.FileSystemEvent;
 
 /**
  * The ServerThread collects messages from the various PeerConnections, and then does something with them.
@@ -89,22 +88,21 @@ class MessageProcessingThread extends Thread {
              * File and directory requests
              */
             case Message.FILE_CREATE_REQUEST:
-				        validateFileDescriptor(document);
+				validateFileDescriptor(document);
 
                 String pathName = document.require("pathName");
                 JsonDocument fileDescriptor = document.require("fileDescriptor");
-                String md5 = fileDescriptor.require("md5");
 
-                FileCreateResponse response = new FileCreateResponse(server.fileSystemManager, pathName, fileDescriptor);
-                peer.sendMessage(response);
-                if (response.successful && noLocalCopies(peer, pathName)) {
+                FileCreateResponse createResponse = new FileCreateResponse(server.fileSystemManager, pathName, fileDescriptor);
+                peer.sendMessage(createResponse);
+                if (createResponse.successful && noLocalCopies(peer, pathName)) {
                     ServerMain.log.info(peer.name + ": file " + pathName +
                             " not available locally. Send a FILE_BYTES_REQUEST");
                     rwManager.addFile(peer, pathName, fileDescriptor);
                 }
                 break;
             case Message.FILE_MODIFY_REQUEST:
-				        validateFileDescriptor(document);
+				validateFileDescriptor(document);
                 pathName = document.require("pathName");
                 fileDescriptor = document.require("fileDescriptor");
 
@@ -123,9 +121,9 @@ class MessageProcessingThread extends Thread {
                 rwManager.readFile(peer, document);
                 break;
             case Message.FILE_DELETE_REQUEST:
-				        validateFileDescriptor(document);
+				validateFileDescriptor(document);
                 pathName = document.require("pathName");
-				        fileDescriptor = document.require("fileDescriptor");
+				fileDescriptor = document.require("fileDescriptor");
 
                 peer.sendMessage(new FileDeleteResponse(server.fileSystemManager, fileDescriptor, pathName));
                 break;
@@ -157,7 +155,7 @@ class MessageProcessingThread extends Thread {
 
                 if (!status) {
                     // ELEANOR: Log any unsuccessful responses.
-                    ServerMain.log.warning("Failed response: " + command + ": " + message);
+                    ServerMain.log.warning("Failed createResponse: " + command + ": " + message);
                 }
                 break;
 
@@ -203,7 +201,7 @@ class MessageProcessingThread extends Thread {
 					}
 				} catch (ResponseFormatException e) {
             		// In case there was an issue with the format, the peer needs to be activated so it can provide
-					// a useful response. Then, re-throw the exception.
+					// a useful createResponse. Then, re-throw the exception.
             		peer.activate();
             		throw e;
 				}
@@ -250,7 +248,7 @@ class MessageProcessingThread extends Thread {
              */
             case Message.INVALID_PROTOCOL:
                 // crap.
-                ServerMain.log.severe("Invalid protocol response from "
+                ServerMain.log.severe("Invalid protocol createResponse from "
                         + peer.name + ": " + document.require("message"));
                 peer.close();
                 break;
@@ -266,18 +264,6 @@ class MessageProcessingThread extends Thread {
 		fileDescriptor.<String>require("md5");
 		fileDescriptor.<Long>require("lastModified");
 		fileDescriptor.<Long>require("fileSize");
-	}
-
-	/**
-	 * This method checks if a file was created with the same name and content.
-	 */
-	private boolean fileAlreadyExists(PeerConnection peer, String md5, String pathName){
-		boolean fileExists = server.fileSystemManager.fileNameExists(pathName, md5);
-		if (fileExists){
-			ServerMain.log.info(peer.name + ": file " + pathName + " created already." +
-					" No file create request is needed");
-		}
-		return fileExists;
 	}
 
 	/**

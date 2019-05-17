@@ -30,7 +30,12 @@ public class Server implements Runnable {
     private boolean authenticated;
     private ServerMain server;
 
-    public static void main(String[] args) {
+    public Server(ServerMain server){
+        this.server = server;
+    }
+
+    @Override
+    public void run() {
         // Load the public keys
         String[] keyStrings = authorized_keys.split(",");
         for (String keyString : keyStrings) {
