@@ -56,7 +56,7 @@ public class ClientMessage {
      * Encodes the message as JSON.
      * @return the encoded message
      */
-    String encoded() {
+    public String encoded() {
         return document.toJson();
     }
 }

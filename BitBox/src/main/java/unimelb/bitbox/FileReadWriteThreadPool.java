@@ -3,9 +3,11 @@ package unimelb.bitbox;
 import org.jetbrains.annotations.NotNull;
 import unimelb.bitbox.messages.FileBytesRequest;
 import unimelb.bitbox.messages.FileBytesResponse;
+import unimelb.bitbox.messages.InvalidProtocol;
 import unimelb.bitbox.util.Configuration;
-import unimelb.bitbox.util.Document;
 import unimelb.bitbox.util.FileSystemManager;
+import unimelb.bitbox.util.JsonDocument;
+import unimelb.bitbox.util.ResponseFormatException;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -58,11 +60,10 @@ public class FileReadWriteThreadPool {
         this.fileModifiedDates = new ConcurrentHashMap<>();
     }
 
-    public void addFile(PeerConnection peer, Document document){
-        Document fileDescriptor = (Document) document.get("fileDescriptor");
-        long fileSize = fileDescriptor.getLong("fileSize");
-        long modified = fileDescriptor.getLong("lastModified");
-        String pathName = document.getString("pathName");
+    public void addFile(PeerConnection peer, String pathName, JsonDocument fileDescriptor)
+            throws ResponseFormatException {
+        long fileSize = fileDescriptor.require("fileSize");
+        long modified = fileDescriptor.require("lastModified");
 
         FileTransfer ft = new FileTransfer(pathName, peer);
         Long currentOrNull = fileModifiedDates.get(ft);
@@ -78,38 +79,38 @@ public class FileReadWriteThreadPool {
 
         // start the transfer
         fileModifiedDates.put(ft, modified);
-        sendReadRequest(peer, document, 0);
+        sendReadRequest(peer, pathName, fileDescriptor, 0);
         ServerMain.log.info(peer.name + ": sent FILE_BYTES_REQUEST for " +
-                document.getString("pathName") + " at position: [0/" + fileSize + "]");
+                pathName + " at position: [0/" + fileSize + "]");
     }
 
     /**
      * This method sends the first FILE_BYTES_REQUEST
      */
-    public void sendReadRequest(PeerConnection peer, Document document, long position){
+    public void sendReadRequest(PeerConnection peer, String pathName, JsonDocument fileDescriptor, long position)
+            throws ResponseFormatException {
         // Send a byte request
-        peer.sendMessage(new FileBytesRequest(document, position));
+        peer.sendMessage(new FileBytesRequest(pathName, fileDescriptor, position));
     }
 
     /**
      * This method adds and run a ReadWorker to read the bytes based on the FILE_BYTES_REQUEST message
      * received from other peers. It then encodes the content and sends a FILE_BYTES_RESPONSE message to reply.
      */
-    public void readFile(PeerConnection peer, Document document){
-
+    public void readFile(PeerConnection peer, JsonDocument document) throws ResponseFormatException {
         // Get the min. value to determine the final length for byte read
-        Document fileDescriptor = (Document) document.get("fileDescriptor");
+        JsonDocument fileDescriptor = document.require("fileDescriptor");
 
         // Run a worker thread to read the bytes
-        String pathName = document.getString("pathName");
-        long position = document.getLong("position");
+        String pathName = document.require("pathName");
+        long position = document.require("position");
         // ELEANOR: the length is the minimum of the bytes remaining and the block size
-        long length = document.getLong("length");/*Math.min(fileDescriptor.getLong("fileSize") - position,
+        long length = document.require("length");/*Math.min(fileDescriptor.getLong("fileSize") - position,
                                Long.parseLong(Configuration.getConfigurationValue("blockSize")));*/
         Runnable worker = new ReadWorker(peer, document, position, length);
         executor.execute(worker);
 
-        long fileSize = fileDescriptor.getLong("fileSize");
+        long fileSize = fileDescriptor.require("fileSize");
         ServerMain.log.info(peer.name + ": read bytes of " + pathName +
                 " at position: [" + position + "/" + fileSize + "]");
     }
@@ -120,15 +121,14 @@ public class FileReadWriteThreadPool {
      * If any, it adds and runs a WriteWorker to write the bytes.
      * The WriteWorker will decide if the peer should send another FILE_BYTES_REQUEST.
      */
-    public void writeFile(PeerConnection peer, Document document){
+    public void writeFile(PeerConnection peer, JsonDocument document) throws ResponseFormatException {
+        String pathName = document.require("pathName");
+        long position = document.require("position");
+        boolean status = document.require("status");
+        long length = document.require("length"); // Use the agreed min. length between the peers
 
-        String pathName = document.getString("pathName");
-        long position = document.getLong("position");
-        boolean status = document.getBoolean("status");
-        long length = document.getLong("length"); // Use the agreed min. length between the peers
-
-        Document fileDescriptor = (Document) document.get("fileDescriptor");
-        long fileSize = fileDescriptor.getLong("fileSize");
+        JsonDocument fileDescriptor = document.require("fileDescriptor");
+        long fileSize = fileDescriptor.require("fileSize");
 
         // Run a worker thread to write the bytes received
         if (status){
@@ -145,7 +145,7 @@ public class FileReadWriteThreadPool {
             }
             fileModifiedDates.remove(ft);
             // ELEANOR: it's useful to know /why/ we got an unsuccessful response ;)
-            ServerMain.log.info("unsuccessful response: " + document.getString("message"));
+            ServerMain.log.info("unsuccessful response: " + document.require("message"));
             ServerMain.log.info(peer.name + ": closed file loader of " + pathName);
         }
     }
@@ -155,19 +155,19 @@ public class FileReadWriteThreadPool {
      */
     abstract class Worker implements Runnable {
         PeerConnection peer;
-        Document document;
-        Document fileDescriptor;
+        JsonDocument document;
+        JsonDocument fileDescriptor;
         String pathName;
         long position;
         long fileSize;
 
-        public Worker(PeerConnection peer, Document document, long position){
+        public Worker(PeerConnection peer, JsonDocument document, long position) throws ResponseFormatException {
             this.peer = peer;
             this.document = document;
-            this.fileDescriptor = (Document) document.get("fileDescriptor");
-            this.pathName = document.getString("pathName");
+            this.fileDescriptor = document.require("fileDescriptor");
+            this.pathName = document.require("pathName");
             this.position = position;
-            this.fileSize = fileDescriptor.getLong("fileSize");
+            this.fileSize = fileDescriptor.require("fileSize");
         }
 
         @Override
@@ -179,7 +179,8 @@ public class FileReadWriteThreadPool {
 
         private long length;
 
-        public WriteWorker(PeerConnection peer, Document document, long position, long length) {
+        public WriteWorker(PeerConnection peer, JsonDocument document, long position, long length)
+                throws ResponseFormatException {
             super(peer, document, position);
             this.length = length;
         }
@@ -191,7 +192,7 @@ public class FileReadWriteThreadPool {
 
             // Write bytes
             try {
-                String content = document.getString("content");
+                String content = document.require("content");
                 ByteBuffer decoded = ByteBuffer.wrap(Base64.getDecoder().decode(content));
                 if (!fsManager.writeFile(pathName, decoded, position)) {
                     ServerMain.log.warning("Failed writing bytes: " + pathName);
@@ -202,13 +203,16 @@ public class FileReadWriteThreadPool {
             catch (IOException e){
                 ServerMain.log.info(peer.name + ": wrote file " + pathName +
                         " at position: [" + position + "/" + fileSize + "]");
+            } catch (ResponseFormatException e) {
+                peer.sendMessageAndClose(new InvalidProtocol("Missing content field"));
+                return;
             }
 
 
             // Check if more bytes are needed. If yes, send another FileBytesRequest
             try {
                 if (!fsManager.checkWriteComplete(pathName)) {
-                    peer.sendMessage(new FileBytesRequest(document, nextPosition));
+                    peer.sendMessage(new FileBytesRequest(pathName, fileDescriptor, nextPosition));
                     ServerMain.log.info(peer.name + ": sent FILE_BYTES_REQUEST for " + pathName +
                             " at position: [" + nextPosition + "/" + fileSize + "]");
                 } else {
@@ -248,7 +252,8 @@ public class FileReadWriteThreadPool {
     class ReadWorker extends Worker {
         private long length;
 
-        public ReadWorker(PeerConnection peer, Document document, long position, long length) {
+        public ReadWorker(PeerConnection peer, JsonDocument document, long position, long length)
+                throws ResponseFormatException {
             super(peer, document, position);
             this.length = Configuration.getConfigurationValue("mode") == "udp" ? Math.min(length,8192) : length;
 
@@ -259,9 +264,16 @@ public class FileReadWriteThreadPool {
         public void run() {
             String content = "";
             String reply = FileBytesResponse.SUCCESS;
-            final Document fileDescriptor = (Document) document.get("fileDescriptor");
-            final String md5 = fileDescriptor.getString("md5");
-            final long fileSize = fileDescriptor.getLong("fileSize");
+            String md5;
+            long fileSize;
+            try {
+                final JsonDocument fileDescriptor = document.require("fileDescriptor");
+                md5 = fileDescriptor.require("md5");
+                fileSize = fileDescriptor.require("fileSize");
+            } catch (ResponseFormatException e) {
+                peer.sendMessageAndClose(new InvalidProtocol("Malformed message: " + e.getMessage()));
+                return;
+            }
             try {
                 ByteBuffer byteBuffer = peer.server.fileSystemManager.readFile(md5, position, length);
                 if (byteBuffer == null) {
@@ -279,7 +291,11 @@ public class FileReadWriteThreadPool {
                 ServerMain.log.warning(peer.name + ": failed reading bytes of file " + pathName + " at [" +
                         position + "/" + fileSize + "]: " + e.getMessage());
             }
-            peer.sendMessage(new FileBytesResponse(document, pathName, length, position, content, reply));
+            try {
+                peer.sendMessage(new FileBytesResponse(document, pathName, length, position, content, reply));
+            } catch (ResponseFormatException e) {
+                peer.sendMessageAndClose(new InvalidProtocol("Malformed message: " + e.getMessage()));
+            }
         }
     }
 }

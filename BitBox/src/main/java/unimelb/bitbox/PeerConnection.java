@@ -1,15 +1,16 @@
 package unimelb.bitbox;
+
 import unimelb.bitbox.messages.HandshakeRequest;
 import unimelb.bitbox.messages.InvalidProtocol;
 import unimelb.bitbox.messages.Message;
 import unimelb.bitbox.messages.ReceivedMessage;
-import unimelb.bitbox.util.Configuration;
 
 import java.io.*;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -21,7 +22,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 public abstract class PeerConnection {
     public final String name;
     private final boolean wasOutgoing;
-    private final String mode = Configuration.getConfigurationValue("mode");
 
     protected OutgoingConnection outConn;
     public final ServerMain server;
@@ -36,6 +36,7 @@ public abstract class PeerConnection {
         CLOSED,
         INACTIVE
     }
+
     protected State state;
 
     // Returns the current state of the PeerConnection
@@ -50,19 +51,12 @@ public abstract class PeerConnection {
     void activate() {
         activate(host, port);
     }
-    // TODO: override for UDP so that it doesn't set host & port
-    void activate(String host, int port) {
+
+    void activate(String host, long port) {
         synchronized (this) {
             if (state != State.CLOSED && state != State.INACTIVE) {
                 this.host = host;
-                this.port = port;
-                state = State.ACTIVE;
-            }
-        }
-    }
-    void activate(Boolean isUdp){
-        synchronized (this) {
-            if (state != State.CLOSED && state != State.INACTIVE) {
+                this.port = (int) port;
                 state = State.ACTIVE;
             }
         }
@@ -81,12 +75,9 @@ public abstract class PeerConnection {
 
     public String getLocalHost() {
         return name.split("-")[1]
-                   .split(":")[0];
+                .split(":")[0];
     }
-    public static int getLocalUDPPort() {
-        return Integer.parseInt(
-                Configuration.getConfigurationValue("udpPort"));
-    }
+
     public int getLocalPort() {
         return Integer.parseInt(name.split("-")[1]
                 .split(":")[1]);
@@ -97,6 +88,7 @@ public abstract class PeerConnection {
     public String getHost() {
         return host;
     }
+
     public int getPort() {
         return port;
     }
@@ -139,7 +131,7 @@ public abstract class PeerConnection {
         State state = getState();
         if (state == State.ACTIVE) {
             sendMessageInternal(message, onSent);
-        } else if (state != State.CLOSED && state != State.INACTIVE){
+        } else if (state != State.CLOSED && state != State.INACTIVE) {
             final String err = "handshake must be completed first";
             ServerMain.log.info("Closing connection to " + name + ": " + err);
             sendMessageInternal(new InvalidProtocol(err), this::close);
@@ -150,7 +142,8 @@ public abstract class PeerConnection {
      * Send a message to this peer, regardless of state.
      */
     protected void sendMessageInternal(Message message) {
-        sendMessageInternal(message, () -> {});
+        sendMessageInternal(message, () -> {
+        });
     }
 
     /**
@@ -160,9 +153,6 @@ public abstract class PeerConnection {
         message.setFriendlyName(name);
         ServerMain.log.info(name + " sent: " + message.getType());
         outConn.messages.add(new OutgoingMessage(message.encode(), onSent));
-        if(mode.equals("udp")){
-
-        }
     }
 
     /**
@@ -176,24 +166,25 @@ public abstract class PeerConnection {
     public String toString() {
         return name + " (" + host + ":" + port + ")";
     }
+
     public boolean equals(Object other) {
         if (other instanceof PeerConnection) {
-            PeerConnection rhs = (PeerConnection)other;
+            PeerConnection rhs = (PeerConnection) other;
             return rhs.toString().equals(toString());
         }
         return false;
     }
 }
 
-class PeerTCP extends PeerConnection{
+class PeerTCP extends PeerConnection {
     private Socket socket;
-    PeerTCP(String name, ServerMain server, State state, Socket socket){
-        super(name,server,state,socket.getInetAddress().getHostAddress(),socket.getPort());
+
+    PeerTCP(String name, Socket socket, ServerMain server, State state) {
+        super(name, server, state, socket.getInetAddress().getHostAddress(), socket.getPort());
         this.socket = socket;
         outConn = new OutgoingConnection(socket);
         outConn.start();
-        System.out.println("TCP peer created, state is: "+state);
-        IncomingConnection inConn = new IncomingConnection(socket, this,"tcp");
+        IncomingConnection inConn = new IncomingConnection(socket, this);
         inConn.start();
 
         if (state == State.WAIT_FOR_RESPONSE) {
@@ -201,40 +192,46 @@ class PeerTCP extends PeerConnection{
             sendMessageInternal(new HandshakeRequest(getLocalHost(), getLocalPort()));
         }
     }
+
     @Override
-    void close(){
-        {
-            // must be synchronised so *either* the server or the peer can initiate a close sequence
-            synchronized (this) {
-                if (state == State.CLOSED) {
-                    return;
-                }
-                ServerMain.log.info("Connection to peer `" + name + "` closed.");
-
-                try {
-                    socket.close();
-                } catch (IOException e) {
-                    ServerMain.log.severe("Error closing socket: " + e.getMessage());
-                }
-                state = State.CLOSED;
-
-                server.closeConnection(this);
+    void close() {
+        // must be synchronised so *either* the server or the peer can initiate a close sequence
+        synchronized (this) {
+            if (state == State.CLOSED) {
+                return;
             }
+            ServerMain.log.info("Connection to peer `" + name + "` closed.");
+
+            try {
+                socket.close();
+            } catch (IOException e) {
+                ServerMain.log.severe("Error closing socket: " + e.getMessage());
+            }
+            state = State.CLOSED;
+
+            server.closeConnection(this);
         }
     }
 
 
 }
-class PeerUDP extends PeerConnection{
-    private DatagramSocket socket;
-    PeerUDP(String name, ServerMain server, State state, DatagramSocket socket, DatagramPacket packet, String type){
-        super(name,server,state, packet.getAddress().toString().split("/")[1], packet.getPort());
-        this.socket = socket;
-        System.out.println("UDP peer created, state is: "+state);
-        outConn = new OutgoingConnection(socket,"udp", packet);
+
+class PeerUDP extends PeerConnection {
+
+    @Override
+    void activate(String host, long port) {
+        synchronized (this) {
+            if (state != State.CLOSED && state != State.INACTIVE) {
+                // UDP peer already has accurate host and port
+                state = State.ACTIVE;
+            }
+        }
+    }
+
+    PeerUDP(String name, ServerMain server, State state, DatagramSocket socket, DatagramPacket packet) {
+        super(name, server, state, packet.getAddress().toString().split("/")[1], packet.getPort());
+        outConn = new OutgoingConnection(socket, packet);
         outConn.start();
-        IncomingConnection inConn = new IncomingConnection(socket,this,"udp",type.equals("server")?packet:null);
-        inConn.start();
 
         if (state == State.WAIT_FOR_RESPONSE) {
             ServerMain.log.info(name + ": Sending UDP handshake request");
@@ -242,20 +239,17 @@ class PeerUDP extends PeerConnection{
 
         }
     }
-    @Override
-    void close(){
-        {
-            // must be synchronised so *either* the server or the peer can initiate a close sequence
-            synchronized (this) {
-                if (state == State.CLOSED) {
-                    return;
-                }
-                ServerMain.log.info("Connection to peer `" + name + "` closed.");
-                socket.close();
-                state = State.CLOSED;
 
-                server.closeConnection(this);
+    @Override
+    // Override to not close the socket, as it's shared between all peers.
+    void close() {
+        synchronized (this) {
+            if (state == State.CLOSED) {
+                return;
             }
+            ServerMain.log.info("Connection to peer `" + name + "` closed.");
+            state = State.CLOSED;
+            server.closeConnection(this);
         }
     }
 }
@@ -285,7 +279,8 @@ class OutgoingConnection extends Thread {
         this.socket = socket;
         this.mode = "tcp";
     }
-    OutgoingConnection(DatagramSocket socket, String mode, DatagramPacket packet) {
+
+    OutgoingConnection(DatagramSocket socket, DatagramPacket packet) {
         this.udpSocket = socket;
         this.mode = "udp";
         this.packet = packet;
@@ -293,7 +288,7 @@ class OutgoingConnection extends Thread {
 
     @Override
     public void run() {
-        if(this.mode.equals("tcp")){
+        if (this.mode.equals("tcp")) {
             try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8))) {
                 while (true) {
                     OutgoingMessage message = messages.take();
@@ -304,27 +299,24 @@ class OutgoingConnection extends Thread {
             } catch (IOException | InterruptedException e) {
                 ServerMain.log.severe("Error writing to socket: " + e.getMessage());
             }
-        }else{
-
-            try{
-                while (true){
-                    if (messages.size() == 0) continue;
-                    byte[] buffer = new byte[25000];
+        } else {
+            while (true) {
+                try {
                     OutgoingMessage message = messages.take();
-                    packet.setData(message.message.getBytes());
+                    ServerMain.log.info(message.message);
 
+                    // Datagram packets need to be null terminated.
+                    byte[] buffer = Arrays.copyOf(message.message.getBytes(), message.message.length() + 1);
+                    buffer[buffer.length - 1] = '\0';
+
+                    packet.setData(buffer);
                     udpSocket.send(packet);
                     message.onSent.run();
+                } catch (IOException | InterruptedException | NullPointerException e) {
+                    ServerMain.log.severe("Error sending packet to UDP socket: " + e.getMessage());
                 }
-
             }
-            catch (IOException | InterruptedException | NullPointerException e){
-                ServerMain.log.severe("Error sending packet to UDP socket: " + e.getMessage());
-            }
-
-
         }
-
     }
 }
 
@@ -332,62 +324,27 @@ class IncomingConnection extends Thread {
     private Socket socket;
     // the PeerConnection object that will forward our received messages
     private PeerConnection consumer;
-    private String mode;
-    private DatagramPacket packet;
-    private DatagramSocket udpSocket;
 
-    IncomingConnection(Socket socket, PeerConnection consumer, String mode) {
+    IncomingConnection(Socket socket, PeerConnection consumer) {
         this.socket = socket;
         this.consumer = consumer;
-        this.mode = "tcp";
-    }
-    IncomingConnection(DatagramSocket udpSocket, PeerConnection consumer, String mode, DatagramPacket packet) {
-        this.consumer = consumer;
-        this.mode = "udp";
-        this.packet = packet;
-        this.udpSocket = udpSocket;
     }
 
 
     @Override
     public void run() {
-        if(this.mode.equals("tcp")) {
-            try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
-                while (true) {
-                    String message = in.readLine();
-                    if (message != null) {
-                        consumer.receiveMessage(message);
-                    }
-                }
-            } catch (IOException e) {
-                if (consumer.getState() != PeerConnection.State.CLOSED) {
-                    ServerMain.log.severe("Error reading from socket: " + e.getMessage());
-                    consumer.close();
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+            while (true) {
+                String message = in.readLine();
+                if (message != null) {
+                    consumer.receiveMessage(message);
                 }
             }
-        }
-        else {
-
-            while (true){
-                try {
-                    if (packet==null)
-                        continue;
-                    int length = packet.getLength();
-
-                    String message = new String(packet.getData(), 0,length );
-                    if (message.charAt(0) == '\u0000' || packet == null)
-                        continue;
-                    if (message != null) {
-                        // host and port should be from handshake request
-                        consumer.receiveMessage(message);
-                    }
-                    Thread.sleep(3000);
-                }catch (Exception e){
-                    ServerMain.log.severe("Receiving message went wrong: " + e.getMessage());
-                }
+        } catch (IOException e) {
+            if (consumer.getState() != PeerConnection.State.CLOSED) {
+                ServerMain.log.severe("Error reading from socket: " + e.getMessage());
+                consumer.close();
             }
-
         }
-
     }
 }

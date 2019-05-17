@@ -1,6 +1,6 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.util.Document;
+import unimelb.bitbox.util.JsonDocument;
 
 /*
  * Base class for all Messages that peers can send.
@@ -24,10 +24,10 @@ public class Message {
     public static final String DIRECTORY_DELETE_REQUEST = "DIRECTORY_DELETE_REQUEST";
     public static final String DIRECTORY_DELETE_RESPONSE = "DIRECTORY_DELETE_RESPONSE";
 
-    protected Document document;
+    protected JsonDocument document;
 
     public Message() {
-        document = new Document();
+        document = new JsonDocument();
     }
 
     public void setFriendlyName(String name) {
@@ -37,7 +37,7 @@ public class Message {
     }
 
     public String getType() {
-        return document.getString("command");
+        return document.<String>get("command").orElse("N/A");
     }
 
     public String encode() {
