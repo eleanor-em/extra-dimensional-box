@@ -1,6 +1,7 @@
 package unimelb.bitbox;
 
 import org.jetbrains.annotations.NotNull;
+import unimelb.bitbox.client.Server;
 import unimelb.bitbox.messages.*;
 import unimelb.bitbox.util.Configuration;
 import unimelb.bitbox.util.Document;
@@ -547,6 +548,9 @@ public class ServerMain implements FileSystemObserver {
 
 	private final Set<String> peerAddresses = ConcurrentHashMap.newKeySet();
 
+	// for client-peer connection
+	private final int clientPort;
+
 	public ServerMain() throws NumberFormatException, IOException, NoSuchAlgorithmException {
 		// initialise some stuff
 		fileSystemManager = new FileSystemManager(
@@ -556,13 +560,20 @@ public class ServerMain implements FileSystemObserver {
 		advertisedName = Configuration.getConfigurationValue("advertisedName");
 		createNames();
 
+		// for client-peer connection
+		clientPort = Integer.parseInt(Configuration.getConfigurationValue("clientPort"));
+
 		// create the processor thread
 		processor.start();
 		log.info("Processor thread started");
 
-		// create the server thread
+		// create the server main thread
 		new Thread(this::acceptConnections).start();
-		log.info("Server thread started");
+		log.info("Peer-to-Peer server thread started");
+
+		// create the client server thread
+		new Thread(new Server(this)).start();
+		log.info("Client-to-server thread started");
 
 		// connect to each of the listed peers
 		String[] addresses = Configuration.getConfigurationValue("peers").split(",");
@@ -700,37 +711,80 @@ public class ServerMain implements FileSystemObserver {
 	 */
 	public void retryPeers() {
 		for (Iterator<String> i = peerAddresses.iterator(); i.hasNext(); ) {
-			String addr = i.next();
-			if (getConnectedAddresses().contains(addr)) {
-				continue;
-			}
-			// separate the address into a hostname and port
-			// HostPort doesn't handle this safely
-			String[] parts = addr.trim().split(":");
-			if (parts.length > 1) {
-				String hostname = parts[0];
-				int port = Integer.parseInt(parts[1]);
-
-				try {
-					Socket socket = new Socket(hostname, port);
-
-					// find a name
-					String name = names.poll();
-					if (name == null) {
-						name = DEFAULT_NAME;
-					}
-					peers.add(new PeerConnection(formatName(name),
-							socket,
-							this,
-							PeerConnection.State.WAIT_FOR_RESPONSE));
-					// success: remove this peer from the set of peers to connect to
-					i.remove();
-					log.info("Connected to peer " + name + " (" + addr + ")");
-				} catch (IOException e) {
-					log.warning("Connection to peer `" + addr + "` failed: " + e.getMessage());
-				}
+			if(retryPeer(i.next())){
+				i.remove();
 			}
 		}
+	}
+
+	public Boolean retryPeer(String peerAddress){
+		String addr = peerAddress;
+		if (getConnectedAddresses().contains(addr)) {
+			return false;
+		}
+		// separate the address into a hostname and port
+		// HostPort doesn't handle this safely
+		String[] parts = addr.trim().split(":");
+		if (parts.length > 1) {
+			String hostname = parts[0];
+			int port = Integer.parseInt(parts[1]);
+
+			try {
+				Socket socket = new Socket(hostname, port);
+
+				// find a name
+				String name = getName();
+				peers.add(new PeerConnection(formatName(name),
+						socket,
+						this,
+						PeerConnection.State.WAIT_FOR_RESPONSE));
+				// success: remove this peer from the set of peers to connect to
+				log.info("Connected to peer " + name + " (" + addr + ")");
+				return true;
+			} catch (IOException e) {
+				log.warning("Connection to peer `" + addr + "` failed: " + e.getMessage());
+			}
+		}
+		return false;
+
+	}
+
+	public Boolean retryPeer(String hostname, int port){
+		String addr = hostname + ":" + port;
+		if (getConnectedAddresses().contains(addr)) {
+			return false;
+		}
+
+		try {
+			Socket socket = new Socket(hostname, port);
+
+			// find a name
+			String name = getName();
+			peers.add(new PeerConnection(formatName(name),
+					socket,
+					this,
+					PeerConnection.State.WAIT_FOR_RESPONSE));
+			// success: remove this peer from the set of peers to connect to
+			log.info("Connected to peer " + name + " (" + addr + ")");
+			return true;
+		} catch (IOException e) {
+			log.warning("Connection to peer `" + addr + "` failed: " + e.getMessage());
+		}
+
+		return false;
+
+	}
+
+	/**
+	 * Get a name for the peer connection for debugging purposes.
+	 * @return A name for the peer connection
+	 */
+	public String getName(){
+		String name = names.poll();
+		if (name == null) {
+			name = DEFAULT_NAME;
+		}
+		return name;
 	}
 
 	/**
@@ -763,7 +817,7 @@ public class ServerMain implements FileSystemObserver {
 	}
 
 	@org.jetbrains.annotations.Contract(pure = true)
-	private String formatName(String name) {
+	public String formatName(String name) {
 		if (name == null) {
 			name = "Anonymous";
 		}
