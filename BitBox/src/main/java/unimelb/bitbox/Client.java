@@ -5,8 +5,8 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
-import unimelb.bitbox.client.AuthResponse;
-import unimelb.bitbox.client.ClientMessage;
+import unimelb.bitbox.client.AuthResponseParser;
+import unimelb.bitbox.client.ClientProtocol;
 import unimelb.bitbox.util.Crypto;
 import unimelb.bitbox.util.HostPort;
 import unimelb.bitbox.util.JsonDocument;
@@ -78,7 +78,7 @@ public class Client {
 
         // Find the address we want to connect to, and create the message to be sent post-authentication
         HostPort hostPort;
-        ClientMessage message;
+        ClientProtocol message;
         try {
             // Load the server address and perform error checking
             String serverAddress = opts.getOptionValue("s");
@@ -88,7 +88,7 @@ public class Client {
             }
             hostPort = new HostPort(serverAddress);
 
-            message = ClientMessage.generateMessage(opts);
+            message = ClientProtocol.generateMessage(opts);
         } catch (IllegalArgumentException e) {
             System.out.println("Failed to parse command line options: " + e.getMessage());
             return;
@@ -123,7 +123,7 @@ public class Client {
             out.flush();
 
             // Wait for authentication response
-            AuthResponse response = new AuthResponse(in.readLine());
+            AuthResponseParser response = new AuthResponseParser(in.readLine());
             if (response.isError()) {
                 System.out.println("Authentication failure: " + response.getMessage());
                 return;

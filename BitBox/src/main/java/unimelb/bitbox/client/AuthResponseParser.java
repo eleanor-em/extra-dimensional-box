@@ -14,7 +14,7 @@ import java.util.Base64;
 /**
  * Parses a received authentication response.
  */
-public class AuthResponse {
+public class AuthResponseParser {
     private boolean status;
     private byte[] key;
     private String message = "";
@@ -24,7 +24,7 @@ public class AuthResponse {
      * @param message the JSON data to interpret
      * @throws ResponseFormatException in case the provided message is malformed
      */
-    public AuthResponse(String message) throws ResponseFormatException {
+    public AuthResponseParser(String message) throws ResponseFormatException {
         JsonDocument doc;
         try {
             doc = JsonDocument.parse(message);

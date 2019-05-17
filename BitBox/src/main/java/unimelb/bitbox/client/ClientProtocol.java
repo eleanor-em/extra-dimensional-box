@@ -7,7 +7,7 @@ import unimelb.bitbox.util.HostPort;
 /**
  * A message that can be sent by the Client.
  */
-public class ClientMessage {
+public class ClientProtocol {
     private final Document document = new Document();
 
     /**
@@ -16,7 +16,7 @@ public class ClientMessage {
      * @return the generated message
      * @throws IllegalArgumentException in case the options are incorrectly formatted
      */
-    public static ClientMessage generateMessage(CommandLine opts)
+    public static ClientProtocol generateMessage(CommandLine opts)
         throws IllegalArgumentException {
         String command = opts.getOptionValue("c");
         if (command == null) {
@@ -25,11 +25,11 @@ public class ClientMessage {
 
         switch (command) {
             case "list_peers":
-                return new ListPeersMessage();
+                return new ListPeersRequest();
             case "connect_peer":
-                return new ConnectPeerMessage(opts.getOptionValue("p"));
+                return new ConnectPeerRequest(opts.getOptionValue("p"));
             case "disconnect_peer":
-                return new DisconnectPeerMessage(opts.getOptionValue("p"));
+                return new DisconnectPeerRequest(opts.getOptionValue("p"));
             default:
                 throw new IllegalArgumentException("invalid command: " + command);
         }
@@ -39,7 +39,7 @@ public class ClientMessage {
      * Constructor. Intended for use only by subclasses.
      * @param command the command to send
      */
-    protected ClientMessage(String command) {
+    protected ClientProtocol(String command) {
         document.append("command", command);
     }
 
@@ -61,14 +61,14 @@ public class ClientMessage {
     }
 }
 
-class ListPeersMessage extends ClientMessage {
-    ListPeersMessage() {
+class ListPeersRequest extends ClientProtocol {
+    ListPeersRequest() {
         super("LIST_PEERS_REQUEST");
     }
 }
 
-class PeerMessage extends ClientMessage {
-    public PeerMessage(String command, String peerAddress)
+class PeerProtocol extends ClientProtocol {
+    public PeerProtocol(String command, String peerAddress)
             throws IllegalArgumentException {
         super(command);
 
@@ -80,14 +80,14 @@ class PeerMessage extends ClientMessage {
     }
 }
 
-class ConnectPeerMessage extends PeerMessage {
-    public ConnectPeerMessage(String peerAddress) throws IllegalArgumentException {
+class ConnectPeerRequest extends PeerProtocol {
+    public ConnectPeerRequest(String peerAddress) throws IllegalArgumentException {
         super("CONNECT_PEER_REQUEST", peerAddress);
     }
 }
 
-class DisconnectPeerMessage extends PeerMessage {
-    public DisconnectPeerMessage(String peerAddress) throws IllegalArgumentException {
+class DisconnectPeerRequest extends PeerProtocol {
+    public DisconnectPeerRequest(String peerAddress) throws IllegalArgumentException {
         super("DISCONNECT_PEER_REQUEST", peerAddress);
     }
 }

@@ -351,6 +351,7 @@ public class ServerMain implements FileSystemObserver {
 		peer.close();
 
 		peers.remove(peer);
+
 		processor.rwManager.cancelPeerFiles(peer);
 
 		// return the plain name to the queue, if it's not the default
@@ -395,9 +396,10 @@ public class ServerMain implements FileSystemObserver {
 
 	public PeerConnection getPeer(String host, int port) {
 		for (PeerConnection peer: getPeers()){
-			if (peer.getHost() == host && peer.getPort() == port){
+			if (peer.getHost().equalsIgnoreCase(host) && peer.getPort() == port){
 				return peer;
 			}
+
 		}
 		return null;
 	}
@@ -605,6 +607,7 @@ public class ServerMain implements FileSystemObserver {
 	public boolean isConnected(String host, int port){
 		boolean found = false;
 		for (PeerConnection peer: this.getPeers()){
+			log.info(host + ":" + port);
 			if (host == peer.getHost() && port == peer.getPort()){
 				found = true;
 				break;

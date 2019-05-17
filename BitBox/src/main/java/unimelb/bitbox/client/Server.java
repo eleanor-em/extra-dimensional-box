@@ -1,8 +1,7 @@
 package unimelb.bitbox.client;
 
-import unimelb.bitbox.PeerConnection;
-import unimelb.bitbox.ServerMain;
 import org.json.simple.parser.ParseException;
+import unimelb.bitbox.ServerMain;
 import unimelb.bitbox.util.*;
 
 import javax.crypto.BadPaddingException;
@@ -94,9 +93,7 @@ public class Server implements Runnable {
 
         String command = document.require("command");
         Optional<String> maybeIdent = document.get("identity");
-        String host;
-        int port;
-        final String SUCCESS;
+
         switch (command) {
             case "AUTH_REQUEST":
 
@@ -104,7 +101,6 @@ public class Server implements Runnable {
 
                 // Look up the provided ident in our list of keys to find the relevant key
                 // (if there are several matching idents, just pick the first)
-
                 Optional<SSHPublicKey> matchedKey = keys.stream()
                         .filter(key -> key.getIdent().equals(maybeIdent.orElse("")))
                         .findFirst();
@@ -130,52 +126,15 @@ public class Server implements Runnable {
                 break;
 
         case "LIST_PEERS_REQUEST":
-            response.append("command", "LIST_PEERS_RESPONSE");
-
-            // add all peers currently connected to and previously
-            // connected to by this peer
-            ArrayList<JsonDocument> peers = new ArrayList<>();
-            for (PeerConnection peer: server.getPeers()){
-                JsonDocument peerItem = new JsonDocument();
-                peerItem.append("host", peer.getHost());
-                peerItem.append("port", peer.getPort());
-                peers.add(peerItem);
-            }
-            response.append("peers", peers);
+            response = new ListPeerResponse(server, document).getResponse();
             break;
 
         case "CONNECT_PEER_REQUEST":
-            response.append("command", "CONNECT_PEER_RESPONSE");
-
-            host = document.require("host");
-            port = (int)(long) document.require("port");
-            SUCCESS = "connected to peer";
-            String connectPeerReply = SUCCESS;
-            if (!server.tryPeer(host, port)){
-                connectPeerReply = "connection failed";
-            }
-            response.append("host", host);
-            response.append("port", port);
-            response.append("status", connectPeerReply == SUCCESS);
-            response.append("message", connectPeerReply);
+            response = new ConnectPeerResponse(server, document).getResponse();
             break;
 
         case "DISCONNECT_PEER_REQUEST":
-            response.append("command", "DISCONNECT_PEER_RESPONSE");
-
-            host = document.require("host");
-            port = (int)(long) document.require("port");
-            SUCCESS = "disconnected from peer";
-            String disconnectPeerReply = SUCCESS;
-            if (server.isConnected(host, port)){
-                server.closeConnection(server.getPeer(host, port));
-            } else {
-                disconnectPeerReply = "connection not active";
-            }
-            response.append("host", host);
-            response.append("port", port);
-            response.append("status", disconnectPeerReply == SUCCESS);
-            response.append("message", disconnectPeerReply);
+            response = new DisconnectPeerResponse(server, document).getResponse();
             break;
         }
 
