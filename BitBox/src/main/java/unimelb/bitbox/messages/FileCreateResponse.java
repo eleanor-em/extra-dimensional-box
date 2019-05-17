@@ -14,14 +14,19 @@ public class FileCreateResponse extends Message {
     public FileCreateResponse(FileSystemManager fsManager, Document json, String pathName) {
         String reply;
         Document fileDescriptor = (Document) json.get("fileDescriptor");
-        try {
-            if (!fsManager.isSafePathName(pathName)) {
-                reply = "unsafe pathname given: " + pathName;
-            } else {
-                reply = generateFileLoader(fsManager, json);
+
+        if (fileCreated(document, fsManager)) {
+            reply = "file already exists locally";
+        } else {
+            try {
+                if (!fsManager.isSafePathName(pathName)) {
+                    reply = "unsafe pathname given: " + pathName;
+                } else {
+                    reply = generateFileLoader(fsManager, json);
+                }
+            } catch (Exception e) {
+                reply = "there was a problem creating the file: " + pathName;
             }
-        } catch (Exception e) {
-            reply = "there was a problem creating the file: " + pathName;
         }
 
         successful = reply == SUCCESS;
@@ -64,5 +69,21 @@ public class FileCreateResponse extends Message {
             ServerMain.log.severe("error generating file loader for " + pathName);
             return "misc error: " + e.getMessage() + ": " + pathName;
         }
+    }
+
+    /**
+     * This method checks if a file was created with the same name and content.
+     */
+    private boolean fileCreated(Document document, FileSystemManager fsManager){
+
+        Document fileDescriptor = (Document) document.get("fileDescriptor");
+        String pathName = document.getString("pathName");
+
+        boolean fileExist = fsManager.fileNameExists(pathName, fileDescriptor.getString("md5"));
+        if (fileExist){
+            ServerMain.log.info("file " + pathName + " created already." +
+                    " No file create request is needed");
+        }
+        return fileExist;
     }
 }

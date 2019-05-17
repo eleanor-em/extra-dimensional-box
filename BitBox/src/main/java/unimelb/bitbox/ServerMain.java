@@ -1,6 +1,16 @@
 package unimelb.bitbox;
 
-import java.io.*;
+import org.jetbrains.annotations.NotNull;
+import unimelb.bitbox.messages.*;
+import unimelb.bitbox.util.Configuration;
+import unimelb.bitbox.util.Document;
+import unimelb.bitbox.util.FileSystemManager;
+import unimelb.bitbox.util.FileSystemManager.FileSystemEvent;
+import unimelb.bitbox.util.FileSystemObserver;
+
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -12,14 +22,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-
-import org.jetbrains.annotations.NotNull;
-import unimelb.bitbox.messages.*;
-import unimelb.bitbox.util.Configuration;
-import unimelb.bitbox.util.Document;
-import unimelb.bitbox.util.FileSystemManager;
-import unimelb.bitbox.util.FileSystemObserver;
-import unimelb.bitbox.util.FileSystemManager.FileSystemEvent;
 
 /**
  * The ServerThread collects messages from the various PeerConnections, and then does something with them.
@@ -95,15 +97,13 @@ class MessageProcessingThread extends Thread {
 				 */
 				case Message.FILE_CREATE_REQUEST:
 					if (hasValidPathName(peer, document) && hasValidFileDescriptor(peer, document)){
-						if (!fileCreated(peer, document)) {
+						FileCreateResponse response = new FileCreateResponse(server.fileSystemManager, document, pathName);
+						peer.sendMessage(response);
+						if (response.successful && noLocalCopies(peer, document)) {
 							ServerMain.log.info(peer.name + ": file " + pathName +
 									" not available locally. Send a FILE_BYTES_REQUEST");
 							// ELEANOR: Check that the response was successful before opening the file loader.
-							FileCreateResponse response = new FileCreateResponse(server.fileSystemManager, document, pathName);
-							peer.sendMessage(response);
-							if (response.successful && noLocalCopies(peer, document)) {
-								rwManager.addFile(peer, document);
-							}
+							rwManager.addFile(peer, document);
 						}
 					}
 					break;
@@ -285,22 +285,6 @@ class MessageProcessingThread extends Thread {
 			e.printStackTrace();
 			invalidProtocolResponse(peer, "invalid message received");
 		}
-	}
-
-	/**
-	 * This method checks if a file was created with the same name and content.
-	 */
-	private boolean fileCreated(PeerConnection peer, Document document){
-
-		Document fileDescriptor = (Document) document.get("fileDescriptor");
-		String pathName = document.getString("pathName");
-
-		boolean fileExist = server.fileSystemManager.fileNameExists(pathName, fileDescriptor.getString("md5"));
-		if (fileExist){
-			ServerMain.log.info(peer.name + ": file " + pathName + " created already." +
-					" No file create request is needed");
-		}
-		return fileExist;
 	}
 
 	/**
