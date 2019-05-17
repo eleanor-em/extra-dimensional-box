@@ -2,31 +2,10 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="4cb63065-9f40-428b-9566-0cafce1c3272" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/runConfigurations/1.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/runConfigurations/2.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/runConfigurations/3.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/util/JsonDocument.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/runConfigurations/1.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/runConfigurations/Peer_8111.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/runConfigurations/2.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/runConfigurations/Peer_8112.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/runConfigurations/3.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/runConfigurations/Peer_8113.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/configuration.properties" beforeDir="false" afterPath="$PROJECT_DIR$/configuration.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/Client.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/client/Client.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/FileReadWriteThreadPool.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/FileReadWriteThreadPool.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/PeerConnection.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/PeerConnection.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/ServerMain.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/ServerMain.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/client/AuthResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/client/AuthResponse.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/client/Server.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/client/Server.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/FileBytesRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/FileBytesRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/FileBytesResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/FileBytesResponse.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/FileCreateRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/FileCreateRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/FileCreateResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/FileCreateResponse.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/FileDeleteRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/FileDeleteRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/FileDeleteResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/FileDeleteResponse.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/FileModifyRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/FileModifyRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/FileModifyResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/FileModifyResponse.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/HandshakeRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/HandshakeRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/HandshakeResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/HandshakeResponse.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/Message.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/Message.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/util/Crypto.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/util/Crypto.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/util/Document.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/unimelb/bitbox/util/Document.java" afterDir="false" />
     </list>
     <ignored path="$PROJECT_DIR$/out/" />
     <ignored path="$PROJECT_DIR$/target/" />
@@ -49,40 +28,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/client/Server.java">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="544">
-              <caret line="33" column="19" lean-forward="true" selection-start-line="33" selection-start-column="19" selection-end-line="33" selection-end-column="19" />
-              <folding>
-                <element signature="e#4574#4582#0" expanded="true" />
-                <element signature="e#4625#4631#0" expanded="true" />
-                <element signature="e#4674#4680#0" expanded="true" />
-                <element signature="e#5943#5951#0" expanded="true" />
-                <element signature="e#6052#6061#0" expanded="true" />
-                <element signature="e#6393#6401#0" expanded="true" />
-                <element signature="e#6444#6450#0" expanded="true" />
-                <element signature="e#6491#6499#0" expanded="true" />
-                <element signature="e#6541#6549#0" expanded="true" />
-                <element signature="e#6591#6600#0" expanded="true" />
-                <element signature="e#7757#7765#0" expanded="true" />
-                <element signature="e#7804#7810#0" expanded="true" />
-                <element signature="e#8405#8413#0" expanded="true" />
-                <element signature="e#10189#10197#0" expanded="true" />
-                <element signature="e#10277#10283#0" expanded="true" />
-                <element signature="e#10339#10345#0" expanded="true" />
-                <element signature="e#26068#26069#0" expanded="true" />
-                <element signature="e#26128#26129#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/config3/configuration.properties">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="51">
-              <caret line="3" column="38" selection-start-line="3" selection-start-column="38" selection-end-line="3" selection-end-column="38" />
+            <state relative-caret-position="135">
+              <caret line="9" selection-start-line="9" selection-end-line="9" />
             </state>
           </provider>
         </entry>
@@ -90,8 +40,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/config1/configuration.properties">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="119">
-              <caret line="7" selection-start-line="7" selection-end-line="7" />
+            <state relative-caret-position="120">
+              <caret line="8" selection-start-line="8" selection-end-line="8" />
             </state>
           </provider>
         </entry>
@@ -99,7 +49,7 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/util/JsonDocument.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="653">
+            <state relative-caret-position="1035">
               <caret line="75" selection-start-line="75" selection-end-line="75" />
               <folding>
                 <element signature="imports" expanded="true" />
@@ -119,8 +69,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/client/Client.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="330">
-              <caret line="137" column="44" lean-forward="true" selection-start-line="137" selection-start-column="44" selection-end-line="137" selection-end-column="44" />
+            <state relative-caret-position="2055">
+              <caret line="137" column="44" selection-start-line="137" selection-start-column="44" selection-end-line="137" selection-end-column="44" />
               <folding>
                 <element signature="imports" expanded="true" />
               </folding>
@@ -129,28 +79,19 @@
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/.idea/workspace.xml">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="748">
-              <caret line="44" column="41" lean-forward="true" selection-start-line="44" selection-start-column="41" selection-end-line="44" selection-end-column="41" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/util/Crypto.java">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="336">
-              <caret line="47" column="57" selection-start-line="47" selection-start-column="57" selection-end-line="47" selection-end-column="57" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/util/Document.java">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="446">
-              <caret line="49" column="27" lean-forward="true" selection-start-line="49" selection-start-column="27" selection-end-line="49" selection-end-column="27" />
+              <caret line="49" column="27" selection-start-line="49" selection-start-column="27" selection-end-line="49" selection-end-column="27" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/config4/configuration.properties">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="90">
+              <caret line="6" column="19" lean-forward="true" selection-start-line="6" selection-start-column="19" selection-end-line="6" selection-end-column="19" />
             </state>
           </provider>
         </entry>
@@ -158,11 +99,13 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/client/AuthResponse.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="472">
-              <caret line="43" column="39" lean-forward="true" selection-start-line="43" selection-start-column="39" selection-end-line="43" selection-end-column="39" />
+            <state relative-caret-position="645">
+              <caret line="43" column="39" selection-start-line="43" selection-start-column="39" selection-end-line="43" selection-end-column="39" />
               <folding>
                 <element signature="imports" expanded="true" />
+                <element signature="e#2438#2439#0" expanded="true" />
                 <element signature="e#2468#2469#0" expanded="true" />
+                <element signature="e#2614#2615#0" expanded="true" />
                 <element signature="e#2644#2645#0" expanded="true" />
               </folding>
             </state>
@@ -172,7 +115,7 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/PeerConnection.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="3859">
+            <state relative-caret-position="3405">
               <caret line="256" column="17" selection-start-line="256" selection-start-column="17" selection-end-line="256" selection-end-column="17" />
             </state>
           </provider>
@@ -181,32 +124,10 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/ServerMain.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="238">
-              <caret line="348" column="29" lean-forward="true" selection-start-line="348" selection-start-column="29" selection-end-line="348" selection-end-column="29" />
+            <state relative-caret-position="5220">
+              <caret line="348" column="7" selection-start-line="348" selection-start-column="7" selection-end-line="348" selection-end-column="7" />
               <folding>
                 <element signature="imports" expanded="true" />
-                <element signature="e#4917#4925#0" expanded="true" />
-                <element signature="e#4968#4974#0" expanded="true" />
-                <element signature="e#5017#5023#0" expanded="true" />
-                <element signature="e#6286#6294#0" expanded="true" />
-                <element signature="e#6395#6404#0" expanded="true" />
-                <element signature="e#6768#6776#0" expanded="true" />
-                <element signature="e#6819#6825#0" expanded="true" />
-                <element signature="e#6866#6874#0" expanded="true" />
-                <element signature="e#6916#6924#0" expanded="true" />
-                <element signature="e#6966#6975#0" expanded="true" />
-                <element signature="e#8820#8828#0" expanded="true" />
-                <element signature="e#8867#8873#0" expanded="true" />
-                <element signature="e#9640#9648#0" expanded="true" />
-                <element signature="e#10925#10933#0" expanded="true" />
-                <element signature="e#10966#10972#0" expanded="true" />
-                <element signature="e#11014#11020#0" expanded="true" />
-                <element signature="e#16793#16794#0" expanded="true" />
-                <element signature="e#16831#16832#0" expanded="true" />
-                <element signature="e#16943#16944#0" expanded="true" />
-                <element signature="e#16976#16977#0" expanded="true" />
-                <element signature="e#21519#21520#0" expanded="true" />
-                <element signature="e#21579#21580#0" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -268,7 +189,6 @@
         <option value="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/InvalidProtocol.java" />
         <option value="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/ReceivedMessage.java" />
         <option value="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/DirectoryDeleteReply.java" />
-        <option value="$PROJECT_DIR$/config4/configuration.properties" />
         <option value="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/FileCreateReply.java" />
         <option value="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/DirectoryCreateReply.java" />
         <option value="$PROJECT_DIR$/src/main/java/unimelb/bitbox/messages/ConnectionRefused.java" />
@@ -315,6 +235,7 @@
         <option value="$PROJECT_DIR$/src/main/java/unimelb/bitbox/client/AuthResponse.java" />
         <option value="$PROJECT_DIR$/src/main/java/unimelb/bitbox/client/Client.java" />
         <option value="$PROJECT_DIR$/src/main/java/unimelb/bitbox/client/Server.java" />
+        <option value="$PROJECT_DIR$/config4/configuration.properties" />
       </list>
     </option>
   </component>
@@ -344,11 +265,10 @@
     <ConfirmationsSetting value="1" id="Add" />
   </component>
   <component name="ProjectView">
-    <navigator proportions="" version="1">
+    <navigator currentView="Scope" currentSubView="Scope 'Project Files'; set:Project Files; class com.intellij.psi.search.scope.ProjectFilesScope" proportions="" version="1">
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="PackagesPane" />
       <pane id="Scope">
         <subPane subId="Scope 'Project Files'; set:Project Files; class com.intellij.psi.search.scope.ProjectFilesScope">
           <expand>
@@ -359,169 +279,19 @@
             <path>
               <item name="BitBox" type="3d21c010:ScopeViewTreeModel$ProjectNode" />
               <item name="bitbox" type="2674bda8:ScopeViewTreeModel$GroupNode" />
-              <item name="config1" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+              <item name="config3" type="9f88c78c:ScopeViewTreeModel$FileNode" />
             </path>
             <path>
               <item name="BitBox" type="3d21c010:ScopeViewTreeModel$ProjectNode" />
               <item name="bitbox" type="2674bda8:ScopeViewTreeModel$GroupNode" />
-              <item name="src" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-            </path>
-            <path>
-              <item name="BitBox" type="3d21c010:ScopeViewTreeModel$ProjectNode" />
-              <item name="bitbox" type="2674bda8:ScopeViewTreeModel$GroupNode" />
-              <item name="src" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="main" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-            </path>
-            <path>
-              <item name="BitBox" type="3d21c010:ScopeViewTreeModel$ProjectNode" />
-              <item name="bitbox" type="2674bda8:ScopeViewTreeModel$GroupNode" />
-              <item name="src" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="main" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="java" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-            </path>
-            <path>
-              <item name="BitBox" type="3d21c010:ScopeViewTreeModel$ProjectNode" />
-              <item name="bitbox" type="2674bda8:ScopeViewTreeModel$GroupNode" />
-              <item name="src" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="main" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="java" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="unimelb" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-            </path>
-            <path>
-              <item name="BitBox" type="3d21c010:ScopeViewTreeModel$ProjectNode" />
-              <item name="bitbox" type="2674bda8:ScopeViewTreeModel$GroupNode" />
-              <item name="src" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="main" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="java" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="unimelb" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="bitbox" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-            </path>
-            <path>
-              <item name="BitBox" type="3d21c010:ScopeViewTreeModel$ProjectNode" />
-              <item name="bitbox" type="2674bda8:ScopeViewTreeModel$GroupNode" />
-              <item name="src" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="main" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="java" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="unimelb" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="bitbox" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="client" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-            </path>
-            <path>
-              <item name="BitBox" type="3d21c010:ScopeViewTreeModel$ProjectNode" />
-              <item name="bitbox" type="2674bda8:ScopeViewTreeModel$GroupNode" />
-              <item name="src" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="main" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="java" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="unimelb" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="bitbox" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="client" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="ClientMessage.java" type="529ef68f:ClassesTreeStructureProvider$PsiClassOwnerTreeNode" />
-            </path>
-            <path>
-              <item name="BitBox" type="3d21c010:ScopeViewTreeModel$ProjectNode" />
-              <item name="bitbox" type="2674bda8:ScopeViewTreeModel$GroupNode" />
-              <item name="src" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="main" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="java" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="unimelb" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="bitbox" type="9f88c78c:ScopeViewTreeModel$FileNode" />
-              <item name="util" type="9f88c78c:ScopeViewTreeModel$FileNode" />
+              <item name="config4" type="9f88c78c:ScopeViewTreeModel$FileNode" />
             </path>
           </expand>
           <select />
         </subPane>
       </pane>
-      <pane id="ProjectPane">
-        <subPane>
-          <expand>
-            <path>
-              <item name="BitBox" type="b2602c69:ProjectViewProjectNode" />
-              <item name="BitBox" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="BitBox" type="b2602c69:ProjectViewProjectNode" />
-              <item name="BitBox" type="462c0819:PsiDirectoryNode" />
-              <item name="config1" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="BitBox" type="b2602c69:ProjectViewProjectNode" />
-              <item name="BitBox" type="462c0819:PsiDirectoryNode" />
-              <item name="config1" type="462c0819:PsiDirectoryNode" />
-              <item name="share" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="BitBox" type="b2602c69:ProjectViewProjectNode" />
-              <item name="BitBox" type="462c0819:PsiDirectoryNode" />
-              <item name="config2" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="BitBox" type="b2602c69:ProjectViewProjectNode" />
-              <item name="BitBox" type="462c0819:PsiDirectoryNode" />
-              <item name="config2" type="462c0819:PsiDirectoryNode" />
-              <item name="share" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="BitBox" type="b2602c69:ProjectViewProjectNode" />
-              <item name="BitBox" type="462c0819:PsiDirectoryNode" />
-              <item name="config2" type="462c0819:PsiDirectoryNode" />
-              <item name="share" type="462c0819:PsiDirectoryNode" />
-              <item name="swen20003" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="BitBox" type="b2602c69:ProjectViewProjectNode" />
-              <item name="BitBox" type="462c0819:PsiDirectoryNode" />
-              <item name="config3" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="BitBox" type="b2602c69:ProjectViewProjectNode" />
-              <item name="BitBox" type="462c0819:PsiDirectoryNode" />
-              <item name="config3" type="462c0819:PsiDirectoryNode" />
-              <item name="share" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="BitBox" type="b2602c69:ProjectViewProjectNode" />
-              <item name="BitBox" type="462c0819:PsiDirectoryNode" />
-              <item name="config_public" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="BitBox" type="b2602c69:ProjectViewProjectNode" />
-              <item name="BitBox" type="462c0819:PsiDirectoryNode" />
-              <item name="src" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="BitBox" type="b2602c69:ProjectViewProjectNode" />
-              <item name="BitBox" type="462c0819:PsiDirectoryNode" />
-              <item name="src" type="462c0819:PsiDirectoryNode" />
-              <item name="main" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="BitBox" type="b2602c69:ProjectViewProjectNode" />
-              <item name="BitBox" type="462c0819:PsiDirectoryNode" />
-              <item name="src" type="462c0819:PsiDirectoryNode" />
-              <item name="main" type="462c0819:PsiDirectoryNode" />
-              <item name="java" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="BitBox" type="b2602c69:ProjectViewProjectNode" />
-              <item name="BitBox" type="462c0819:PsiDirectoryNode" />
-              <item name="src" type="462c0819:PsiDirectoryNode" />
-              <item name="main" type="462c0819:PsiDirectoryNode" />
-              <item name="java" type="462c0819:PsiDirectoryNode" />
-              <item name="bitbox" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="BitBox" type="b2602c69:ProjectViewProjectNode" />
-              <item name="BitBox" type="462c0819:PsiDirectoryNode" />
-              <item name="src" type="462c0819:PsiDirectoryNode" />
-              <item name="main" type="462c0819:PsiDirectoryNode" />
-              <item name="java" type="462c0819:PsiDirectoryNode" />
-              <item name="bitbox" type="462c0819:PsiDirectoryNode" />
-              <item name="util" type="462c0819:PsiDirectoryNode" />
-            </path>
-          </expand>
-          <select />
-        </subPane>
-      </pane>
+      <pane id="PackagesPane" />
+      <pane id="ProjectPane" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -529,27 +299,28 @@
     <property name="Repository.Attach.Annotations" value="false" />
     <property name="Repository.Attach.JavaDocs" value="false" />
     <property name="Repository.Attach.Sources" value="false" />
+    <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1558016912911" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/config4" />
     <property name="project.structure.last.edited" value="Libraries" />
     <property name="project.structure.proportion" value="0.0" />
     <property name="project.structure.side.proportion" value="0.2" />
     <property name="settings.editor.selected.configurable" value="project.propVCSSupport.Mappings" />
   </component>
   <component name="RecentsManager">
-    <key name="MoveFile.RECENT_KEYS">
-      <recent name="C:\programming\distributed\dsys-project1\BitBoxSkeleton\config2\share" />
-      <recent name="C:\programming\distributed\dsys-project1\BitBoxSkeleton\config_public\share\eleanor" />
-    </key>
-    <key name="CopyClassDialog.RECENTS_KEY">
-      <recent name="unimelb.bitbox.messages" />
-    </key>
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/config4" />
       <recent name="C:\programming\distributed\dsys-project2\BitBox\src\main\java\unimelb\bitbox\util" />
       <recent name="C:\programming\distributed\dsys-project2\BitBox" />
       <recent name="C:\programming\distributed\dsys-project2\BitBox\src\main\java\unimelb\bitbox\client" />
       <recent name="C:\programming\distributed\dsys-project2\BitBox\src\main\java\unimelb\bitbox" />
-      <recent name="C:\programming\distributed\dsys-project1\BitBoxSkeleton\config4\share" />
+    </key>
+    <key name="CopyClassDialog.RECENTS_KEY">
+      <recent name="unimelb.bitbox.messages" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\programming\distributed\dsys-project1\BitBoxSkeleton\config2\share" />
+      <recent name="C:\programming\distributed\dsys-project1\BitBoxSkeleton\config_public\share\eleanor" />
     </key>
   </component>
   <component name="RunDashboard">
@@ -564,12 +335,47 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Application.Client">
+  <component name="RunManager" selected="Application.Client 1 list_peers 8111">
+    <configuration name="Client 1 connect_peer 8114" type="Application" factoryName="Application">
+      <option name="INCLUDE_PROVIDED_SCOPE" value="true" />
+      <option name="MAIN_CLASS_NAME" value="unimelb.bitbox.client.Client" />
+      <module name="bitbox" />
+      <option name="PROGRAM_PARAMETERS" value="-i eleanor@Athena -c connect_peer -s localhost:8101 -p localhost:8114" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Client 1 disconnect_peer 8114" type="Application" factoryName="Application">
+      <option name="INCLUDE_PROVIDED_SCOPE" value="true" />
+      <option name="MAIN_CLASS_NAME" value="unimelb.bitbox.client.Client" />
+      <module name="bitbox" />
+      <option name="PROGRAM_PARAMETERS" value="-i eleanor@Athena -c disconnect_peer -s localhost:8101 -p localhost:8114" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Client 1 list_peers 8111" type="Application" factoryName="Application">
+      <option name="INCLUDE_PROVIDED_SCOPE" value="true" />
+      <option name="MAIN_CLASS_NAME" value="unimelb.bitbox.client.Client" />
+      <module name="bitbox" />
+      <option name="PROGRAM_PARAMETERS" value="-i eleanor@Athena -s localhost:8101 -c list_peers" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
     <configuration name="Client" type="Application" factoryName="Application">
       <option name="INCLUDE_PROVIDED_SCOPE" value="true" />
       <option name="MAIN_CLASS_NAME" value="unimelb.bitbox.client.Client" />
       <module name="bitbox" />
       <option name="PROGRAM_PARAMETERS" value="-i eleanor@Athena -s localhost:8101 -c list_peers" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Peer 8114" type="Application" factoryName="Application" singleton="false">
+      <option name="MAIN_CLASS_NAME" value="unimelb.bitbox.Peer" />
+      <module name="bitbox" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/config4" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
@@ -590,12 +396,16 @@
       </method>
     </configuration>
     <list>
+      <item itemvalue="Application.Client 1 list_peers 8111" />
+      <item itemvalue="Application.Client 1 connect_peer 8114" />
+      <item itemvalue="Application.Client 1 disconnect_peer 8114" />
       <item itemvalue="Application.Client" />
       <item itemvalue="Application.Server" />
       <item itemvalue="Application.public" />
-      <item itemvalue="Application.1" />
-      <item itemvalue="Application.2" />
-      <item itemvalue="Application.3" />
+      <item itemvalue="Application.Peer 8111" />
+      <item itemvalue="Application.Peer 8112" />
+      <item itemvalue="Application.Peer 8113" />
+      <item itemvalue="Application.Peer 8114" />
     </list>
   </component>
   <component name="SvnConfiguration">
@@ -621,19 +431,20 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="54" y="-8" width="1874" height="1096" extended-state="6" />
+    <frame x="0" y="23" width="1920" height="1108" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.14663726" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.14962727" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Image Layers" order="2" />
       <window_info id="Designer" order="3" />
       <window_info id="UI Designer" order="4" />
       <window_info id="Capture Tool" order="5" />
       <window_info id="Favorites" order="6" side_tool="true" />
+      <window_info id="Learn" order="7" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" weight="0.32917964" />
-      <window_info active="true" anchor="bottom" id="Run" order="2" sideWeight="0.49944875" visible="true" weight="0.27206644" />
+      <window_info anchor="bottom" id="Run" order="2" sideWeight="0.49944875" visible="true" weight="0.27165353" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.3997923" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -666,16 +477,6 @@
     </ignored-roots>
   </component>
   <component name="XDebuggerManager">
-    <breakpoint-manager>
-      <breakpoints>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/ServerMain.java</url>
-          <line>531</line>
-          <properties />
-          <option name="timeStamp" value="11" />
-        </line-breakpoint>
-      </breakpoints>
-    </breakpoint-manager>
     <watches-manager>
       <configuration name="Application">
         <watch expression="peers" language="JAVA" />
@@ -695,27 +496,9 @@
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/config2/share/search.PNG" />
-    <entry file="jar://C:/Program Files/Java/jdk1.8.0_201/src.zip!/java/util/ArrayList.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="203">
-          <caret line="537" column="5" lean-forward="true" selection-start-line="537" selection-start-column="5" selection-end-line="537" selection-end-column="5" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="jar://C:/Program Files/Java/jdk1.8.0_201/src.zip!/java/lang/System.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="312">
-          <caret line="492" column="30" selection-start-line="492" selection-start-column="30" selection-end-line="492" selection-end-column="30" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="jar://C:/Program Files/Java/jdk1.8.0_201/src.zip!/java/util/List.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="312">
-          <caret line="260" column="12" selection-start-line="260" selection-start-column="12" selection-end-line="260" selection-end-column="12" />
-        </state>
-      </provider>
-    </entry>
+    <entry file="jar://C:/Program Files/Java/jdk1.8.0_201/src.zip!/java/util/ArrayList.java" />
+    <entry file="jar://C:/Program Files/Java/jdk1.8.0_201/src.zip!/java/lang/System.java" />
+    <entry file="jar://C:/Program Files/Java/jdk1.8.0_201/src.zip!/java/util/List.java" />
     <entry file="file://$PROJECT_DIR$/config2/configuration.properties">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="119">
@@ -757,31 +540,9 @@
         </state>
       </provider>
     </entry>
-    <entry file="jar://C:/Program Files/Java/jdk1.8.0_201/src.zip!/java/util/HashMap.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="312">
-          <caret line="610" column="13" selection-start-line="610" selection-start-column="13" selection-end-line="610" selection-end-column="13" />
-          <folding>
-            <element signature="e#24331#24332#0" expanded="true" />
-            <element signature="e#24396#24397#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="jar://C:/Program Files/Java/jdk1.8.0_201/src.zip!/java/lang/ClassCastException.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="289">
-          <caret line="40" column="39" selection-start-line="40" selection-start-column="39" selection-end-line="40" selection-end-column="39" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="jar://C:/Program Files/Java/jdk1.8.0_201/src.zip!/java/lang/RuntimeException.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="312">
-          <caret line="42" column="13" selection-start-line="42" selection-start-column="13" selection-end-line="42" selection-end-column="13" />
-        </state>
-      </provider>
-    </entry>
+    <entry file="jar://C:/Program Files/Java/jdk1.8.0_201/src.zip!/java/util/HashMap.java" />
+    <entry file="jar://C:/Program Files/Java/jdk1.8.0_201/src.zip!/java/lang/ClassCastException.java" />
+    <entry file="jar://C:/Program Files/Java/jdk1.8.0_201/src.zip!/java/lang/RuntimeException.java" />
     <entry file="jar://$MAVEN_REPOSITORY$/com/googlecode/json-simple/json-simple/1.1.1/json-simple-1.1.1.jar!/org/json/simple/JSONObject.class">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="102">
@@ -789,13 +550,7 @@
         </state>
       </provider>
     </entry>
-    <entry file="jar://C:/Program Files/Java/jdk1.8.0_201/src.zip!/java/util/Optional.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="217">
-          <caret line="285" column="35" selection-start-line="285" selection-start-column="35" selection-end-line="285" selection-end-column="46" />
-        </state>
-      </provider>
-    </entry>
+    <entry file="jar://C:/Program Files/Java/jdk1.8.0_201/src.zip!/java/util/Optional.java" />
     <entry file="file://$PROJECT_DIR$/configuration.properties">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="136">
@@ -807,13 +562,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="119">
           <caret line="18" column="47" selection-start-line="18" selection-start-column="47" selection-end-line="18" selection-end-column="47" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/util/Crypto.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="357">
-          <caret line="28" column="76" selection-start-line="28" selection-start-column="76" selection-end-line="28" selection-end-column="76" />
         </state>
       </provider>
     </entry>
@@ -943,45 +691,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/ServerMain.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="238">
-          <caret line="348" column="29" lean-forward="true" selection-start-line="348" selection-start-column="29" selection-end-line="348" selection-end-column="29" />
-          <folding>
-            <element signature="imports" expanded="true" />
-            <element signature="e#4917#4925#0" expanded="true" />
-            <element signature="e#4968#4974#0" expanded="true" />
-            <element signature="e#5017#5023#0" expanded="true" />
-            <element signature="e#6286#6294#0" expanded="true" />
-            <element signature="e#6395#6404#0" expanded="true" />
-            <element signature="e#6768#6776#0" expanded="true" />
-            <element signature="e#6819#6825#0" expanded="true" />
-            <element signature="e#6866#6874#0" expanded="true" />
-            <element signature="e#6916#6924#0" expanded="true" />
-            <element signature="e#6966#6975#0" expanded="true" />
-            <element signature="e#8820#8828#0" expanded="true" />
-            <element signature="e#8867#8873#0" expanded="true" />
-            <element signature="e#9640#9648#0" expanded="true" />
-            <element signature="e#10925#10933#0" expanded="true" />
-            <element signature="e#10966#10972#0" expanded="true" />
-            <element signature="e#11014#11020#0" expanded="true" />
-            <element signature="e#16793#16794#0" expanded="true" />
-            <element signature="e#16831#16832#0" expanded="true" />
-            <element signature="e#16943#16944#0" expanded="true" />
-            <element signature="e#16976#16977#0" expanded="true" />
-            <element signature="e#21519#21520#0" expanded="true" />
-            <element signature="e#21579#21580#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/PeerConnection.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="3859">
-          <caret line="256" column="17" selection-start-line="256" selection-start-column="17" selection-end-line="256" selection-end-column="17" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/FileReadWriteThreadPool.java">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="527">
@@ -992,44 +701,47 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/config3/configuration.properties">
+    <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/client/Server.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="51">
-          <caret line="3" column="38" selection-start-line="3" selection-start-column="38" selection-end-line="3" selection-end-column="38" />
+        <state relative-caret-position="544">
+          <caret line="33" column="19" lean-forward="true" selection-start-line="33" selection-start-column="19" selection-end-line="33" selection-end-column="19" />
+          <folding>
+            <element signature="imports" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/.idea/workspace.xml">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="748">
-          <caret line="44" column="41" lean-forward="true" selection-start-line="44" selection-start-column="41" selection-end-line="44" selection-end-column="41" />
+        <state relative-caret-position="300">
+          <caret line="20" column="41" selection-start-line="20" selection-start-column="41" selection-end-line="20" selection-end-column="41" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/config4/configuration.properties">
+    <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/util/Crypto.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="34">
-          <caret line="2" column="26" lean-forward="true" selection-start-line="2" selection-start-column="26" selection-end-line="2" selection-end-column="26" />
+        <state relative-caret-position="615">
+          <caret line="47" column="57" selection-start-line="47" selection-start-column="57" selection-end-line="47" selection-end-column="57" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/config3/configuration.properties">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="135">
+          <caret line="9" selection-start-line="9" selection-end-line="9" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/config1/configuration.properties">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="119">
-          <caret line="7" selection-start-line="7" selection-end-line="7" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/util/Document.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="446">
-          <caret line="49" column="27" lean-forward="true" selection-start-line="49" selection-start-column="27" selection-end-line="49" selection-end-column="27" />
+        <state relative-caret-position="120">
+          <caret line="8" selection-start-line="8" selection-end-line="8" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/util/JsonDocument.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="653">
+        <state relative-caret-position="1035">
           <caret line="75" selection-start-line="75" selection-end-line="75" />
           <folding>
             <element signature="imports" expanded="true" />
@@ -1045,42 +757,58 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/client/AuthResponse.java">
+    <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/client/Client.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="472">
-          <caret line="43" column="39" lean-forward="true" selection-start-line="43" selection-start-column="39" selection-end-line="43" selection-end-column="39" />
+        <state relative-caret-position="2055">
+          <caret line="137" column="44" selection-start-line="137" selection-start-column="44" selection-end-line="137" selection-end-column="44" />
           <folding>
             <element signature="imports" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/client/AuthResponse.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="645">
+          <caret line="43" column="39" selection-start-line="43" selection-start-column="39" selection-end-line="43" selection-end-column="39" />
+          <folding>
+            <element signature="imports" expanded="true" />
+            <element signature="e#2438#2439#0" expanded="true" />
             <element signature="e#2468#2469#0" expanded="true" />
+            <element signature="e#2614#2615#0" expanded="true" />
             <element signature="e#2644#2645#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/util/Crypto.java">
+    <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/PeerConnection.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="336">
-          <caret line="47" column="57" selection-start-line="47" selection-start-column="57" selection-end-line="47" selection-end-column="57" />
+        <state relative-caret-position="3405">
+          <caret line="256" column="17" selection-start-line="256" selection-start-column="17" selection-end-line="256" selection-end-column="17" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/client/Client.java">
+    <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/ServerMain.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="330">
-          <caret line="137" column="44" lean-forward="true" selection-start-line="137" selection-start-column="44" selection-end-line="137" selection-end-column="44" />
+        <state relative-caret-position="5220">
+          <caret line="348" column="7" selection-start-line="348" selection-start-column="7" selection-end-line="348" selection-end-column="7" />
           <folding>
             <element signature="imports" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/client/Server.java">
+    <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/util/Document.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="544">
-          <caret line="33" column="19" lean-forward="true" selection-start-line="33" selection-start-column="19" selection-end-line="33" selection-end-column="19" />
-          <folding>
-            <element signature="imports" expanded="true" />
-          </folding>
+        <state relative-caret-position="446">
+          <caret line="49" column="27" selection-start-line="49" selection-start-column="27" selection-end-line="49" selection-end-column="27" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/config4/configuration.properties">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="90">
+          <caret line="6" column="19" lean-forward="true" selection-start-line="6" selection-start-column="19" selection-end-line="6" selection-end-column="19" />
         </state>
       </provider>
     </entry>
