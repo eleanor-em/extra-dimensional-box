@@ -1,10 +1,12 @@
-package unimelb.bitbox.client;
+package unimelb.bitbox;
 
 import org.apache.commons.cli.*;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
+import unimelb.bitbox.client.AuthResponse;
+import unimelb.bitbox.client.ClientMessage;
 import unimelb.bitbox.util.Crypto;
 import unimelb.bitbox.util.HostPort;
 import unimelb.bitbox.util.JsonDocument;
