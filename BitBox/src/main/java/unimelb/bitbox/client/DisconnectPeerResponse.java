@@ -17,7 +17,6 @@ public class DisconnectPeerResponse extends IPeerResponse{
         final String SUCCESS = "disconnected from peer";
         String reply = SUCCESS;
 
-//        System.out.println("Peer: " + peer.getHost() + ":" + peer.getPort());
         try{
             PeerConnection peer = server.getPeer(host, port);
             server.closeConnection(peer);

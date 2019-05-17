@@ -1,6 +1,7 @@
 package unimelb.bitbox.client;
 
 import unimelb.bitbox.ServerMain;
+import unimelb.bitbox.util.Configuration;
 import unimelb.bitbox.util.JsonDocument;
 import unimelb.bitbox.util.ResponseFormatException;
 
@@ -19,8 +20,15 @@ public class ConnectPeerResponse extends IPeerResponse {
         int port = (int)(long) document.require("port");
         final String SUCCESS = "connected to peer";
         String reply = SUCCESS;
-        if (!server.tryPeer(host, port)){
-            // failed if maximumIncommingConnections is reached or the target peer is offline
+
+        // check we have room for more peers
+        // (only count incoming connections)
+        if (server.getIncomingPeerCount() >= Integer.parseInt(
+                Configuration.getConfigurationValue("maximumIncommingConnections"))){
+            // failed if maximumIncommingConnections is reached
+            reply = "connection failed";
+        } else if (!server.tryPeer(host, port)){
+            // failed if the target peer is not connected
             reply = "connection failed";
         }
         response.append("host", host);

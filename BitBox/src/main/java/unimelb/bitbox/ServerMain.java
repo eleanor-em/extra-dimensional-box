@@ -404,7 +404,7 @@ public class ServerMain implements FileSystemObserver {
 		return null;
 	}
 
-	private long getIncomingPeerCount() {
+	public long getIncomingPeerCount() {
 		return peers.stream()
 				.filter(peer -> !peer.getOutgoing())
 				.filter(peer -> peer.getState() == PeerConnection.State.ACTIVE)
