@@ -1,15 +1,8 @@
 package unimelb.bitbox;
 
-import org.jetbrains.annotations.NotNull;
 import org.json.simple.parser.ParseException;
 import unimelb.bitbox.client.Server;
-import unimelb.bitbox.messages.*;
-import unimelb.bitbox.util.*;
-import unimelb.bitbox.util.FileSystemManager.FileSystemEvent;
-
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -21,6 +14,14 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+
+import org.jetbrains.annotations.NotNull;
+import unimelb.bitbox.messages.*;
+import unimelb.bitbox.util.Configuration;
+import unimelb.bitbox.util.Document;
+import unimelb.bitbox.util.FileSystemManager;
+import unimelb.bitbox.util.FileSystemObserver;
+import unimelb.bitbox.util.FileSystemManager.FileSystemEvent;
 
 /**
  * The ServerThread collects messages from the various PeerConnections, and then does something with them.
@@ -88,25 +89,22 @@ class MessageProcessingThread extends Thread {
              * File and directory requests
              */
             case Message.FILE_CREATE_REQUEST:
-				validateFileDescriptor(document);
+				        validateFileDescriptor(document);
 
                 String pathName = document.require("pathName");
                 JsonDocument fileDescriptor = document.require("fileDescriptor");
                 String md5 = fileDescriptor.require("md5");
 
-                if (!fileAlreadyExists(peer, md5, pathName)) {
+                FileCreateResponse response = new FileCreateResponse(server.fileSystemManager, pathName, fileDescriptor);
+                peer.sendMessage(response);
+                if (response.successful && noLocalCopies(peer, pathName)) {
                     ServerMain.log.info(peer.name + ": file " + pathName +
                             " not available locally. Send a FILE_BYTES_REQUEST");
-                    // ELEANOR: Check that the response was successful before opening the file loader.
-                    FileCreateResponse response = new FileCreateResponse(server.fileSystemManager, pathName, fileDescriptor);
-                    peer.sendMessage(response);
-                    if (response.successful && noLocalCopies(peer, pathName)) {
-                        rwManager.addFile(peer, pathName, fileDescriptor);
-                    }
+                    rwManager.addFile(peer, pathName, fileDescriptor);
                 }
                 break;
             case Message.FILE_MODIFY_REQUEST:
-				validateFileDescriptor(document);
+				        validateFileDescriptor(document);
                 pathName = document.require("pathName");
                 fileDescriptor = document.require("fileDescriptor");
 
@@ -117,17 +115,17 @@ class MessageProcessingThread extends Thread {
                 }
                 break;
             case Message.FILE_BYTES_REQUEST:
-            	validateFileDescriptor(document);
-            	document.<String>require("pathName");
-            	document.<Long>require("position");
-            	document.<Long>require("length");
+                validateFileDescriptor(document);
+                document.<String>require("pathName");
+                document.<Long>require("position");
+                document.<Long>require("length");
 
                 rwManager.readFile(peer, document);
                 break;
             case Message.FILE_DELETE_REQUEST:
-				validateFileDescriptor(document);
+				        validateFileDescriptor(document);
                 pathName = document.require("pathName");
-				fileDescriptor = document.require("fileDescriptor");
+				        fileDescriptor = document.require("fileDescriptor");
 
                 peer.sendMessage(new FileDeleteResponse(server.fileSystemManager, fileDescriptor, pathName));
                 break;
@@ -340,7 +338,7 @@ public class ServerMain implements FileSystemObserver {
 		processor.start();
 		log.info("Processor thread started");
 
-		// create the server main thread
+		// create the server thread
 		new Thread(this::acceptConnections).start();
 		log.info("Peer-to-Peer server thread started");
 
@@ -581,7 +579,7 @@ public class ServerMain implements FileSystemObserver {
 	}
 
 	@org.jetbrains.annotations.Contract(pure = true)
-	public String formatName(String name) {
+	private String formatName(String name) {
 		if (name == null) {
 			name = "Anonymous";
 		}

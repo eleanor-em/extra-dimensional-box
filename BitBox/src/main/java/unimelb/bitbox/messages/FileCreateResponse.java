@@ -14,14 +14,19 @@ public class FileCreateResponse extends Message {
     public final boolean successful;
     public FileCreateResponse(FileSystemManager fsManager, String pathName, JsonDocument fileDescriptor) {
         String reply;
-        try {
-            if (!fsManager.isSafePathName(pathName)) {
-                reply = "unsafe pathname given: " + pathName;
-            } else {
-                reply = generateFileLoader(fsManager, pathName, fileDescriptor);
+
+        if (fileCreated(fileDescriptor, pathName, fsManager)) {
+            reply = "file already exists locally";
+        } else {
+            try {
+                if (!fsManager.isSafePathName(pathName)) {
+                    reply = "unsafe pathname given: " + pathName;
+                } else {
+                    reply = generateFileLoader(fsManager, json);
+                }
+            } catch (Exception e) {
+                reply = "there was a problem creating the file: " + pathName;
             }
-        } catch (Exception e) {
-            reply = "there was a problem creating the file: " + pathName;
         }
 
         successful = reply == SUCCESS;
@@ -63,5 +68,18 @@ public class FileCreateResponse extends Message {
             ServerMain.log.severe("error generating file loader for " + pathName);
             return "misc error: " + e.getMessage() + ": " + pathName;
         }
+    }
+
+    /**
+     * This method checks if a file was created with the same name and content.
+     */
+    private boolean fileCreated(JsonDocument fileDescriptor, String pathName, FileSystemManager fsManager)
+        throws ResponseFormatException {
+        boolean fileExist = fsManager.fileNameExists(pathName, fileDescriptor.require("md5"));
+        if (fileExist){
+            ServerMain.log.info("file " + pathName + " created already." +
+                    " No file create request is needed");
+        }
+        return fileExist;
     }
 }

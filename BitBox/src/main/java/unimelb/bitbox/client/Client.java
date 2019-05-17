@@ -165,5 +165,4 @@ public class Client {
         authRequest.append("identity", ident);
         return authRequest.toJson();
     }
-
 }

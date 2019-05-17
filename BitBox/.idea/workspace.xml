@@ -55,8 +55,34 @@
             <state relative-caret-position="544">
               <caret line="33" column="19" lean-forward="true" selection-start-line="33" selection-start-column="19" selection-end-line="33" selection-end-column="19" />
               <folding>
-                <element signature="imports" expanded="true" />
+                <element signature="e#4574#4582#0" expanded="true" />
+                <element signature="e#4625#4631#0" expanded="true" />
+                <element signature="e#4674#4680#0" expanded="true" />
+                <element signature="e#5943#5951#0" expanded="true" />
+                <element signature="e#6052#6061#0" expanded="true" />
+                <element signature="e#6393#6401#0" expanded="true" />
+                <element signature="e#6444#6450#0" expanded="true" />
+                <element signature="e#6491#6499#0" expanded="true" />
+                <element signature="e#6541#6549#0" expanded="true" />
+                <element signature="e#6591#6600#0" expanded="true" />
+                <element signature="e#7757#7765#0" expanded="true" />
+                <element signature="e#7804#7810#0" expanded="true" />
+                <element signature="e#8405#8413#0" expanded="true" />
+                <element signature="e#10189#10197#0" expanded="true" />
+                <element signature="e#10277#10283#0" expanded="true" />
+                <element signature="e#10339#10345#0" expanded="true" />
+                <element signature="e#26068#26069#0" expanded="true" />
+                <element signature="e#26128#26129#0" expanded="true" />
               </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/config3/configuration.properties">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="51">
+              <caret line="3" column="38" selection-start-line="3" selection-start-column="38" selection-end-line="3" selection-end-column="38" />
             </state>
           </provider>
         </entry>
@@ -318,7 +344,7 @@
     <ConfirmationsSetting value="1" id="Add" />
   </component>
   <component name="ProjectView">
-    <navigator currentView="Scope" currentSubView="Scope 'Project Files'; set:Project Files; class com.intellij.psi.search.scope.ProjectFilesScope" proportions="" version="1">
+    <navigator proportions="" version="1">
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
@@ -564,9 +590,6 @@
       </method>
     </configuration>
     <list>
-      <item itemvalue="Application.Peer 1" />
-      <item itemvalue="Application.Peer 2" />
-      <item itemvalue="Application.Peer 3" />
       <item itemvalue="Application.Client" />
       <item itemvalue="Application.Server" />
       <item itemvalue="Application.public" />
@@ -784,6 +807,13 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="119">
           <caret line="18" column="47" selection-start-line="18" selection-start-column="47" selection-end-line="18" selection-end-column="47" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/java/unimelb/bitbox/util/Crypto.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="357">
+          <caret line="28" column="76" selection-start-line="28" selection-start-column="76" selection-end-line="28" selection-end-column="76" />
         </state>
       </provider>
     </entry>
