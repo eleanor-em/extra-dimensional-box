@@ -145,10 +145,9 @@ public class Server implements Runnable {
             response.append("command", "CONNECT_PEER_RESPONSE");
 
             String host = document.require("host");
-            int port = document.require("port");
+            int port = (int)(long) document.require("port");
             final String SUCCESS = "connected to peer";
             String reply = SUCCESS;
-            server.addPeerAddress(host + ":" + port);
             if (!server.tryPeer(host, port)){
                 reply = "connection failed";
             }
