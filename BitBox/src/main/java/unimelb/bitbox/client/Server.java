@@ -30,12 +30,12 @@ public class Server implements Runnable {
     private boolean authenticated;
     private ServerMain server;
 
-    public Server(ServerMain server){
+    public Server(ServerMain server) {
         this.server = server;
     }
 
     @Override
-    public void run(){
+    public void run() {
         // Load the public keys
         String[] keyStrings = authorized_keys.split(",");
         for (String keyString : keyStrings) {
@@ -126,48 +126,48 @@ public class Server implements Runnable {
                 }
                 break;
 
-        case "LIST_PEERS_REQUEST":
-            response.append("command", "LIST_PEERS_RESPONSE");
+            case "LIST_PEERS_REQUEST":
+                response.append("command", "LIST_PEERS_RESPONSE");
 
-            // add all peers currently connected to and previously
-            // connected to by this peer
-            ArrayList<JsonDocument> peers = new ArrayList<>();
-            for (PeerConnection peer: server.getActivePeers()){
-                JsonDocument peerItem = new JsonDocument();
-                peerItem.append("host", peer.getHost());
-                peerItem.append("port", peer.getPort());
-                peers.add(peerItem);
-            }
-            response.append("peers", peers);
-            break;
+                // add all peers currently connected to and previously
+                // connected to by this peer
+                ArrayList<JsonDocument> peers = new ArrayList<>();
+                for (PeerConnection peer : server.getActivePeers()) {
+                    JsonDocument peerItem = new JsonDocument();
+                    peerItem.append("host", peer.getHost());
+                    peerItem.append("port", peer.getPort());
+                    peers.add(peerItem);
+                }
+                response.append("peers", peers);
+                break;
 
-        case "CONNECT_PEER_REQUEST":
-            response.append("command", "CONNECT_PEER_RESPONSE");
+            case "CONNECT_PEER_REQUEST":
+                response.append("command", "CONNECT_PEER_RESPONSE");
 
-            String host = document.require("host");
-            int port = document.require("port");
-            final String SUCCESS = "connected to peer";
-            String reply = SUCCESS;
-            server.addPeerAddress(host + ":" + port);
-            if (!server.tryPeer(host, port)){
-                reply = "connection failed";
-            }
-            response.append("status", reply == SUCCESS);
-            response.append("message", reply);
-            break;
+                String host = document.require("host");
+                int port = document.require("port");
+                final String SUCCESS = "connected to peer";
+                String reply = SUCCESS;
+                server.addPeerAddress(host + ":" + port);
+                if (!server.tryPeer(host, port)) {
+                    reply = "connection failed";
+                }
+                response.append("status", reply == SUCCESS);
+                response.append("message", reply);
+                break;
 
-        case "DISCONNECT_PEER_REQUEST":
-            // This is just some dummy data to show a full client procedure
-            response.append("command", "DISCONNECT_PEER_RESPONSE");
+            case "DISCONNECT_PEER_REQUEST":
+                // This is just some dummy data to show a full client procedure
+                response.append("command", "DISCONNECT_PEER_RESPONSE");
 
-        //                ArrayList<Document> peers = new ArrayList<>();
-        //                Document dummyPeer = new Document();
-        //                dummyPeer.append("host", "bigdata.cis.unimelb.edu.au");
-        //                dummyPeer.append("port", 8500L);
-        //                peers.add(dummyPeer);
-        //
-        //                response.append("peers", peers);
-            break;
+                //                ArrayList<Document> peers = new ArrayList<>();
+                //                Document dummyPeer = new Document();
+                //                dummyPeer.append("host", "bigdata.cis.unimelb.edu.au");
+                //                dummyPeer.append("port", 8500L);
+                //                peers.add(dummyPeer);
+                //
+                //                response.append("peers", peers);
+                break;
         }
 
         String responseMessage = response.toJson();

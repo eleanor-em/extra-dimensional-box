@@ -75,6 +75,7 @@ public class FileCreateResponse extends Message {
      */
     private boolean fileAlreadyExists(JsonDocument fileDescriptor, String pathName, FileSystemManager fsManager)
             throws ResponseFormatException {
+
         boolean fileExist = fsManager.fileNameExists(pathName, fileDescriptor.require("md5"));
         if (fileExist){
             ServerMain.log.info("file " + pathName + " created already." +

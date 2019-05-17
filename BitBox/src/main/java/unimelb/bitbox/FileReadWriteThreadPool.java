@@ -4,7 +4,6 @@ import org.jetbrains.annotations.NotNull;
 import unimelb.bitbox.messages.FileBytesRequest;
 import unimelb.bitbox.messages.FileBytesResponse;
 import unimelb.bitbox.messages.InvalidProtocol;
-import unimelb.bitbox.util.Configuration;
 import unimelb.bitbox.util.FileSystemManager;
 import unimelb.bitbox.util.JsonDocument;
 import unimelb.bitbox.util.ResponseFormatException;
@@ -255,7 +254,8 @@ public class FileReadWriteThreadPool {
         public ReadWorker(PeerConnection peer, JsonDocument document, long position, long length)
                 throws ResponseFormatException {
             super(peer, document, position);
-            this.length = Configuration.getConfigurationValue("mode") == "udp" ? Math.min(length,8192) : length;
+            // TODO: Fix this.
+            //this.length = Configuration.getConfigurationValue("mode") == "udp" ? Math.min(length,8192) : length;
 
         }
 

@@ -1,7 +1,6 @@
 package unimelb.bitbox.messages;
 
 import unimelb.bitbox.util.JsonDocument;
-import unimelb.bitbox.util.ResponseFormatException;
 
 /*
  * Base class for all Messages that peers can send.
@@ -30,6 +29,7 @@ public abstract class Message {
 
     public Message(String summary) {
         this.summary = summary;
+
         document = new JsonDocument();
     }
 

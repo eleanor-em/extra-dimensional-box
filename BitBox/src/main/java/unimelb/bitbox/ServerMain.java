@@ -93,7 +93,7 @@ class MessageProcessingThread extends Thread {
              * File and directory requests
              */
             case Message.FILE_CREATE_REQUEST:
-                validateFileDescriptor(document);
+				validateFileDescriptor(document);
 
                 String pathName = document.require("pathName");
                 JsonDocument fileDescriptor = document.require("fileDescriptor");
@@ -341,6 +341,7 @@ public class ServerMain implements FileSystemObserver {
         TCP,
         UDP
     }
+
     private final CONNECTION_MODE mode;
     // for debugging purposes, each of the threads is given a different name
     private final Queue<String> names = new ConcurrentLinkedQueue<>();
@@ -666,6 +667,7 @@ public class ServerMain implements FileSystemObserver {
         }
         return false;
     }
+
     /**
      * Broadcasts a message to all connected peers.
      */
@@ -735,4 +737,3 @@ public class ServerMain implements FileSystemObserver {
         }
     }
 }
-

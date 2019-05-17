@@ -54,7 +54,6 @@ public abstract class PeerConnection {
     void activate() {
         activate(host, port);
     }
-
     void activate(String host, long port) {
         synchronized (this) {
             if (state != State.CLOSED && state != State.INACTIVE) {
