@@ -10,7 +10,7 @@ import java.util.ArrayList;
  * Generates the message content of LIST_PEERS_RESPONSE
  * to be sent by a Peer to a Client.
  */
-public class ListPeerResponse extends IClientResponse {
+public class ListPeerResponse extends ClientResponse {
 
     public ListPeerResponse(ServerMain server, JsonDocument document) {
         super(server, document);

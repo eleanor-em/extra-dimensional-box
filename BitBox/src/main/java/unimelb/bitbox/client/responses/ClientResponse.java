@@ -6,16 +6,18 @@ import unimelb.bitbox.util.JsonDocument;
 /**
  * Parent class of responses to client requests
  */
-abstract public class IClientResponse {
+abstract public class ClientResponse {
+
     ServerMain server;
     JsonDocument response;
 
-    public IClientResponse(ServerMain server, JsonDocument response) {
+    public ClientResponse(ServerMain server, JsonDocument document) {
         this.server = server;
-        this.response = response;
+        this.response = document;
     }
 
-    public JsonDocument getResponse(){
+    protected JsonDocument getResponse(){
         return response;
     }
+
 }

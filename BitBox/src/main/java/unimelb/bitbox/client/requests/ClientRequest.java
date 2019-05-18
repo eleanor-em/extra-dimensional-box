@@ -6,18 +6,18 @@ import unimelb.bitbox.util.HostPort;
 /**
  * Parent class of requests sent by the Client to a Peer.
  */
-abstract public class IClientRequest {
+abstract public class ClientRequest {
     private final Document document = new Document();
 
     /**
      * Constructor. Intended for use only by subclasses.
      * @param command the command to send
      */
-    protected IClientRequest(String command) {
+    protected ClientRequest(String command) {
         document.append("command", command);
     }
 
-    protected IClientRequest(String command, String peerAddress)
+    protected ClientRequest(String command, String peerAddress)
             throws IllegalArgumentException {
         document.append("command", command);
 

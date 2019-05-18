@@ -5,14 +5,14 @@ import org.apache.commons.cli.CommandLine;
 /**
  * Process client commands into messages that can be sent to a Peer.
  */
-public class ClientProtocol {
+public interface IClientRequestProtocol {
     /**
      * Given a set of command line options, produces the appropriate message to send.
      * @param opts the command line options
      * @return the generated message
      * @throws IllegalArgumentException in case the options are incorrectly formatted
      */
-    public static IClientRequest generateMessage(CommandLine opts)
+    static ClientRequest generateMessage(CommandLine opts)
         throws IllegalArgumentException {
         String command = opts.getOptionValue("c");
         if (command == null) {

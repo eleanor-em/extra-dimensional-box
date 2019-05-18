@@ -4,6 +4,7 @@ import org.json.simple.parser.ParseException;
 import unimelb.bitbox.ServerMain;
 import unimelb.bitbox.client.responses.ConnectPeerResponse;
 import unimelb.bitbox.client.responses.DisconnectPeerResponse;
+import unimelb.bitbox.client.responses.IClientResponseProtocol;
 import unimelb.bitbox.client.responses.ListPeerResponse;
 import unimelb.bitbox.util.*;
 
@@ -129,15 +130,15 @@ public class Server implements Runnable {
                 break;
 
         case "LIST_PEERS_REQUEST":
-            response = new ListPeerResponse(server, document).getResponse();
+            response = IClientResponseProtocol.getResponse(new ListPeerResponse(server, document));
             break;
 
         case "CONNECT_PEER_REQUEST":
-            response = new ConnectPeerResponse(server, document).getResponse();
+            response = IClientResponseProtocol.getResponse(new ConnectPeerResponse(server, document));
             break;
 
         case "DISCONNECT_PEER_REQUEST":
-            response = new DisconnectPeerResponse(server, document).getResponse();
+            response = IClientResponseProtocol.getResponse(new DisconnectPeerResponse(server, document));
             break;
         }
 
