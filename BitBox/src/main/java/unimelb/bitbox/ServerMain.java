@@ -246,7 +246,7 @@ class MessageProcessingThread extends Thread {
                 ServerMain.log.info("Connection refused: " + document.<String>require("message"));
 
                 // now try to connect to the provided peer list
-                ArrayList<JsonDocument> peers = document.require("peers");
+                ArrayList<JsonDocument> peers = document.requireArray("peers");
                 for (JsonDocument peerHostPort : peers) {
                     String host = peerHostPort.require("host");
                     long port = peerHostPort.require("port");
@@ -638,6 +638,7 @@ public class ServerMain implements FileSystemObserver {
                             .filter(peer -> hostPort.equals(peer.getHost() + ":" + peer.getPort()))
                             .findFirst()
                             .orElseGet(() -> {
+                                System.out.println(getIncomingPeerCount());
                                 if (getIncomingPeerCount() < maxIncomingConnections) {
                                     final PeerUDP result = new PeerUDP(name, this,
                                             PeerConnection.State.WAIT_FOR_REQUEST,

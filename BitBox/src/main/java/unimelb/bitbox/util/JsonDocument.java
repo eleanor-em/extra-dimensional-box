@@ -72,7 +72,31 @@ public class JsonDocument {
         }
     }
 
+    public <T> Optional<ArrayList<T>> getArray(String key) {
+        try {
+            ArrayList<T> res = new ArrayList<>();
+            Object array = obj.get(key);
+            if (array == null) {
+                return Optional.empty();
+            }
+            for (Object o : (JSONArray)array) {
+                if (o instanceof JSONObject) {
+                    res.add((T)new JsonDocument((JSONObject)o));
+                } else {
+                    res.add((T) o);
+                }
+            }
+            return Optional.of(res);
+        } catch (ClassCastException ignored) {
+            return Optional.empty();
+        }
+    }
+
     public <T> T require(String key) throws ResponseFormatException {
         return (this.<T>get(key)).orElseThrow(() -> new ResponseFormatException("missing field: " + key));
+    }
+
+    public <T> ArrayList<T> requireArray(String key) throws ResponseFormatException {
+        return (this.<T>getArray(key)).orElseThrow(() -> new ResponseFormatException("missing field: " + key));
     }
 }
