@@ -2,22 +2,12 @@ package unimelb.bitbox.util;
 
 import unimelb.bitbox.ServerMain;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
-import java.nio.file.CopyOption;
-import java.nio.file.DirectoryStream;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -55,7 +45,7 @@ import java.util.logging.Logger;
  * @author Andrew Linxi Wang (contributions to Windows compatibility)
  */
 public class FileSystemManager extends Thread {
-	private static Logger log = Logger.getLogger(FileSystemManager.class.getName());
+	private static Logger log;
 
 	/**
 	 * The special suffix on file names for loading files. Any files in the
@@ -217,6 +207,7 @@ public class FileSystemManager extends Thread {
 	 * @throws NoSuchAlgorithmException Thrown if the MD5 hash algorithm is not available.
 	 */
 	public FileSystemManager(String root, FileSystemObserver fileSystemObserver) throws IOException, NoSuchAlgorithmException{
+		log = ServerMain.log;
 		this.fileSystemObserver=fileSystemObserver;
 		this.root=root;
 		watchedFiles=new HashMap<String,FileDescriptor>();

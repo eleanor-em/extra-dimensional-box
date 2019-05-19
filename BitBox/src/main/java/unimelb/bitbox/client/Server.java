@@ -48,25 +48,20 @@ public class Server implements Runnable {
 
         // Accept connections repeatedly.
         try (ServerSocket serverSocket = new ServerSocket(clientPort)) {
-            while (true) {
+            while (!serverSocket.isClosed()) {
                 authenticated = false;
                 Socket socket = serverSocket.accept();
 
                 // Open the read/write streams and process messages until the socket closes
                 try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
                      BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
-                    while (true) {
+                    String message;
+                    while ((message = in.readLine()) != null) {
                         // Read a message, and pass it to the handler
-                        String message = in.readLine();
-                        if (message != null) {
-                            try {
-                                handleMessage(message, out);
-                            } catch (ParseException | ResponseFormatException e) {
-                                System.out.println("malformed message: " + e.getMessage());
-                            }
-                        } else {
-                            // If we received null, the client disconnected
-                            break;
+                        try {
+                            handleMessage(message, out);
+                        } catch (ParseException | ResponseFormatException e) {
+                            System.out.println("malformed message: " + e.getMessage());
                         }
                     }
                 } catch (IOException | IllegalBlockSizeException | InvalidKeyException | BadPaddingException

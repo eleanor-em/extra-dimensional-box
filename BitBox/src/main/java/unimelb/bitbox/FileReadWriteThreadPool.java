@@ -70,7 +70,7 @@ public class FileReadWriteThreadPool {
         if (currentOrNull != null) {
             // if it's not a newer file and we had a transfer already, ignore the request
             if (currentOrNull <= modified) {
-                ServerMain.log.info(peer.name + ": received create/modify request, but was already transferring" +
+                ServerMain.log.info(peer.getForeignName() + ": received create/modify request, but was already transferring" +
                         "same or newer file");
                 return;
             }
@@ -79,7 +79,7 @@ public class FileReadWriteThreadPool {
         // start the transfer
         fileModifiedDates.put(ft, modified);
         sendReadRequest(peer, pathName, fileDescriptor, 0);
-        ServerMain.log.info(peer.name + ": sent FILE_BYTES_REQUEST for " +
+        ServerMain.log.info(peer.getForeignName() + ": sent FILE_BYTES_REQUEST for " +
                 pathName + " at position: [0/" + fileSize + "]");
     }
 
@@ -112,7 +112,7 @@ public class FileReadWriteThreadPool {
         executor.execute(worker);
 
         long fileSize = fileDescriptor.require("fileSize");
-        ServerMain.log.info(peer.name + ": read bytes of " + pathName +
+        ServerMain.log.info(peer.getForeignName() + ": read bytes of " + pathName +
                 " at position: [" + position + "/" + fileSize + "]");
     }
 
@@ -146,8 +146,8 @@ public class FileReadWriteThreadPool {
             }
             fileModifiedDates.remove(ft);
             // ELEANOR: it's useful to know /why/ we got an unsuccessful response ;)
-            ServerMain.log.info("unsuccessful response: " + document.require("message"));
-            ServerMain.log.info(peer.name + ": closed file loader of " + pathName);
+            ServerMain.log.warning("unsuccessful response: " + document.require("message"));
+            ServerMain.log.info(peer.getForeignName() + ": closed file loader of " + pathName);
         }
     }
 
@@ -200,7 +200,7 @@ public class FileReadWriteThreadPool {
                     cancelFile(peer, pathName);
                     return;
                 }
-                ServerMain.log.info(peer.name + ": wrote file " + pathName +
+                ServerMain.log.info(peer.getForeignName() + ": wrote file " + pathName +
                         " at position: [" + position + "/" + fileSize + "]");
             }
             catch (IOException e){
@@ -218,23 +218,23 @@ public class FileReadWriteThreadPool {
             try {
                 if (!fsManager.checkWriteComplete(pathName)) {
                     peer.sendMessage(new FileBytesRequest(pathName, fileDescriptor, nextPosition));
-                    ServerMain.log.info(peer.name + ": sent FILE_BYTES_REQUEST for " + pathName +
+                    ServerMain.log.info(peer.getForeignName() + ": sent FILE_BYTES_REQUEST for " + pathName +
                             " at position: [" + nextPosition + "/" + fileSize + "]");
                 } else {
                     cancelFile(peer, pathName);
-                    ServerMain.log.info(peer.name + ": received all bytes for " + pathName +
+                    ServerMain.log.info(peer.getForeignName() + ": received all bytes for " + pathName +
                             ". File created successfully");
                 }
             }
             catch (NoSuchAlgorithmException | IOException e) {
-                ServerMain.log.warning(peer.name + ": error closing file loader for " + pathName);
+                ServerMain.log.warning(peer.getForeignName() + ": error closing file loader for " + pathName);
             }
             catch (OutOfMemoryError e){
-                ServerMain.log.info(peer.name + ": not enough memory to write " + pathName +
+                ServerMain.log.warning(peer.getForeignName() + ": not enough memory to write " + pathName +
                         " at position: [" + nextPosition + "/" + fileSize + "]");
             }
             catch (Exception e) {
-                ServerMain.log.warning(peer.name + ": error writing " +
+                ServerMain.log.warning(peer.getForeignName() + ": error writing " +
                         pathName + " at position: [" + nextPosition + "/" + fileSize + "]");
                 // ELEANOR: if we're going to catch a generic `Exception`, we probably want a record of what happened
                 e.printStackTrace();
@@ -288,12 +288,12 @@ public class FileReadWriteThreadPool {
                 }
             } catch (OutOfMemoryError e) {
                 reply = "length requested too large";
-                ServerMain.log.severe(peer.name + ": error writing bytes of file " + pathName + " at [" +
+                ServerMain.log.severe(peer.getForeignName() + ": error writing bytes of file " + pathName + " at [" +
                         position + "/" + fileSize + "]. The file size is too big: " + e.getMessage());
             } catch (Exception e) {
                 reply = "unsuccessful read";
                 e.printStackTrace();
-                ServerMain.log.warning(peer.name + ": failed reading bytes of file " + pathName + " at [" +
+                ServerMain.log.warning(peer.getForeignName() + ": failed reading bytes of file " + pathName + " at [" +
                         position + "/" + fileSize + "]: " + e.getMessage());
             }
             try {

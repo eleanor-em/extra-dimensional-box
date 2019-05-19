@@ -7,6 +7,13 @@ public class HostPort {
     public final String hostname;
     public final int port;
 
+    public static boolean validate(String address) {
+        if (!address.contains(":")) {
+            return false;
+        }
+        return address.split(":")[1].matches("\\d+");
+    }
+
     public HostPort(String address)
             throws IllegalArgumentException {
         if (!address.contains(":")) {

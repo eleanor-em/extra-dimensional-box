@@ -18,6 +18,6 @@ public class ReceivedMessage {
 
     @Override
     public String toString() {
-        return peer.name + ": " + text;
+        return peer.getForeignName() + ": " + text;
     }
 }

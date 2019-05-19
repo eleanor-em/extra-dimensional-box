@@ -18,7 +18,7 @@ class ListPeersResponse extends ClientResponse {
         // add all peers currently connected to and previously
         // connected to by this peer
         ArrayList<JsonDocument> peers = new ArrayList<>();
-        for (PeerConnection peer: server.getPeers()){
+        for (PeerConnection peer : server.getActivePeers()){
             JsonDocument peerItem = new JsonDocument();
             peerItem.append("host", peer.getHost());
             peerItem.append("port", peer.getPort());

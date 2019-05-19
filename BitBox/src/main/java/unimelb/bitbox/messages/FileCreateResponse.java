@@ -47,7 +47,6 @@ public class FileCreateResponse extends Message {
         try {
             boolean done = fsManager.createFileLoader(pathName, md5, length, lastModified);
             if (done){
-                ServerMain.log.info(": file loader for " + pathName + " is ready");
                 return SUCCESS;
             } else {
                 // We possibly have a different version of this file.
