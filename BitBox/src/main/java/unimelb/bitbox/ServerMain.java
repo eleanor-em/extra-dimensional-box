@@ -322,6 +322,10 @@ public class ServerMain implements FileSystemObserver {
     static final public Logger log = Logger.getLogger(ServerMain.class.getName());
     private static final int PEER_RETRY_TIME = 60;
     private static final String DEFAULT_NAME = "Anonymous";
+    private static long blockSize;
+    public static long getBlockSize() {
+        return blockSize;
+    }
     final FileSystemManager fileSystemManager;
 
     private final int maxIncomingConnections;
@@ -335,12 +339,12 @@ public class ServerMain implements FileSystemObserver {
     private int serverPort;
     private final String advertisedName;
 
-    private enum CONNECTION_MODE {
+    public enum CONNECTION_MODE {
         TCP,
         UDP
     }
 
-    private final CONNECTION_MODE mode;
+    public final CONNECTION_MODE mode;
     // for debugging purposes, each of the threads is given a different name
     private final Queue<String> names = new ConcurrentLinkedQueue<>();
     private final Set<String> peerAddresses = ConcurrentHashMap.newKeySet();
@@ -368,6 +372,11 @@ public class ServerMain implements FileSystemObserver {
                 mode = null;
                 log.severe("Invalid mode set, process will be terminated.");
                 System.exit(1);
+        }
+        if (mode == CONNECTION_MODE.TCP) {
+            blockSize = Long.parseLong(Configuration.getConfigurationValue("blockSize"));
+        } else {
+            blockSize = Math.min(Long.parseLong(Configuration.getConfigurationValue("blockSize")), 8192);
         }
 
 		// create the processor thread
@@ -686,7 +695,7 @@ public class ServerMain implements FileSystemObserver {
                 name = DEFAULT_NAME;
             }
 
-            byte[] buffer = new byte[25000];
+            byte[] buffer = new byte[65507];
             //send handshake request,
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length, new InetSocketAddress(hostname, port));
             //it should send handshake request without creating the peer.

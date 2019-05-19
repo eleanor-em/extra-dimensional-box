@@ -384,7 +384,9 @@ class OutgoingConnection extends Thread {
             while (true) {
                 try {
                     OutgoingMessage message = messages.take();
-                    packet.setData(message.message.getBytes(StandardCharsets.UTF_8));
+                    byte[] buffer = message.message.getBytes(StandardCharsets.UTF_8);
+                    packet.setData(buffer);
+                    packet.setLength(buffer.length);
                     udpSocket.send(packet);
                     message.onSent.run();
                 } catch (IOException | InterruptedException | NullPointerException e) {

@@ -106,6 +106,8 @@ public class FileReadWriteThreadPool {
         // ELEANOR: the length is the minimum of the bytes remaining and the block size
         long length = document.require("length");/*Math.min(fileDescriptor.getLong("fileSize") - position,
                                Long.parseLong(Configuration.getConfigurationValue("blockSize")));*/
+        // Cap length at 8192 if UDP
+        length = peer.server.mode == ServerMain.CONNECTION_MODE.UDP ? Math.min(8192, length) : length;
         Runnable worker = new ReadWorker(peer, document, position, length);
         executor.execute(worker);
 
@@ -198,12 +200,16 @@ public class FileReadWriteThreadPool {
                     cancelFile(peer, pathName);
                     return;
                 }
-            }
-            catch (IOException e){
                 ServerMain.log.info(peer.name + ": wrote file " + pathName +
                         " at position: [" + position + "/" + fileSize + "]");
+            }
+            catch (IOException e){
+                e.printStackTrace();
+                cancelFile(peer, pathName);
+                return;
             } catch (ResponseFormatException e) {
                 peer.sendMessageAndClose(new InvalidProtocol("Missing content field"));
+                cancelFile(peer, pathName);
                 return;
             }
 
@@ -254,8 +260,7 @@ public class FileReadWriteThreadPool {
         public ReadWorker(PeerConnection peer, JsonDocument document, long position, long length)
                 throws ResponseFormatException {
             super(peer, document, position);
-            // TODO: Fix this.
-            //this.length = Configuration.getConfigurationValue("mode") == "udp" ? Math.min(length,8192) : length;
+            this.length =  length;
 
         }
 
@@ -275,7 +280,7 @@ public class FileReadWriteThreadPool {
                 return;
             }
             try {
-                ByteBuffer byteBuffer = peer.server.fileSystemManager.readFile(md5, position, length);
+                ByteBuffer byteBuffer = peer.server.fileSystemd *.Manager.readFile(md5, position, length);
                 if (byteBuffer == null) {
                     reply = "no matching file found: " + md5 + ", " + position + ", " + length;
                 } else {
