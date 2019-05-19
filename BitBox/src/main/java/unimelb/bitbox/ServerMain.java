@@ -323,6 +323,8 @@ public class ServerMain implements FileSystemObserver {
     private static final int PEER_RETRY_TIME = 60;
     private static final String DEFAULT_NAME = "Anonymous";
     final FileSystemManager fileSystemManager;
+
+    private final int maxIncomingConnections;
     /**
      * Create a thread-safe list of the peer connections this program has active.
      */
@@ -350,6 +352,7 @@ public class ServerMain implements FileSystemObserver {
         fileSystemManager = new FileSystemManager(
                 Configuration.getConfigurationValue("path"), this);
         advertisedName = Configuration.getConfigurationValue("advertisedName");
+        maxIncomingConnections = Integer.parseInt(Configuration.getConfigurationValue("maximumIncommingConnections"));
         createNames();
         // load the mode
         switch (Configuration.getConfigurationValue("mode")) {
@@ -503,8 +506,7 @@ public class ServerMain implements FileSystemObserver {
 
                     // check we have room for more peers
                     // (only count incoming connections)
-                    if (getIncomingPeerCount() >= Integer.parseInt(
-                            Configuration.getConfigurationValue("maximumIncommingConnections"))) {
+                    if (getIncomingPeerCount() >= maxIncomingConnections) {
                         // if not, write a CONNECTION_REFUSED message and close the connection
                         try (BufferedWriter out = new BufferedWriter(
                                 new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8))) {
@@ -533,20 +535,20 @@ public class ServerMain implements FileSystemObserver {
     }
 
     /**
-     * This method needs to be called when a new set of peers are added.
-     */
-    public void retryPeers() {
-        // Remove all peers that successfully connect.
-        peerAddresses.removeIf(this::tryPeer);
-    }
+	 * This method needs to be called when a new set of peers are added.
+	 */
+	public void retryPeers() {
+		// Remove all peers that successfully connect.
+		peerAddresses.removeIf(addr -> tryPeer(addr) != null);
+	}
 
-    private boolean tryPeerTCP(String peerAddress) {
+    private PeerConnection tryPeerTCP(String peerAddress) {
         // if it's already in our set, this does nothing, so just make sure (in case the peer is temporarily
         // unavailable)
         addPeerAddress(peerAddress);
 
         if (getConnectedAddresses().contains(peerAddress)) {
-            return false;
+            return null;
         }
         // separate the address into a hostname and port
         // HostPort doesn't handle this safely
@@ -560,21 +562,21 @@ public class ServerMain implements FileSystemObserver {
 
                 // find a name
                 String name = getName();
-                peers.add(new PeerTCP(formatName(name),
+                PeerConnection peer = new PeerTCP(formatName(name),
                         socket,
                         this,
-                        PeerConnection.State.WAIT_FOR_RESPONSE));
+                        PeerConnection.State.WAIT_FOR_RESPONSE);
+                peers.add(peer);
                 // success: remove this peer from the set of peers to connect to
                 log.info("Connected to peer " + name + " (" + peerAddress + ")");
-                return true;
             } catch (IOException e) {
                 log.warning("Connection to peer `" + peerAddress + "` failed: " + e.getMessage());
             }
         }
-        return false;
+        return null;
     }
 
-    public boolean tryPeer(String addr) {
+    public PeerConnection tryPeer(String addr) {
         if (mode == CONNECTION_MODE.TCP) {
             return tryPeerTCP(addr);
         } else {
@@ -582,10 +584,19 @@ public class ServerMain implements FileSystemObserver {
         }
     }
 
-    public boolean tryPeer(String hostname, int port) {
-        String addr = hostname + ":" + port;
-        return tryPeer(addr);
-    }
+    public boolean clientTryPeer(String hostname, int port){
+		if (getIncomingPeerCount() >= maxIncomingConnections) {
+			return false;
+		}
+
+		String addr = hostname + ":" + port;
+		PeerConnection peer = tryPeer(addr);
+		if (peer != null) {
+			peer.forceIncoming();
+			return true;
+		}
+		return false;
+	}
 
     /**
      * Get a name for the peer connection for debugging purposes.
@@ -618,16 +629,28 @@ public class ServerMain implements FileSystemObserver {
                             .filter(peer -> hostPort.equals(peer.getHost() + ":" + peer.getPort()))
                             .findFirst()
                             .orElseGet(() -> {
-                                final PeerUDP result = new PeerUDP(name, this,
-                                        PeerConnection.State.WAIT_FOR_REQUEST,
-                                        udpSocket, packet);
-                                peers.add(result);
-                                return result;
+                                if (getIncomingPeerCount() < maxIncomingConnections) {
+                                    final PeerUDP result = new PeerUDP(name, this,
+                                            PeerConnection.State.WAIT_FOR_REQUEST,
+                                            udpSocket, packet);
+                                    peers.add(result);
+                                    return result;
+                                } else {
+                                    return null;
+                                }
                             });
-
-                    // The actual message may be shorter than what we got from the socket
-                    String packetData = new String(packet.getData(), 0, packet.getLength());
-                    connectedPeer.receiveMessage(packetData);
+                    // Send CONNECTION_REFUSED
+                    if (connectedPeer == null) {
+                        Message message = new ConnectionRefused(getPeers());
+                        byte[] responseBuffer = message.encode().getBytes(StandardCharsets.UTF_8);
+                        packet.setData(responseBuffer);
+                        packet.setLength(responseBuffer.length);
+                        udpSocket.send(packet);
+                    } else {
+                        // The actual message may be shorter than what we got from the socket
+                        String packetData = new String(packet.getData(), 0, packet.getLength());
+                        connectedPeer.receiveMessage(packetData);
+                    }
                 } catch (IOException e) {
                     log.severe("Failed receiving from peer: " + e.getMessage());
                 }
@@ -639,15 +662,15 @@ public class ServerMain implements FileSystemObserver {
 
     }
 
-    private boolean tryPeerUDP(String addr) {
+    private PeerConnection tryPeerUDP(String addr) {
         if (getConnectedAddresses().contains(addr)) {
-            return false;
+            return null;
         }
 
         // check if the socket is available yet
         if (udpSocket == null) {
             // try again later
-            return false;
+            return null;
         }
 
         // separate the address into a hostname and port
@@ -671,10 +694,10 @@ public class ServerMain implements FileSystemObserver {
                 PeerUDP p = new PeerUDP(formatName(name), this, PeerConnection.State.WAIT_FOR_RESPONSE, udpSocket, packet);
                 peers.add(p);
                 log.info("Attempting to send handshake to " + name + " (" + addr + "), waiting for response;");
-                return true;
+                return p;
             }
         }
-        return false;
+        return null;
     }
 
     /**

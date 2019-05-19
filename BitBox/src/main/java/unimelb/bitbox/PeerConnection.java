@@ -23,12 +23,17 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public abstract class PeerConnection {
     public final String name;
-    private final boolean wasOutgoing;
+
+    private boolean wasOutgoing;
 
     protected OutgoingConnection outConn;
     public final ServerMain server;
     private int port;
     private String host;
+
+    public void forceIncoming() {
+        wasOutgoing = false;
+    }
 
     // ELEANOR: Added INACTIVE so that a peer waiting to be closed doesn't keep sending more messages.
     public enum State {
