@@ -330,7 +330,7 @@ public class ServerMain implements FileSystemObserver {
      */
     private final List<PeerConnection> peers = Collections.synchronizedList(new ArrayList<>());
     // this is the thread that collects messages and processes them
-    private final MessageProcessingThread processor = new MessageProcessingThread(this);
+    private final MessageProcessingThread processor;
     // data read from the config file
     private int serverPort;
     private final String advertisedName;
@@ -349,8 +349,8 @@ public class ServerMain implements FileSystemObserver {
 
     public ServerMain() throws NumberFormatException, IOException, NoSuchAlgorithmException {
         // initialise some stuff
-        fileSystemManager = new FileSystemManager(
-                Configuration.getConfigurationValue("path"), this);
+        fileSystemManager = new FileSystemManager(Configuration.getConfigurationValue("path"), this);
+        processor = new MessageProcessingThread(this);
         advertisedName = Configuration.getConfigurationValue("advertisedName");
         maxIncomingConnections = Integer.parseInt(Configuration.getConfigurationValue("maximumIncommingConnections"));
         createNames();
