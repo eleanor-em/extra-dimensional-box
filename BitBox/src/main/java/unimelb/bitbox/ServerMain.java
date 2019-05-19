@@ -202,9 +202,8 @@ class MessageProcessingThread extends Thread {
                         // ELEANOR: this has to be done here because we don't know the foreign port until now
                         // refuse connection if we are already connected to this address
                         if (server.getOutgoingAddresses().contains(host + ":" + port)) {
-                            peer.activate(host, port);
-                            peer.sendMessageAndClose(new ConnectionRefused(server.getActivePeers()));
-                            ServerMain.log.info("Already connected to " + host + ":" + port);
+                            peer.close();
+                            ServerMain.log.warning("Already connected to " + host + ":" + port);
                         } else {
                             peer.activate(host, port);
                             peer.sendMessage(new HandshakeResponse(peer.getLocalHost(), peer.getLocalPort(), false));
@@ -289,7 +288,7 @@ class MessageProcessingThread extends Thread {
 
         if (!status) {
             // ELEANOR: Log any unsuccessful responses.
-            //ServerMain.log.warning("Failed createResponse: " + document.require("command") + ": " + message);
+            ServerMain.log.info("Failed createResponse: " + document.require("command") + ": " + message);
         }
     }
 
@@ -350,8 +349,6 @@ public class ServerMain implements FileSystemObserver {
     private DatagramSocket udpSocket;
 
     public ServerMain() throws NumberFormatException, IOException, NoSuchAlgorithmException {
-        //log.setLevel(Level.WARNING);
-
         // initialise some stuff
         KnownPeerTracker.load();
         fileSystemManager = new FileSystemManager(Configuration.getConfigurationValue("path"), this);

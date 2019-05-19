@@ -268,7 +268,7 @@ class PeerUDP extends PeerConnection {
                 ServerMain.log.warning(parent.getForeignName() + ": resending "  + message.getCommand() + " (" + retries + ")");
                 parent.retryMessage(message);
             }
-            ServerMain.log.warning("Timed out");
+            ServerMain.log.warning(parent.getForeignName() + ": timed out: " + message.getCommand());
             parent.close();
         }
     }
