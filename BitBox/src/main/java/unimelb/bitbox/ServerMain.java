@@ -48,22 +48,20 @@ class MessageProcessingThread extends Thread {
         }
     }
 
-    /**
-     * Perform error checking, and send appropriate reply messages.
-     */
-    private void processMessage(@NotNull ReceivedMessage message) {
-        String text = message.text;
-        JsonDocument document;
-        // first check the message is correct JSON
-        try {
-            ServerMain.log.info(text);
-            document = JsonDocument.parse(text);
-        } catch (ParseException e) {
-            e.printStackTrace();
-            ServerMain.log.warning("Error parsing `" + message + "`.");
-            invalidProtocolResponse(message.peer, "message must be valid JSON data");
-            return;
-        }
+	/**
+	 * Perform error checking, and send appropriate reply messages.
+	 */
+	private void processMessage(@NotNull ReceivedMessage message) {
+		String text = message.text;
+		JsonDocument document;
+		// first check the message is correct JSON
+		try {
+			document = JsonDocument.parse(text);
+		} catch (ParseException e) {
+			ServerMain.log.warning("Error parsing `" + message + "`.");
+			invalidProtocolResponse(message.peer, "message must be valid JSON data");
+			return;
+		}
 
         // try to respond to the message
         String command;
@@ -76,8 +74,7 @@ class MessageProcessingThread extends Thread {
                     + friendlyName.map(name -> " (via " + name + ")").orElse("");
             ServerMain.log.info(logMessage);
             respondToMessage(message.peer, command, document);
-        } catch (ResponseFormatException e) {
-            e.printStackTrace();
+        } catch (ResponseFormatException e){
             invalidProtocolResponse(message.peer, e.getMessage());
         }
     }
@@ -99,15 +96,13 @@ class MessageProcessingThread extends Thread {
                 String pathName = document.require("pathName");
                 JsonDocument fileDescriptor = document.require("fileDescriptor");
 
-				FileCreateResponse createResponse = new FileCreateResponse(server.fileSystemManager, pathName, fileDescriptor, false);
-				peer.sendMessage(createResponse);
-				if (createResponse.successful && noLocalCopies(peer, pathName)) {
-				ServerMain.log.info(peer.name + ": file " + pathName +
-						" not available locally. Send a FILE_BYTES_REQUEST");
-				// ELEANOR: Check that the createResponse was successful before opening the file loader.
-
-					rwManager.addFile(peer, pathName, fileDescriptor);
-				}
+                FileCreateResponse createResponse = new FileCreateResponse(server.fileSystemManager, pathName, fileDescriptor, false);
+                peer.sendMessage(createResponse);
+                if (createResponse.successful && noLocalCopies(peer, pathName)) {
+                    ServerMain.log.info(peer.name + ": file " + pathName +
+                            " not available locally. Send a FILE_BYTES_REQUEST");
+                    rwManager.addFile(peer, pathName, fileDescriptor);
+                }
                 break;
             case Message.FILE_MODIFY_REQUEST:
                 validateFileDescriptor(document);
@@ -333,7 +328,7 @@ public class ServerMain implements FileSystemObserver {
      */
     private final List<PeerConnection> peers = Collections.synchronizedList(new ArrayList<>());
     // this is the thread that collects messages and processes them
-    private final MessageProcessingThread processor;
+    private final MessageProcessingThread processor = new MessageProcessingThread(this);
     // data read from the config file
     private int serverPort;
     private final String advertisedName;
@@ -372,32 +367,29 @@ public class ServerMain implements FileSystemObserver {
                 System.exit(1);
         }
 
-        processor = new MessageProcessingThread(this);
+		// create the processor thread
+		processor.start();
+		log.info("Processor thread started");
 
-        // create the processor thread
-        processor.start();
-        log.info("Processor thread started");
+		// create the server thread
+		new Thread(this::acceptConnections).start();
+		log.info("Peer-to-Peer server thread started");
 
-        // ELEANOR: terminology is confusing, so we introduce consistency
-        // create the server thread for the client
-        new Thread(new Server(this)).start();
-        log.info("Server thread started");
+		// ELEANOR: terminology is confusing, so we introduce consistency
+		// create the server thread for the client
+		new Thread(new Server(this)).start();
+		log.info("Server thread started");
 
+		// connect to each of the listed peers
+		String[] addresses = Configuration.getConfigurationValue("peers").split(",");
+		peerAddresses.addAll(Arrays.asList(addresses));
+		// start the peer connection thread
+		new Thread(this::connectToPeers).start();
+		log.info("Peer connection thread started");
 
-        // create the connection acceptor thread
-        new Thread(this::acceptConnections).start();
-        log.info("Connection acceptor thread started");
-
-        // start the peer connection thread
-        // connect to each of the listed peers
-        String[] addresses = Configuration.getConfigurationValue("peers").split(",");
-        peerAddresses.addAll(Arrays.asList(addresses));
-        new Thread(this::connectToPeers).start();
-        log.info("Peer connection thread started");
-
-        // create the synchroniser thread
-        new Thread(this::regularlySynchronise).start();
-    }
+		// create the synchroniser thread
+		new Thread(this::regularlySynchronise).start();
+	}
 
     /**
      * This method loops through the list of provided peers and attempts to connect to each one,
@@ -439,6 +431,22 @@ public class ServerMain implements FileSystemObserver {
         }
     }
 
+    public List<PeerConnection> getPeers() {
+        return peers.stream()
+                .filter(peer -> peer.getState() == PeerConnection.State.ACTIVE)
+                .collect(Collectors.toList());
+    }
+
+    public PeerConnection getPeer(String host, int port) {
+        for (PeerConnection peer: getPeers()){
+            if (peer.getHost().equalsIgnoreCase(host) && peer.getPort() == port){
+                return peer;
+            }
+
+        }
+        return null;
+    }
+
     /**
      * Adds a message to the queue of messages to be processed.
      */
@@ -472,7 +480,7 @@ public class ServerMain implements FileSystemObserver {
                 .collect(Collectors.toList());
     }
 
-    protected long getIncomingPeerCount() {
+    public long getIncomingPeerCount() {
         return peers.stream()
                 .filter(peer -> !peer.getOutgoing())
                 .filter(peer -> peer.getState() == PeerConnection.State.ACTIVE)
