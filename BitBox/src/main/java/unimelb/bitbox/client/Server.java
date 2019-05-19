@@ -94,7 +94,7 @@ public class Server implements Runnable {
 
         String command = document.require("command");
 
-        if ("AUTH_REQUEST".equals(command)) {
+        if (command.equals("AUTH_REQUEST")) {
             String ident = document.require("identity");
             response.append("command", "AUTH_RESPONSE");
 

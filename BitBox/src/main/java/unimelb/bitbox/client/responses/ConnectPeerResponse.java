@@ -1,7 +1,6 @@
 package unimelb.bitbox.client.responses;
 
 import unimelb.bitbox.ServerMain;
-import unimelb.bitbox.util.Configuration;
 import unimelb.bitbox.util.JsonDocument;
 import unimelb.bitbox.util.ResponseFormatException;
 
@@ -27,15 +26,8 @@ class ConnectPeerResponse extends ClientResponse {
         final String SUCCESS = "connected to peer";
         String reply = SUCCESS;
 
-        // check we have room for more peers
-        // (only count incoming connections)
-        if (server.getIncomingPeerCount() >= Integer.parseInt(
-                Configuration.getConfigurationValue("maximumIncommingConnections"))){
-            // failed if maximumIncommingConnections is reached
-            ServerMain.log.warning("maximumIncommingConnections reached. Failed to connect to " +
-                    host + ":" + port);
-            reply = "connection failed";
-        } else if (!server.tryPeer(host, port)){
+        // ELEANOR: Server should handle incoming peer count, not this response object.
+        if (!server.clientTryPeer(host, port)){
             // failed if the target peer is offline/not available
             ServerMain.log.warning("target peer is not reachable. Failed to connect to " +
                     host + ":" + port);

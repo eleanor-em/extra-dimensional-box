@@ -295,6 +295,7 @@ public class ServerMain implements FileSystemObserver {
 	private static final int PEER_RETRY_TIME = 60;
 	private static final String DEFAULT_NAME = "Anonymous";
 	final FileSystemManager fileSystemManager;
+	private final int maxIncomingConnections;
 
 	/**
 	 * Create a thread-safe list of the peer connections this program has active.
@@ -318,6 +319,7 @@ public class ServerMain implements FileSystemObserver {
 		processor = new MessageProcessingThread(this);
 		serverPort = Integer.parseInt(Configuration.getConfigurationValue("port"));
 		advertisedName = Configuration.getConfigurationValue("advertisedName");
+		maxIncomingConnections = Integer.parseInt(Configuration.getConfigurationValue("maximumgIncommingConnections"));
 		createNames();
 
 		// create the processor thread
@@ -404,7 +406,7 @@ public class ServerMain implements FileSystemObserver {
 		return null;
 	}
 
-	public long getIncomingPeerCount() {
+	private long getIncomingPeerCount() {
 		return peers.stream()
 				.filter(peer -> !peer.getOutgoing())
 				.filter(peer -> peer.getState() == PeerConnection.State.ACTIVE)
@@ -427,8 +429,7 @@ public class ServerMain implements FileSystemObserver {
 
 					// check we have room for more peers
 					// (only count incoming connections)
-					if (getIncomingPeerCount() >= Integer.parseInt(
-							Configuration.getConfigurationValue("maximumIncommingConnections"))) {
+					if (getIncomingPeerCount() >= maxIncomingConnections) {
 						// if not, write a CONNECTION_REFUSED message and close the connection
 						try (BufferedWriter out = new BufferedWriter(
 								new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8))) {
@@ -481,16 +482,16 @@ public class ServerMain implements FileSystemObserver {
 	 */
 	public void retryPeers() {
 		// Remove all peers that successfully connect.
-		peerAddresses.removeIf(this::tryPeer);
+		peerAddresses.removeIf(addr -> tryPeer(addr) != null);
 	}
 
-	public boolean tryPeer(String peerAddress){
+	private PeerConnection tryPeer(String peerAddress){
 		// if it's already in our set, this does nothing, so just make sure (in case the peer is temporarily
 		// unavailable)
 		addPeerAddress(peerAddress);
 
 		if (getConnectedAddresses().contains(peerAddress)) {
-			return false;
+			return null;
 		}
 		// separate the address into a hostname and port
 		// HostPort doesn't handle this safely
@@ -504,23 +505,31 @@ public class ServerMain implements FileSystemObserver {
 
 				// find a name
 				String name = getName();
-				peers.add(new PeerConnection(formatName(name),
+				PeerConnection peer = new PeerConnection(formatName(name),
 						socket,
 						this,
-						PeerConnection.State.WAIT_FOR_RESPONSE));
-				// success: remove this peer from the set of peers to connect to
-				log.info("Connected to peer " + name + " (" + peerAddress + ")");
-				return true;
+						PeerConnection.State.WAIT_FOR_RESPONSE);
+				peers.add(peer);
+				return peer;
 			} catch (IOException e) {
 				log.warning("Connection to peer `" + peerAddress + "` failed: " + e.getMessage());
 			}
 		}
-		return false;
+		return null;
 	}
 
-	public boolean tryPeer(String hostname, int port){
+	public boolean clientTryPeer(String hostname, int port){
+		if (getIncomingPeerCount() >= maxIncomingConnections) {
+			return false;
+		}
+
 		String addr = hostname + ":" + port;
-		return tryPeer(addr);
+		PeerConnection peer = tryPeer(addr);
+		if (peer != null) {
+			peer.forceIncoming();
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -602,17 +611,5 @@ public class ServerMain implements FileSystemObserver {
 			}
 			synchroniseFiles();
 		}
-	}
-
-	public boolean isConnected(String host, int port){
-		boolean found = false;
-		for (PeerConnection peer: this.getPeers()){
-			log.info(host + ":" + port);
-			if (host == peer.getHost() && port == peer.getPort()){
-				found = true;
-				break;
-			}
-		}
-		return found;
 	}
 }
