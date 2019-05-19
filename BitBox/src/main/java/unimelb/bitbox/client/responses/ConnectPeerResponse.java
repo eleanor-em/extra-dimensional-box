@@ -6,7 +6,7 @@ import unimelb.bitbox.util.JsonDocument;
 import unimelb.bitbox.util.ResponseFormatException;
 
 /**
- * Generates the message content of CONNECT_PEER_RESPONSE
+ * Generates the message content of CONNECT_PEER
  * to be sent by a Peer to a Client.
  *
  * Known issue in the design:
@@ -17,11 +17,9 @@ import unimelb.bitbox.util.ResponseFormatException;
  * the peer was stored as "127.0.0.1:8114", the connection would succeed
  * given the existing constraints.
  */
-public class ConnectPeerResponse extends ClientResponse {
+class ConnectPeerResponse extends ClientResponse {
 
-    public ConnectPeerResponse(ServerMain server, JsonDocument document) throws ResponseFormatException {
-        super(server, document);
-
+    protected ConnectPeerResponse(ServerMain server, JsonDocument document) throws ResponseFormatException {
         response.append("command", "CONNECT_PEER_RESPONSE");
 
         String host = document.require("host");

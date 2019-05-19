@@ -6,7 +6,7 @@ import unimelb.bitbox.util.JsonDocument;
 import unimelb.bitbox.util.ResponseFormatException;
 
 /**
- * Generates the message content of DISCONNECT_PEER_RESPONSE
+ * Generates the message content of DISCONNECT_PEER
  * to be sent by a Peer to a Client.
  *
  * Known issue in the design:
@@ -17,11 +17,9 @@ import unimelb.bitbox.util.ResponseFormatException;
  * the peer was stored as "127.0.0.1:8114", the attempt would fail
  * given the existing constraints.
  */
-public class DisconnectPeerResponse extends ClientResponse {
+class DisconnectPeerResponse extends ClientResponse {
 
-    public DisconnectPeerResponse(ServerMain server, JsonDocument document) throws ResponseFormatException {
-        super(server, document);
-
+    protected DisconnectPeerResponse(ServerMain server, JsonDocument document) throws ResponseFormatException {
         response.append("command", "DISCONNECT_PEER_RESPONSE");
 
         String host = document.require("host");
@@ -29,15 +27,17 @@ public class DisconnectPeerResponse extends ClientResponse {
         final String SUCCESS = "disconnected from peer";
         String reply = SUCCESS;
 
-        try{
-            PeerConnection peer = server.getPeer(host, port);
-            server.closeConnection(peer);
-        }
-        catch (NullPointerException e){
+        // ELEANOR: Better to use an if statement than exception handling for a simple branch
+        PeerConnection peer = server.getPeer(host, port);
+        if (peer == null) {
             // The design is not good. Host names are stored as IP addresses sometime. Unpredictable.
             // If localhost is stored as IP address, cancelling by the alias will fail!
+            //
+            // ELEANOR: This just means we'd need to add a DNS resolution step in practice.
+            //          For now, requiring servers & clients to only use IP addresses is fine.
             reply = "connection not active";
-            e.printStackTrace();
+        } else {
+            server.closeConnection(peer);
         }
 
         response.append("host", host);

@@ -2,10 +2,7 @@ package unimelb.bitbox.client;
 
 import org.json.simple.parser.ParseException;
 import unimelb.bitbox.ServerMain;
-import unimelb.bitbox.client.responses.ConnectPeerResponse;
-import unimelb.bitbox.client.responses.DisconnectPeerResponse;
-import unimelb.bitbox.client.responses.IClientResponseProtocol;
-import unimelb.bitbox.client.responses.ListPeerResponse;
+import unimelb.bitbox.client.responses.ClientResponse;
 import unimelb.bitbox.util.*;
 
 import javax.crypto.BadPaddingException;
@@ -96,50 +93,37 @@ public class Server implements Runnable {
         JsonDocument response = new JsonDocument();
 
         String command = document.require("command");
-        Optional<String> maybeIdent = document.get("identity");
 
-        switch (command) {
-            case "AUTH_REQUEST":
+        if ("AUTH_REQUEST".equals(command)) {
+            String ident = document.require("identity");
+            response.append("command", "AUTH_RESPONSE");
 
-                response.append("command", "AUTH_RESPONSE");
-
-                // Look up the provided ident in our list of keys to find the relevant key
-                // (if there are several matching idents, just pick the first)
-                Optional<SSHPublicKey> matchedKey = keys.stream()
-                        .filter(key -> key.getIdent().equals(maybeIdent.orElse("")))
-                        .findFirst();
-                if (matchedKey.isPresent()) {
-                    try {
-                        // We attempt to generate a key, and then encrypt it with the looked-up public key
-                        key = Crypto.generateSecretKey();
-                        response.append("AES128", Crypto.encryptSecretKey(key, matchedKey.get().getKey()));
-                        response.append("status", true);
-                        response.append("message", "public key found");
-                    } catch (NoSuchAlgorithmException | NoSuchPaddingException | BadPaddingException
-                            | IllegalBlockSizeException | InvalidKeyException e) {
-                        // In case the crypto algorithms failed, we send a failure response
-                        System.out.println("Failed encryption: " + e.getMessage());
-                        response.append("status", false);
-                        response.append("message", "error generating key");
-                    }
-                } else {
-                    // If the ident wasn't found, inform the user
+            // Look up the provided ident in our list of keys to find the relevant key
+            // (if there are several matching idents, just pick the first)
+            Optional<SSHPublicKey> matchedKey = keys.stream()
+                    .filter(key -> key.getIdent().equals(ident))
+                    .findFirst();
+            if (matchedKey.isPresent()) {
+                try {
+                    // We attempt to generate a key, and then encrypt it with the looked-up public key
+                    key = Crypto.generateSecretKey();
+                    response.append("AES128", Crypto.encryptSecretKey(key, matchedKey.get().getKey()));
+                    response.append("status", true);
+                    response.append("message", "public key found");
+                } catch (NoSuchAlgorithmException | NoSuchPaddingException | BadPaddingException
+                        | IllegalBlockSizeException | InvalidKeyException e) {
+                    // In case the crypto algorithms failed, we send a failure response
+                    System.out.println("Failed encryption: " + e.getMessage());
                     response.append("status", false);
-                    response.append("message", "public key not found");
+                    response.append("message", "error generating key");
                 }
-                break;
-
-        case "LIST_PEERS_REQUEST":
-            response = IClientResponseProtocol.getResponse(new ListPeerResponse(server, document));
-            break;
-
-        case "CONNECT_PEER_REQUEST":
-            response = IClientResponseProtocol.getResponse(new ConnectPeerResponse(server, document));
-            break;
-
-        case "DISCONNECT_PEER_REQUEST":
-            response = IClientResponseProtocol.getResponse(new DisconnectPeerResponse(server, document));
-            break;
+            } else {
+                // If the ident wasn't found, inform the user
+                response.append("status", false);
+                response.append("message", "public key not found");
+            }
+        } else {
+            response = ClientResponse.getResponse(command, server, document);
         }
 
         String responseMessage = response.toJson();

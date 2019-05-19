@@ -7,14 +7,12 @@ import unimelb.bitbox.util.JsonDocument;
 import java.util.ArrayList;
 
 /**
- * Generates the message content of LIST_PEERS_RESPONSE
+ * Generates the message content of LIST_PEERS
  * to be sent by a Peer to a Client.
  */
-public class ListPeerResponse extends ClientResponse {
+class ListPeersResponse extends ClientResponse {
 
-    public ListPeerResponse(ServerMain server, JsonDocument document) {
-        super(server, document);
-
+    protected ListPeersResponse(ServerMain server) {
         response.append("command", "LIST_PEERS_RESPONSE");
 
         // add all peers currently connected to and previously

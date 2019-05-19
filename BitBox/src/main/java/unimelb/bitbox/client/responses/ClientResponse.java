@@ -2,22 +2,27 @@ package unimelb.bitbox.client.responses;
 
 import unimelb.bitbox.ServerMain;
 import unimelb.bitbox.util.JsonDocument;
+import unimelb.bitbox.util.ResponseFormatException;
 
 /**
  * Parent class of responses to client requests
  */
-abstract public class ClientResponse {
+public abstract class ClientResponse {
+    protected JsonDocument response = new JsonDocument();
 
-    ServerMain server;
-    JsonDocument response;
+    protected ClientResponse() {}
 
-    public ClientResponse(ServerMain server, JsonDocument document) {
-        this.server = server;
-        this.response = document;
+    // ELEANOR: In my review I meant that ClientResponse should be a factory, so I've implemented that here
+    public static JsonDocument getResponse(String command, ServerMain server, JsonDocument document)
+            throws ResponseFormatException {
+        switch (command) {
+            case "LIST_PEERS_REQUEST":
+                return new ListPeersResponse(server).response;
+            case "CONNECT_PEER_REQUEST":
+                return new ConnectPeerResponse(server, document).response;
+            case "DISCONNECT_PEER_REQUEST":
+                return new DisconnectPeerResponse(server, document).response;
+        }
+        throw new ResponseFormatException("Unrecognised command `" + command + "`");
     }
-
-    protected JsonDocument getResponse(){
-        return response;
-    }
-
 }
