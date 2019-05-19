@@ -280,7 +280,7 @@ public class FileReadWriteThreadPool {
                 return;
             }
             try {
-                ByteBuffer byteBuffer = peer.server.fileSystemd *.Manager.readFile(md5, position, length);
+                ByteBuffer byteBuffer = peer.server.fileSystemManager.readFile(md5, position, length);
                 if (byteBuffer == null) {
                     reply = "no matching file found: " + md5 + ", " + position + ", " + length;
                 } else {
