@@ -11,7 +11,6 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
@@ -380,12 +379,7 @@ class OutgoingConnection extends Thread {
             while (true) {
                 try {
                     OutgoingMessage message = messages.take();
-
-                    // Datagram packets need to be null terminated.
-                    byte[] buffer = Arrays.copyOf(message.message.getBytes(), message.message.length() + 1);
-                    buffer[buffer.length - 1] = '\0';
-
-                    packet.setData(buffer);
+                    packet.setData(message.message.getBytes(StandardCharsets.UTF_8));
                     udpSocket.send(packet);
                     message.onSent.run();
                 } catch (IOException | InterruptedException | NullPointerException e) {

@@ -56,6 +56,7 @@ class MessageProcessingThread extends Thread {
         JsonDocument document;
         // first check the message is correct JSON
         try {
+            ServerMain.log.info(text);
             document = JsonDocument.parse(text);
         } catch (ParseException e) {
             e.printStackTrace();
@@ -592,8 +593,9 @@ public class ServerMain implements FileSystemObserver {
     }
 
     private void acceptConnectionsUDP() {
-        // ELEANOR: why 25000..?
-        byte[] buffer = new byte[25000];//extra 500 to accommodate headers
+        // Maximum packet size is 65507 bytes
+        byte[] buffer = new byte[65507];
+
         try (DatagramSocket udpSocket = new DatagramSocket(serverPort)) {
             this.udpSocket = udpSocket;
             while (!udpSocket.isClosed()) {
@@ -615,10 +617,9 @@ public class ServerMain implements FileSystemObserver {
                                 return result;
                             });
 
-                    // Remove null bytes. Apparently String doesn't null terminate...
-                    String packetData = new String(packet.getData());
-                    packetData = packetData.substring(0, packetData.indexOf('\0'));
-                    processor.messages.add(new ReceivedMessage(packetData, connectedPeer));
+                    // The actual message may be shorter than what we got from the socket
+                    String packetData = new String(packet.getData(), 0, packet.getLength());
+                    connectedPeer.receiveMessage(packetData);
                 } catch (IOException e) {
                     log.severe("Failed receiving from peer: " + e.getMessage());
                 }
