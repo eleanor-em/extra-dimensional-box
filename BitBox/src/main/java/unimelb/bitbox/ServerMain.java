@@ -359,6 +359,7 @@ public class ServerMain implements FileSystemObserver {
         switch (Configuration.getConfigurationValue("mode")) {
             case "tcp":
                 mode = CONNECTION_MODE.TCP;
+                serverPort = Integer.parseInt(Configuration.getConfigurationValue("port"));
                 break;
             case "udp":
                 mode = CONNECTION_MODE.UDP;
@@ -381,7 +382,6 @@ public class ServerMain implements FileSystemObserver {
         new Thread(new Server(this)).start();
         log.info("Server thread started");
 
-        serverPort = Integer.parseInt(Configuration.getConfigurationValue("port"));
 
         // create the connection acceptor thread
         new Thread(this::acceptConnections).start();
