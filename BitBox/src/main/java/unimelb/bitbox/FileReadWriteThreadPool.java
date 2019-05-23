@@ -199,14 +199,15 @@ public class FileReadWriteThreadPool {
                     cancelFile(peer, pathName);
                     return;
                 }
-            }
-            catch (IOException e){
-                ServerMain.log.info(peer.name + ": wrote file " + pathName +
-                        " at position: [" + position + "/" + fileSize + "]");
+            } catch (IOException e){
+                ServerMain.log.warning(peer.name + ": error writing bytes to " + pathName +
+                        " at position: [" + position + "/" + fileSize + "] :" + e.getMessage());
             } catch (ResponseFormatException e) {
                 peer.sendMessageAndClose(new InvalidProtocol("Missing content field"));
                 return;
             }
+            ServerMain.log.info(peer.name + ": wrote file " + pathName +
+                    " at position: [" + position + "/" + fileSize + "]");
 
 
             // Check if more bytes are needed. If yes, send another FileBytesRequest
@@ -220,19 +221,18 @@ public class FileReadWriteThreadPool {
                     ServerMain.log.info(peer.name + ": received all bytes for " + pathName +
                             ". File created successfully");
                 }
-            }
-            catch (NoSuchAlgorithmException | IOException e) {
+            } catch (NoSuchAlgorithmException | IOException e) {
                 ServerMain.log.warning(peer.name + ": error closing file loader for " + pathName);
-            }
-            catch (OutOfMemoryError e){
+            } catch (OutOfMemoryError e){
                 ServerMain.log.info(peer.name + ": not enough memory to write " + pathName +
                         " at position: [" + nextPosition + "/" + fileSize + "]");
-            }
-            catch (Exception e) {
-                ServerMain.log.warning(peer.name + ": error writing " +
-                        pathName + " at position: [" + nextPosition + "/" + fileSize + "]");
-                // ELEANOR: if we're going to catch a generic `Exception`, we probably want a record of what happened
+            } catch (ResponseFormatException e) {
+                ServerMain.log.warning("invalid file descriptor: " + fileDescriptor.toJson());
+            } catch (Exception e) {
                 e.printStackTrace();
+                ServerMain.log.severe(peer.name + ": unknown error writing " +
+                        pathName + " at position: [" + nextPosition + "/" + fileSize + "]: "
+                        + e.getClass().getName() + ": " + e.getMessage());
             }
         }
     }
@@ -284,11 +284,15 @@ public class FileReadWriteThreadPool {
                 reply = "length requested too large";
                 ServerMain.log.severe(peer.name + ": error writing bytes of file " + pathName + " at [" +
                         position + "/" + fileSize + "]. The file size is too big: " + e.getMessage());
-            } catch (Exception e) {
+            } catch (IOException e) {
                 reply = "unsuccessful read";
-                e.printStackTrace();
-                ServerMain.log.warning(peer.name + ": failed reading bytes of file " + pathName + " at [" +
+                ServerMain.log.warning(peer + ": failed reading bytes of file " + pathName + " at [" +
                         position + "/" + fileSize + "]: " + e.getMessage());
+            } catch (Exception e) {
+                reply = "unrecognised error: " + e.getClass().getName() + ": " + e.getMessage();
+                e.printStackTrace();
+                ServerMain.log.severe(peer + ": failed reading bytes of file " + pathName + " at [" +
+                        position + "/" + fileSize + "]: " + reply);
             }
             try {
                 peer.sendMessage(new FileBytesResponse(document, pathName, length, position, content, reply));

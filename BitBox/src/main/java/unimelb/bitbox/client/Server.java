@@ -94,6 +94,7 @@ public class Server implements Runnable {
 
         String command = document.require("command");
 
+        // Auth requests need to be handled separately because they rely on key data
         if (command.equals("AUTH_REQUEST")) {
             String ident = document.require("identity");
             response.append("command", "AUTH_RESPONSE");
