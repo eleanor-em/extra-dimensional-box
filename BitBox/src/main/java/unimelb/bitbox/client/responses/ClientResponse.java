@@ -1,6 +1,7 @@
 package unimelb.bitbox.client.responses;
 
 import unimelb.bitbox.ServerMain;
+import unimelb.bitbox.util.HostPort;
 import unimelb.bitbox.util.JsonDocument;
 import unimelb.bitbox.util.ResponseFormatException;
 
@@ -19,10 +20,14 @@ public abstract class ClientResponse {
             case "LIST_PEERS_REQUEST":
                 return new ListPeersResponse(server).response;
             case "CONNECT_PEER_REQUEST":
-                return new ConnectPeerResponse(server, document).response;
+                return new ConnectPeerResponse(server, getHostPort(document)).response;
             case "DISCONNECT_PEER_REQUEST":
-                return new DisconnectPeerResponse(server, document).response;
+                return new DisconnectPeerResponse(server, getHostPort(document)).response;
         }
         throw new ResponseFormatException("Unrecognised command `" + command + "`");
+    }
+
+    private static HostPort getHostPort(JsonDocument document) throws ResponseFormatException {
+        return new HostPort(document.require("host"), document.require("port"));
     }
 }

@@ -171,6 +171,7 @@ class MessageProcessingThread extends Thread {
                 break;
 
             case Message.FILE_BYTES_RESPONSE:
+                checkStatus(document);
                 validateFileDescriptor(document);
                 document.<String>require("pathName");
                 document.<Long>require("length");
@@ -191,47 +192,46 @@ class MessageProcessingThread extends Thread {
              * Handshake request and responses
              */
             case Message.HANDSHAKE_REQUEST:
-                JsonDocument hostPort = document.require("hostPort");
-                String host = hostPort.require("host");
-                long port = hostPort.require("port");
+                HostPort hostPort = HostPort.fromJSON(document.require("hostPort"));
 
                 if (peer.getState() == PeerConnection.State.WAIT_FOR_REQUEST) {
                     // we need to pass the host and port we received, as the socket's data may not be accurate
                     // (since this socket was an accepted connection)
-                    ServerMain.log.info("Received connection request from " + host + ":" + port);
+                    ServerMain.log.info("Received connection request from " + hostPort);
 
                     // ELEANOR: this has to be done here because we don't know the foreign port until now
                     // refuse connection if we are already connected to this address
-                    if (server.getOutgoingAddresses().contains(host + ":" + port)) {
-                        ServerMain.log.warning("Already connected to " + host + ":" + port);
+                    if (server.getOutgoingAddresses().contains(hostPort)) {
+                        ServerMain.log.warning("Already connected to " + hostPort);
                         peer.close();
                     } else {
-                        peer.activate(host, port);
-                        peer.sendMessage(new HandshakeResponse(peer.getLocalHost(), peer.getLocalPort(), false));
+                        peer.activate(hostPort);
+                        peer.sendMessage(new HandshakeResponse(peer.getLocalHostPort(), false));
                         // synchronise with this peer
                         server.synchroniseFiles();
                     }
                 } else {
                     // EXTENSION: Just ignore unexpected handshakes.
                     //invalidProtocolResponse(peer, "unexpected HANDSHAKE_REQUEST");
-                    peer.activate(host, port);
-                    peer.sendMessage(new HandshakeResponse(peer.getLocalHost(), peer.getLocalPort(), false));
+                    peer.activate(hostPort);
+                    peer.sendMessage(new HandshakeResponse(peer.getLocalHostPort(), false));
                     server.synchroniseFiles();
                 }
                 break;
 
             case Message.HANDSHAKE_RESPONSE:
-                hostPort = document.require("hostPort");
-                parsedResponse = new HandshakeResponse(hostPort.require("host"), hostPort.require("port"), true);
+                hostPort = HostPort.fromJSON(document.require("hostPort"));
+                parsedResponse = new HandshakeResponse(hostPort, true);
 
                 if (peer.getState() == PeerConnection.State.WAIT_FOR_RESPONSE) {
-                    peer.activate(hostPort.require("host"), hostPort.require("port"));
+                    peer.activate(hostPort);
                     // synchronise with this peer
                     server.synchroniseFiles();
-                } else {
-                    // EXTENSION: Just ignore unexpected handshakes.
-                    //invalidProtocolResponse(peer, "unexpected HANDSHAKE_RESPONSE");
                 }
+                // EXTENSION: Just ignore unexpected handshakes.
+                /* else {
+                    /invalidProtocolResponse(peer, "unexpected HANDSHAKE_RESPONSE");
+                }*/
                 break;
 
             case Message.CONNECTION_REFUSED:
@@ -245,11 +245,7 @@ class MessageProcessingThread extends Thread {
                 // now try to connect to the provided peer list
                 ArrayList<JsonDocument> peers = document.requireArray("peers");
                 for (JsonDocument peerHostPort : peers) {
-                    host = peerHostPort.require("host");
-                    port = peerHostPort.require("port");
-
-                    String address = host + ":" + port;
-
+                    String address = HostPort.fromJSON(peerHostPort).toString();
                     server.addPeerAddress(address);
                     ServerMain.log.info("Added peer `" + address + "`");
                     server.retryPeers();
@@ -288,7 +284,7 @@ class MessageProcessingThread extends Thread {
 
         if (!status) {
             // ELEANOR: Log any unsuccessful responses.
-            ServerMain.log.info("Failed response: " + document.require("command") + ": " + message);
+            ServerMain.log.warning("Received failed " + document.require("command") + ": " + message);
         }
     }
 
@@ -332,9 +328,10 @@ public class ServerMain implements FileSystemObserver {
     private final List<PeerConnection> peers = Collections.synchronizedList(new ArrayList<>());
     // this is the thread that collects messages and processes them
     private MessageProcessingThread processor;
-    // data read from the config file
-    private int serverPort;
-    private final String advertisedName;
+    private static HostPort hostPort;
+    public static HostPort getHostPort() {
+        return hostPort;
+    }
 
     public void restartProcessingThread() {
         processor = new MessageProcessingThread(this);
@@ -354,14 +351,17 @@ public class ServerMain implements FileSystemObserver {
     private DatagramSocket udpSocket;
 
     public ServerMain() throws NumberFormatException, IOException, NoSuchAlgorithmException {
-        // initialise some stuff
+        // initialise things
         KnownPeerTracker.load();
         fileSystemManager = new FileSystemManager(Configuration.getConfigurationValue("path"), this);
         processor = new MessageProcessingThread(this);
-        advertisedName = Configuration.getConfigurationValue("advertisedName");
         maxIncomingConnections = Integer.parseInt(Configuration.getConfigurationValue("maximumIncommingConnections"));
         createNames();
+
         // load the mode
+        // data read from the config file
+        String advertisedName = Configuration.getConfigurationValue("advertisedName");
+        int serverPort;
         switch (Configuration.getConfigurationValue("mode")) {
             case "tcp":
                 mode = CONNECTION_MODE.TCP;
@@ -373,6 +373,7 @@ public class ServerMain implements FileSystemObserver {
                 break;
             default:
                 mode = null;
+                serverPort = 0;
                 log.severe("Invalid mode set, process will be terminated.");
                 System.exit(1);
         }
@@ -381,6 +382,7 @@ public class ServerMain implements FileSystemObserver {
         } else {
             blockSize = Math.min(Long.parseLong(Configuration.getConfigurationValue("blockSize")), 8192);
         }
+        hostPort = new HostPort(advertisedName, serverPort);
 
 		// create the processor thread
 		processor.start();
@@ -453,18 +455,22 @@ public class ServerMain implements FileSystemObserver {
         processor.rwManager.cancelPeerFiles(peer);
 
         // return the plain name to the queue, if it's not the default
-        String plainName = peer.getPlainName();
+        String plainName = peer.getName();
         if (!plainName.equals(DEFAULT_NAME)) {
             names.add(plainName);
         }
     }
 
-    public PeerConnection getPeer(String host, int port) {
-        for (PeerConnection peer : getActivePeers()){
-            if (peer.getHost().equalsIgnoreCase(host) && peer.getPort() == port){
-                return peer;
-            }
+    public PeerConnection getPeer(HostPort hostPort) {
+        synchronized (peers) {
+            for (PeerConnection peer : peers) {
+                HostPort peerLocalHP = peer.getLocalHostPort();
+                HostPort peerHP = peer.getHostPort();
 
+                if (peerLocalHP.fuzzyEquals(hostPort) || peerHP.fuzzyEquals(hostPort)) {
+                    return peer;
+                }
+            }
         }
         return null;
     }
@@ -523,7 +529,7 @@ public class ServerMain implements FileSystemObserver {
         names.add("Zuzanna");
     }
 
-    public List<PeerConnection> getActivePeers() {
+    public Collection<PeerConnection> getActivePeers() {
         synchronized (peers) {
             return peers.stream()
                     .filter(peer -> peer.getState() == PeerConnection.State.ACTIVE)
@@ -535,23 +541,26 @@ public class ServerMain implements FileSystemObserver {
         synchronized (peers) {
             return peers.stream()
                     .filter(peer -> !peer.getOutgoing())
-                    .filter(peer -> peer.getState() == PeerConnection.State.ACTIVE)
                     .count();
         }
     }
 
-    public List<String> getCurrentAddresses() {
+    public Collection<String> getAllAddresses() {
         synchronized (peers) {
-            return peers.stream()
-                    .map(peer -> peer.getHost() + ":" + peer.getPort())
-                    .collect(Collectors.toList());
+            HashSet<String> results = new HashSet<>();
+            for (PeerConnection conn : peers) {
+                results.add(conn.getHostPort().asAddress());
+                results.add(conn.getHostPort().aliasAsAddress());
+            }
+            return results;
         }
     }
-    public List<String> getOutgoingAddresses() {
+
+    public Collection<HostPort> getOutgoingAddresses() {
         synchronized (peers) {
             return peers.stream()
                     .filter(PeerConnection::getOutgoing)
-                    .map(peer -> peer.getHost() + ":" + peer.getPort())
+                    .map(PeerConnection::getHostPort)
                     .collect(Collectors.toList());
         }
     }
@@ -559,7 +568,7 @@ public class ServerMain implements FileSystemObserver {
     // This method creates a server thread that continually accepts new connections from other peers
     // and then creates a PeerConnection object to communicate with them.
     private void acceptConnectionsTCP() {
-        try (ServerSocket serverSocket = new ServerSocket(serverPort)) {
+        try (ServerSocket serverSocket = new ServerSocket(hostPort.port)) {
             while (!serverSocket.isClosed()) {
                 try {
                     Socket socket = serverSocket.accept();
@@ -579,18 +588,19 @@ public class ServerMain implements FileSystemObserver {
                             socket.close();
                         }
                     } else {
-                        String name = formatName(names.poll());
+                        String name = getAnyName();
 
-                        peers.add(new PeerTCP(name, socket, this, PeerConnection.State.WAIT_FOR_REQUEST));
-                        log.info("Connected to peer " + name);
+                        PeerConnection peer = new PeerTCP(name, socket, this, PeerConnection.State.WAIT_FOR_REQUEST);
+                        peers.add(peer);
+                        log.info("Connected to peer " + peer);
                     }
                 } catch (IOException e) {
-                    log.warning("Failed connecting to peer.");
+                    log.warning("Failed connecting to peer");
                     e.printStackTrace();
                 }
             }
         } catch (IOException e) {
-            log.severe("Opening server socket on port " + serverPort + " failed: " + e.getMessage());
+            log.severe("Opening server socket on port " + hostPort.port + " failed: " + e.getMessage());
         }
     }
 
@@ -607,7 +617,7 @@ public class ServerMain implements FileSystemObserver {
         // unavailable)
         addPeerAddress(peerAddress);
 
-        if (getCurrentAddresses().contains(peerAddress)) {
+        if (getAllAddresses().contains(peerAddress)) {
             return null;
         }
         // separate the address into a hostname and port
@@ -621,11 +631,8 @@ public class ServerMain implements FileSystemObserver {
                 Socket socket = new Socket(hostname, port);
 
                 // find a name
-                String name = getName();
-                PeerConnection peer = new PeerTCP(formatName(name),
-                        socket,
-                        this,
-                        PeerConnection.State.WAIT_FOR_RESPONSE);
+                String name = getAnyName();
+                PeerConnection peer = new PeerTCP(name, socket, this, PeerConnection.State.WAIT_FOR_RESPONSE);
                 peers.add(peer);
                 // success: remove this peer from the set of peers to connect to
                 log.info("Connected to peer " + name + " (" + peerAddress + ")");
@@ -644,13 +651,12 @@ public class ServerMain implements FileSystemObserver {
         }
     }
 
-    public boolean clientTryPeer(String hostname, int port){
+    public boolean clientTryPeer(HostPort hostPort){
 		if (getIncomingPeerCount() >= maxIncomingConnections) {
 			return false;
 		}
 
-		String addr = hostname + ":" + port;
-		PeerConnection peer = tryPeer(addr);
+		PeerConnection peer = tryPeer(hostPort.toString());
 		if (peer != null) {
 			peer.forceIncoming();
 			return true;
@@ -658,37 +664,24 @@ public class ServerMain implements FileSystemObserver {
 		return false;
 	}
 
-    /**
-     * Get a name for the peer connection for debugging purposes.
-     *
-     * @return A name for the peer connection
-     */
-    public String getName() {
-        String name = names.poll();
-        if (name == null) {
-            name = DEFAULT_NAME;
-        }
-        return name;
-    }
-
     private void acceptConnectionsUDP() {
         // Maximum packet size is 65507 bytes
         byte[] buffer = new byte[65507];
 
-        try (DatagramSocket udpSocket = new DatagramSocket(serverPort)) {
+        try (DatagramSocket udpSocket = new DatagramSocket(hostPort.port)) {
             this.udpSocket = udpSocket;
             while (!udpSocket.isClosed()) {
                 try {
                     DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                     udpSocket.receive(packet);
 
-                    String hostPort = (packet.getAddress() + ":" + packet.getPort()).replace("/", "");
+                    HostPort hostPort = new HostPort(packet.getAddress().toString(), packet.getPort());
 
-                    String name = formatName(names.poll());
+                    String name = getAnyName();
                     PeerConnection connectedPeer;
                     synchronized (peers) {
                         connectedPeer = peers.stream()
-                                .filter(peer -> hostPort.equals(peer.getHost() + ":" + peer.getPort()))
+                                .filter(peer -> hostPort.fuzzyEquals(peer.getHostPort()))
                                 .findFirst()
                                 .orElseGet(() -> {
                                     if (getIncomingPeerCount() < maxIncomingConnections) {
@@ -727,7 +720,7 @@ public class ServerMain implements FileSystemObserver {
     }
 
     private PeerConnection tryPeerUDP(String addr) {
-        if (getCurrentAddresses().contains(addr)) {
+        if (getAllAddresses().contains(addr)) {
             return null;
         }
 
@@ -744,18 +737,14 @@ public class ServerMain implements FileSystemObserver {
             String hostname = parts[0];
             int port = Integer.parseInt(parts[1]);
 
-            // find a name
-            String name = names.poll();
-            if (name == null) {
-                name = DEFAULT_NAME;
-            }
+            String name = getAnyName();
 
             byte[] buffer = new byte[65507];
             //send handshake request,
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length, new InetSocketAddress(hostname, port));
             //it should send handshake request without creating the peer.
-            if (!getCurrentAddresses().contains(packet.getAddress().toString() + ":" + packet.getPort())) {
-                PeerUDP p = new PeerUDP(formatName(name), this, PeerConnection.State.WAIT_FOR_RESPONSE, udpSocket, packet);
+            if (!getAllAddresses().contains(packet.getAddress().toString() + ":" + packet.getPort())) {
+                PeerUDP p = new PeerUDP(name, this, PeerConnection.State.WAIT_FOR_RESPONSE, udpSocket, packet);
                 peers.add(p);
                 log.info("Attempting to send handshake to " + name + " (" + addr + "), waiting for response;");
                 return p;
@@ -805,12 +794,9 @@ public class ServerMain implements FileSystemObserver {
         }
     }
 
-    @org.jetbrains.annotations.Contract(pure = true)
-    public String formatName(String name) {
-        if (name == null) {
-            name = "Anonymous";
-        }
-        return name + "-" + advertisedName + ":" + serverPort;
+    public String getAnyName() {
+        return Optional.ofNullable(names.poll())
+                       .orElse(DEFAULT_NAME);
     }
 
     /**

@@ -2,7 +2,7 @@ package unimelb.bitbox.client.responses;
 
 import unimelb.bitbox.PeerConnection;
 import unimelb.bitbox.ServerMain;
-import unimelb.bitbox.util.JsonDocument;
+import unimelb.bitbox.util.HostPort;
 import unimelb.bitbox.util.ResponseFormatException;
 
 /**
@@ -19,16 +19,14 @@ import unimelb.bitbox.util.ResponseFormatException;
  */
 class DisconnectPeerResponse extends ClientResponse {
 
-    protected DisconnectPeerResponse(ServerMain server, JsonDocument document) throws ResponseFormatException {
+    protected DisconnectPeerResponse(ServerMain server, HostPort hostPort) throws ResponseFormatException {
         response.append("command", "DISCONNECT_PEER_RESPONSE");
 
-        String host = document.require("host");
-        int port = (int)(long) document.require("port");
         final String SUCCESS = "disconnected from peer";
         String reply = SUCCESS;
 
         // ELEANOR: Better to use an if statement than exception handling for a simple branch
-        PeerConnection peer = server.getPeer(host, port);
+        PeerConnection peer = server.getPeer(hostPort);
         if (peer == null) {
             // The design is not good. Host names are stored as IP addresses sometime. Unpredictable.
             // If localhost is stored as IP address, cancelling by the alias will fail!
@@ -40,8 +38,8 @@ class DisconnectPeerResponse extends ClientResponse {
             server.closeConnection(peer);
         }
 
-        response.append("host", host);
-        response.append("port", port);
+        response.append("host", hostPort.hostname);
+        response.append("port", hostPort.port);
         response.append("status", reply == SUCCESS);
         response.append("message", reply);
     }

@@ -1,5 +1,6 @@
 package unimelb.bitbox.messages;
 
+import unimelb.bitbox.ServerMain;
 import unimelb.bitbox.util.JsonDocument;
 
 /*
@@ -54,6 +55,14 @@ public abstract class Message {
     }
 
     public String encode() {
+        // If this had a status code, report any errors
+        document.<Boolean>get("status")
+                .ifPresent(status -> {
+                    if (!status) {
+                        String message = document.<String>get("message").orElse("");
+                        ServerMain.log.warning("Sending failed " + getCommand() + ": " + message);
+                    }
+                });
         return document.toJson();
     }
 }

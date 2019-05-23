@@ -1,7 +1,7 @@
 package unimelb.bitbox.client.responses;
 
 import unimelb.bitbox.ServerMain;
-import unimelb.bitbox.util.JsonDocument;
+import unimelb.bitbox.util.HostPort;
 import unimelb.bitbox.util.ResponseFormatException;
 
 /**
@@ -18,24 +18,21 @@ import unimelb.bitbox.util.ResponseFormatException;
  */
 class ConnectPeerResponse extends ClientResponse {
 
-    protected ConnectPeerResponse(ServerMain server, JsonDocument document) throws ResponseFormatException {
+    protected ConnectPeerResponse(ServerMain server, HostPort hostPort) throws ResponseFormatException {
         response.append("command", "CONNECT_PEER_RESPONSE");
 
-        String host = document.require("host");
-        int port = (int)(long) document.require("port");
         final String SUCCESS = "connected to peer";
         String reply = SUCCESS;
 
         // ELEANOR: Server should handle incoming peer count, not this response object.
-        if (!server.clientTryPeer(host, port)){
+        if (!server.clientTryPeer(hostPort)){
             // failed if the target peer is offline/not available
-            ServerMain.log.warning("target peer is not reachable. Failed to connect to " +
-                    host + ":" + port);
+            ServerMain.log.warning("target peer is not reachable. Failed to connect to " + hostPort);
                     reply = "connection failed";
         }
 
-        response.append("host", host);
-        response.append("port", port);
+        response.append("host", hostPort.hostname);
+        response.append("port", hostPort.port);
         response.append("status", reply == SUCCESS);
         response.append("message", reply);
     }

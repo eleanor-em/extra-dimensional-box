@@ -249,7 +249,6 @@ public class FileSystemManager extends Thread {
 		try {
 			cannonicalName = file.getCanonicalPath();
 		} catch (IOException e) {
-			log.severe(e.getMessage());
 			return false;
 		}
 		//log.info(cannonicalName + " " + cannonicalRoot);

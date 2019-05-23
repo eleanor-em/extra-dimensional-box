@@ -2,6 +2,7 @@ package unimelb.bitbox.client.requests;
 
 import unimelb.bitbox.util.Document;
 import unimelb.bitbox.util.HostPort;
+import unimelb.bitbox.util.HostPortParseException;
 
 /**
  * Parent class of requests sent by the Client to a Peer.
@@ -18,13 +19,13 @@ abstract public class ClientRequest {
     }
 
     protected ClientRequest(String command, String peerAddress)
-            throws IllegalArgumentException {
+            throws HostPortParseException {
         document.append("command", command);
 
         if (peerAddress == null) {
             throw new IllegalArgumentException("missing command line option: -p");
         }
-        HostPort hostPort = new HostPort(peerAddress);
+        HostPort hostPort = HostPort.fromAddress(peerAddress);
         appendHostPort(hostPort);
     }
 

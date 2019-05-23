@@ -5,6 +5,7 @@ import unimelb.bitbox.messages.Message;
 import unimelb.bitbox.messages.ReceivedMessage;
 import unimelb.bitbox.util.Configuration;
 import unimelb.bitbox.util.HostPort;
+import unimelb.bitbox.util.HostPortParseException;
 
 import java.io.*;
 import java.net.DatagramPacket;
@@ -30,8 +31,9 @@ public abstract class PeerConnection {
 
     private OutgoingConnection outConn;
     public final ServerMain server;
-    private int port;
-    private String host;
+
+    private HostPort localHostPort;
+    private HostPort hostPort;
 
     public void forceIncoming() {
         wasOutgoing = false;
@@ -58,22 +60,23 @@ public abstract class PeerConnection {
     // Activate the peer connection after a handshake is complete.
     // Optionally, allow the port to be updated.
     void activateDefault() {
-        activate(host, port);
-    }
-    void activate(String host, long port) {
-        this.host = host;
-        this.port = (int) port;
-        activate();
+        activate(localHostPort);
     }
 
-    private void activate() {
+    void activate(HostPort hostPort) {
+        this.hostPort = hostPort;
+        activateInternal();
+    }
+
+    private void activateInternal() {
         synchronized (this) {
             // Don't do anything if we're not waiting to be activated.
             if (state == State.WAIT_FOR_RESPONSE || state == State.WAIT_FOR_REQUEST) {
                 state = State.ACTIVE;
-                KnownPeerTracker.addAddress(getHost() + ":" + getPort());
+                KnownPeerTracker.addAddress(hostPort);
             }
         }
+        ServerMain.log.info("Activating " + getForeignName());
     }
 
     private void deactivate() {
@@ -87,43 +90,48 @@ public abstract class PeerConnection {
         return wasOutgoing;
     }
 
-    public String getLocalHost() {
-        return name.split("-")[1]
-                .split(":")[0];
+    /**
+     * Returns a HostPort object representing the *local* information about this socket.
+     * May not be the correct host and port to reply to.
+     * @return the local host and port
+     */
+    public HostPort getLocalHostPort() {
+        return localHostPort;
     }
 
-    public int getLocalPort() {
-        return Integer.parseInt(name.split("-")[1]
-                .split(":")[1]);
+    /**
+     * Returns a HostPort object representing the actual host and port of the connected peer,
+     * to the best of our knowledge.
+     * @return the host and port
+     */
+    public HostPort getHostPort() {
+        return hostPort;
     }
 
-    // this may need to be set; if this socket came from an accepted connection,
-    // we don't know what address they're hosting from until we receive a handshake request
-    public String getHost() {
-        return host;
-    }
-
-    public int getPort() {
-        return port;
-    }
-
-    String getPlainName() {
-        return name.split("-")[0];
+    String getName() {
+        return name;
     }
 
     public String getForeignName() {
-        return getPlainName() + "-" + getHost() + ":" + getPort();
+        return getName() + "-" + hostPort;
     }
 
     PeerConnection(String name, ServerMain server, State state, String host, int port, OutgoingConnection outConn) {
+        ServerMain.log.info("Peer created: " + name + " @ " + host + ":" + port);
         this.name = name;
         this.server = server;
         this.state = state;
-        this.host = host;
-        this.port = port;
         this.outConn = outConn;
+        localHostPort = new HostPort(host, port);
+        hostPort = localHostPort;
+
         outConn.start();
         wasOutgoing = state == State.WAIT_FOR_RESPONSE;
+
+        if (wasOutgoing) {
+            ServerMain.log.info(getForeignName() + ": Sending handshake request");
+            sendMessageInternal(new HandshakeRequest());
+        }
     }
 
     // Closes this peer.
@@ -151,7 +159,7 @@ public abstract class PeerConnection {
         // EXTENSION: Allow lack of handshakes.
         //State state = getState();
         //if (state == State.ACTIVE) {
-        activate();
+        activateInternal();
         sendMessageInternal(message, onSent);
         /*} else if (state != State.CLOSED && state != State.INACTIVE) {
             //sendMessageInternal(new InvalidProtocol(this, "handshake must be completed first"), this::close);
@@ -188,7 +196,7 @@ public abstract class PeerConnection {
     public void notify(Message message) {}
 
     public String toString() {
-        return name + " (" + host + ":" + port + ")";
+        return name + " @ " + hostPort;
     }
 
     public boolean equals(Object other) {
@@ -209,11 +217,6 @@ class PeerTCP extends PeerConnection {
         inConn.start();
 
         this.socket = socket;
-
-        if (state == State.WAIT_FOR_RESPONSE) {
-            ServerMain.log.info(name + ": Sending handshake request");
-            sendMessageInternal(new HandshakeRequest(getLocalHost(), getLocalPort()));
-        }
     }
 
     @Override
@@ -235,12 +238,10 @@ class PeerTCP extends PeerConnection {
             server.closeConnection(this);
         }
     }
-
-
 }
 
 class PeerUDP extends PeerConnection {
-    private HashMap<String, RetryThread> retryThreads = new HashMap<>();
+    private HashMap<String, RetryThread> retryThreads;
 
     private class RetryThread extends Thread {
         private Message message;
@@ -292,11 +293,6 @@ class PeerUDP extends PeerConnection {
     PeerUDP(String name, ServerMain server, State state, DatagramSocket socket, DatagramPacket packet) {
         super(name, server, state,packet.getAddress().toString().split("/")[1],
               packet.getPort(), new OutgoingConnectionUDP(socket, packet));
-
-        if (state == State.WAIT_FOR_RESPONSE) {
-            ServerMain.log.info(getForeignName() + ": Sending UDP handshake request");
-            sendMessageInternal(new HandshakeRequest(getLocalHost(), getLocalPort()));
-        }
     }
 
     @Override
@@ -319,6 +315,10 @@ class PeerUDP extends PeerConnection {
 
     @Override
     protected void sendMessageInternal(Message message, Runnable onSent) {
+        // Workaround: constructor ordering means retryThreads is not assigned to with the handshake message
+        if (retryThreads == null) {
+            retryThreads = new HashMap<>();
+        } new HashMap<>();
         if (message.isRequest() && !retryThreads.containsKey(message.getSummary())) {
             ServerMain.log.info(getForeignName() + ": waiting for response: " + message.getSummary());
             RetryThread thread = new RetryThread(this, message);
@@ -439,17 +439,19 @@ class IncomingConnectionTCP extends Thread {
 }
 
 class KnownPeerTracker {
-    private static final Set<String> addresses = new HashSet<>();
+    private static final Set<HostPort> addresses = new HashSet<>();
     private static final String PEER_LIST_FILE = "peerlist";
     private static WriteAddresses worker = new WriteAddresses();
 
     public static void load() {
-        Set<String> loaded = new HashSet<>();
+        Set<HostPort> loaded = new HashSet<>();
         try (BufferedReader reader = new BufferedReader(new FileReader(PEER_LIST_FILE))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                if (HostPort.validate(line)) {
-                    loaded.add(line);
+                try {
+                    loaded.add(HostPort.fromAddress(line));
+                } catch (HostPortParseException e) {
+                    ServerMain.log.warning("Failed to parse stored peer `" + line + "`");
                 }
             }
         } catch (FileNotFoundException ignored) {
@@ -463,8 +465,8 @@ class KnownPeerTracker {
         }
     }
 
-    public static synchronized void addAddress(String address) {
-        addresses.add(address);
+    public static synchronized void addAddress(HostPort hostPort) {
+        addresses.add(hostPort);
         new Thread(worker).start();
     }
 
@@ -473,8 +475,8 @@ class KnownPeerTracker {
         public synchronized void run() {
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(PEER_LIST_FILE))) {
                 synchronized (addresses) {
-                    for (String addr : addresses) {
-                        writer.write(addr + "\n");
+                    for (HostPort hostPort : addresses) {
+                        writer.write(hostPort.asAddress() + "\n");
                     }
                 }
             } catch (IOException e) {

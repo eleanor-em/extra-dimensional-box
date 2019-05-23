@@ -10,12 +10,10 @@ import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.json.simple.parser.ParseException;
 import unimelb.bitbox.client.AuthResponseParser;
+import unimelb.bitbox.client.ClientArgsException;
 import unimelb.bitbox.client.requests.ClientRequestProtocol;
 import unimelb.bitbox.client.requests.ClientRequest;
-import unimelb.bitbox.util.Crypto;
-import unimelb.bitbox.util.HostPort;
-import unimelb.bitbox.util.JsonDocument;
-import unimelb.bitbox.util.ResponseFormatException;
+import unimelb.bitbox.util.*;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -90,10 +88,13 @@ public class Client {
                 System.out.println("missing command line option: -s");
                 return;
             }
-            hostPort = new HostPort(serverAddress);
-
+            try {
+                hostPort = HostPort.fromAddress(serverAddress);
+            } catch (HostPortParseException e) {
+                throw new ClientArgsException(e.getMessage());
+            }
             message = ClientRequestProtocol.generateMessage(opts);
-        } catch (IllegalArgumentException e) {
+        } catch (ClientArgsException e) {
             System.out.println("Failed to parse command line options: " + e.getMessage());
             return;
         }
