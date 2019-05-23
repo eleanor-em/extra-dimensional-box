@@ -271,7 +271,8 @@ class PeerUDP extends PeerConnection {
         }
     }
 
-    @Override
+    // EXTENSION: Allow sockets with the wrong port
+    /*@Override
     void activate(String host, long port) {
         synchronized (this) {
             if (state != State.CLOSED && state != State.INACTIVE) {
@@ -280,7 +281,7 @@ class PeerUDP extends PeerConnection {
                 KnownPeerTracker.addAddress(getHost() + ":" + getPort());
             }
         }
-    }
+    }*/
 
     PeerUDP(String name, ServerMain server, State state, DatagramSocket socket, DatagramPacket packet) {
         super(name, server, state,packet.getAddress().toString().split("/")[1],
