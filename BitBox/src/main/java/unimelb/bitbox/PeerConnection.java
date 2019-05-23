@@ -68,7 +68,8 @@ public abstract class PeerConnection {
 
     private void activate() {
         synchronized (this) {
-            if (state != State.CLOSED && state != State.INACTIVE) {
+            // Don't do anything if we're not waiting to be activated.
+            if (state == State.WAIT_FOR_RESPONSE || state == State.WAIT_FOR_REQUEST) {
                 state = State.ACTIVE;
                 KnownPeerTracker.addAddress(getHost() + ":" + getPort());
             }
