@@ -208,7 +208,7 @@ public class FileReadWriteThreadPool {
                 cancelFile(peer, pathName);
                 return;
             } catch (ResponseFormatException e) {
-                peer.sendMessageAndClose(new InvalidProtocol("Missing content field"));
+                peer.sendMessageAndClose(new InvalidProtocol(peer, "Missing content field"));
                 cancelFile(peer, pathName);
                 return;
             }
@@ -276,7 +276,7 @@ public class FileReadWriteThreadPool {
                 md5 = fileDescriptor.require("md5");
                 fileSize = fileDescriptor.require("fileSize");
             } catch (ResponseFormatException e) {
-                peer.sendMessageAndClose(new InvalidProtocol("Malformed message: " + e.getMessage()));
+                peer.sendMessageAndClose(new InvalidProtocol(peer, "Malformed message: " + e.getMessage()));
                 return;
             }
             try {
@@ -299,7 +299,7 @@ public class FileReadWriteThreadPool {
             try {
                 peer.sendMessage(new FileBytesResponse(document.require("fileDescriptor"), pathName, length, position, content, reply, false));
             } catch (ResponseFormatException e) {
-                peer.sendMessageAndClose(new InvalidProtocol("Malformed message: " + e.getMessage()));
+                peer.sendMessageAndClose(new InvalidProtocol(peer, "Malformed message: " + e.getMessage()));
             }
         }
     }

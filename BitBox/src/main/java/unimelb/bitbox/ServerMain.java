@@ -204,8 +204,8 @@ class MessageProcessingThread extends Thread {
                         // ELEANOR: this has to be done here because we don't know the foreign port until now
                         // refuse connection if we are already connected to this address
                         if (server.getOutgoingAddresses().contains(host + ":" + port)) {
-                            peer.close();
                             ServerMain.log.warning("Already connected to " + host + ":" + port);
+                            peer.close();
                         } else {
                             peer.activate(host, port);
                             peer.sendMessage(new HandshakeResponse(peer.getLocalHost(), peer.getLocalPort(), false));
@@ -241,8 +241,8 @@ class MessageProcessingThread extends Thread {
                     // why did they send this to us..?
                     invalidProtocolResponse(peer, "unexpected CONNECTION_REFUSED");
                 }
-                peer.close();
                 ServerMain.log.warning("Connection refused: " + document.<String>require("message"));
+                peer.close();
 
                 // now try to connect to the provided peer list
                 ArrayList<JsonDocument> peers = document.requireArray("peers");
@@ -263,7 +263,7 @@ class MessageProcessingThread extends Thread {
              */
             case Message.INVALID_PROTOCOL:
                 // crap.
-                ServerMain.log.severe("Invalid protocol createResponse from "
+                ServerMain.log.severe("Invalid protocol response from "
                         + peer.getForeignName() + ": " + document.require("message"));
                 peer.close();
                 break;
@@ -312,9 +312,8 @@ class MessageProcessingThread extends Thread {
      * A helper method to send an INVALID_PROTOCOL message.
      */
     private void invalidProtocolResponse(@NotNull PeerConnection peer, String message) {
-        ServerMain.log.info("Closing connection to " + peer.getForeignName() + ": " + message);
         peer.activate();
-        peer.sendMessageAndClose(new InvalidProtocol(message));
+        peer.sendMessageAndClose(new InvalidProtocol(peer, message));
     }
 }
 

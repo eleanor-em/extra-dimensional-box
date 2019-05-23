@@ -148,9 +148,7 @@ public abstract class PeerConnection {
         if (state == State.ACTIVE) {
             sendMessageInternal(message, onSent);
         } else if (state != State.CLOSED && state != State.INACTIVE) {
-            final String err = "handshake must be completed first";
-            ServerMain.log.info("Closing connection to " + getForeignName() + ": " + err);
-            sendMessageInternal(new InvalidProtocol(err), this::close);
+            sendMessageInternal(new InvalidProtocol(this, "handshake must be completed first"), this::close);
         }
     }
 
@@ -265,7 +263,7 @@ class PeerUDP extends PeerConnection {
                     // Pretty sure this only happens if we get a successful response.
                     return;
                 }
-                ServerMain.log.warning(parent.getForeignName() + ": resending "  + message.getCommand() + " (" + retries + ")");
+                ServerMain.log.info(parent.getForeignName() + ": resending "  + message.getCommand() + " (" + retries + ")");
                 parent.retryMessage(message);
             }
             ServerMain.log.warning(parent.getForeignName() + ": timed out: " + message.getCommand());

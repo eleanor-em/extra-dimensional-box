@@ -51,6 +51,7 @@ public class Server implements Runnable {
             while (!serverSocket.isClosed()) {
                 authenticated = false;
                 Socket socket = serverSocket.accept();
+                ServerMain.log.info("Received client connection from " + socket.getInetAddress().toString() + ":" + socket.getPort());
 
                 // Open the read/write streams and process messages until the socket closes
                 try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
@@ -60,7 +61,9 @@ public class Server implements Runnable {
                         // Read a message, and pass it to the handler
                         try {
                             handleMessage(message, out);
-                        } catch (ParseException | ResponseFormatException e) {
+                        } catch (ParseException ignored) {
+                            ServerMain.log.warning("parse error: \"" + message + "\"");
+                        } catch (ResponseFormatException e) {
                             ServerMain.log.warning("malformed message: " + e.getMessage());
                         }
                     }
@@ -77,7 +80,6 @@ public class Server implements Runnable {
     private void handleMessage(String message, BufferedWriter out)
             throws IOException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException,
             NoSuchAlgorithmException, NoSuchPaddingException, ResponseFormatException, ParseException {
-        System.out.println(message);
         // Parse the message. If there is a payload key, then we need to decrypt the payload to get the actual message
         JsonDocument document = JsonDocument.parse(message);
         if (document.containsKey("payload")) {
