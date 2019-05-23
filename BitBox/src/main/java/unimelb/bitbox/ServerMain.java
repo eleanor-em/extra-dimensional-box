@@ -213,7 +213,8 @@ class MessageProcessingThread extends Thread {
                             server.synchroniseFiles();
                         }
                     } else {
-                        invalidProtocolResponse(peer, "unexpected HANDSHAKE_REQUEST");
+                        // EXTENSION: Just ignore unexpected handshakes.
+                        //invalidProtocolResponse(peer, "unexpected HANDSHAKE_REQUEST");
                     }
                 } catch (ResponseFormatException e) {
                     // In case there was an issue with the format, the peer needs to be activated so it can provide
@@ -232,7 +233,8 @@ class MessageProcessingThread extends Thread {
                     // synchronise with this peer
                     server.synchroniseFiles();
                 } else {
-                    invalidProtocolResponse(peer, "unexpected HANDSHAKE_RESPONSE");
+                    // EXTENSION: Just ignore unexpected handshakes.
+                    //invalidProtocolResponse(peer, "unexpected HANDSHAKE_RESPONSE");
                 }
                 break;
 
