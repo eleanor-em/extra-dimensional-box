@@ -40,7 +40,7 @@ public class Server implements Runnable {
         String[] keyStrings = authorized_keys.split(",");
         for (String keyString : keyStrings) {
             try {
-                keys.add(new SSHPublicKey(keyString));
+                keys.add(new SSHPublicKey(keyString.trimg()));
             } catch (InvalidKeyException e) {
                 ServerMain.log.warning("invalid keystring " + keyString + ": " + e.getMessage());
             }
