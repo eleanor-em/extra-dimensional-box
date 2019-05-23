@@ -40,7 +40,7 @@ public class Server implements Runnable {
         String[] keyStrings = authorized_keys.split(",");
         for (String keyString : keyStrings) {
             try {
-                keys.add(new SSHPublicKey(keyString.trimg()));
+                keys.add(new SSHPublicKey(keyString.trim()));
             } catch (InvalidKeyException e) {
                 ServerMain.log.warning("invalid keystring " + keyString + ": " + e.getMessage());
             }
@@ -91,6 +91,7 @@ public class Server implements Runnable {
 
         String command = document.require("command");
 
+        // Auth requests need to be handled separately because they rely on key data
         if (command.equals("AUTH_REQUEST")) {
             String ident = document.require("identity");
             response.append("command", "AUTH_RESPONSE");
