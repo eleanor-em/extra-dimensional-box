@@ -3,7 +3,6 @@ package unimelb.bitbox.client.responses;
 import unimelb.bitbox.PeerConnection;
 import unimelb.bitbox.ServerMain;
 import unimelb.bitbox.util.HostPort;
-import unimelb.bitbox.util.ResponseFormatException;
 
 /**
  * Generates the message content of DISCONNECT_PEER
@@ -19,7 +18,7 @@ import unimelb.bitbox.util.ResponseFormatException;
  */
 class DisconnectPeerResponse extends ClientResponse {
 
-    protected DisconnectPeerResponse(ServerMain server, HostPort hostPort) throws ResponseFormatException {
+    protected DisconnectPeerResponse(ServerMain server, HostPort hostPort) {
         response.append("command", "DISCONNECT_PEER_RESPONSE");
 
         final String SUCCESS = "disconnected from peer";

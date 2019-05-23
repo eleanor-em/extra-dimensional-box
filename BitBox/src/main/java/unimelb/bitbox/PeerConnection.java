@@ -18,6 +18,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A PeerConnection is a combination of an OutgoingConnection (used to write to the socket) and an IncomingConnectionTCP
@@ -29,7 +30,7 @@ public abstract class PeerConnection {
 
     private boolean wasOutgoing;
 
-    private OutgoingConnection outConn;
+    protected OutgoingConnection outConn;
     public final ServerMain server;
 
     private HostPort localHostPort;
@@ -72,11 +73,11 @@ public abstract class PeerConnection {
         synchronized (this) {
             // Don't do anything if we're not waiting to be activated.
             if (state == State.WAIT_FOR_RESPONSE || state == State.WAIT_FOR_REQUEST) {
+                ServerMain.log.info("Activating " + getForeignName());
                 state = State.ACTIVE;
                 KnownPeerTracker.addAddress(hostPort);
             }
         }
-        ServerMain.log.info("Activating " + getForeignName());
     }
 
     private void deactivate() {
@@ -178,7 +179,12 @@ public abstract class PeerConnection {
      * Send a message to this peer, regardless of state. Allows a function to run after the message is sent.
      */
     protected void sendMessageInternal(Message message, Runnable onSent) {
-        message.setFriendlyName(name);
+        synchronized (this) {
+            if (state == State.CLOSED) {
+                return;
+            }
+        }
+        message.setFriendlyName(name + "-" + ServerMain.getHostPort());
         ServerMain.log.info(getForeignName() + " sent: " + message.getCommand());
         outConn.addMessage(new OutgoingMessage(message.encode(), onSent));
     }
@@ -221,7 +227,6 @@ class PeerTCP extends PeerConnection {
 
     @Override
     void close() {
-        // must be synchronised so *either* the server or the peer can initiate a close sequence
         synchronized (this) {
             if (state == State.CLOSED) {
                 return;
@@ -235,6 +240,7 @@ class PeerTCP extends PeerConnection {
             }
             state = State.CLOSED;
 
+            outConn.deactivate();
             server.closeConnection(this);
         }
     }
@@ -248,30 +254,44 @@ class PeerUDP extends PeerConnection {
         private PeerUDP parent;
         private final int RETRY_COUNT;
         private final int RETRY_TIME;
+        private int retries = 0;
 
         public RetryThread(PeerUDP parent, Message message) {
             this.parent = parent;
             this.message = message;
 
-            // Load settings, or use default value
-            int retryCount = Integer.parseInt(Configuration.getConfigurationValue("udpRetries"));
-            int retryTime = Integer.parseInt(Configuration.getConfigurationValue("udpTimeout"));
+            // Load settings
+            RETRY_COUNT = Integer.parseInt(Configuration.getConfigurationValue("udpRetries"));
+            RETRY_TIME = Integer.parseInt(Configuration.getConfigurationValue("udpTimeout"));
+        }
 
-            RETRY_COUNT = retryCount;
-            RETRY_TIME = retryTime;
+        private boolean shouldRetry() {
+            synchronized (this) {
+                return retries < RETRY_COUNT;
+            }
+        }
+
+        public void kill() {
+            synchronized (this) {
+                retries = RETRY_COUNT;
+                interrupt();
+            }
         }
 
         @Override
         public void run() {
-            for (int retries = 0; retries < RETRY_COUNT; ++retries) {
+            while (shouldRetry()) {
                 try {
                     Thread.sleep(RETRY_TIME);
                 } catch (InterruptedException e) {
-                    // Pretty sure this only happens if we get a successful response.
                     return;
                 }
                 ServerMain.log.info(parent.getForeignName() + ": resending "  + message.getCommand() + " (" + retries + ")");
                 parent.retryMessage(message);
+
+                synchronized (this) {
+                    ++retries;
+                }
             }
             ServerMain.log.warning(parent.getForeignName() + ": timed out: " + message.getCommand());
             parent.close();
@@ -305,12 +325,14 @@ class PeerUDP extends PeerConnection {
             ServerMain.log.warning("Connection to peer `" + getForeignName() + "` closed.");
             state = State.CLOSED;
             server.closeConnection(this);
-            retryThreads.forEach((ignored, thread) -> thread.interrupt());
+
+            outConn.deactivate();
+            retryThreads.forEach((ignored, thread) -> thread.kill());
         }
     }
 
     public void retryMessage(Message message) {
-        super.sendMessageInternal(message);
+        sendMessageInternal(message);
     }
 
     @Override
@@ -318,7 +340,7 @@ class PeerUDP extends PeerConnection {
         // Workaround: constructor ordering means retryThreads is not assigned to with the handshake message
         if (retryThreads == null) {
             retryThreads = new HashMap<>();
-        } new HashMap<>();
+        }
         if (message.isRequest() && !retryThreads.containsKey(message.getSummary())) {
             ServerMain.log.info(getForeignName() + ": waiting for response: " + message.getSummary());
             RetryThread thread = new RetryThread(this, message);
@@ -330,6 +352,9 @@ class PeerUDP extends PeerConnection {
 
     @Override
     public void notify(Message message) {
+        if (retryThreads == null) {
+            retryThreads = new HashMap<>();
+        }
         if (!message.isRequest()) {
             ServerMain.log.info(getForeignName() + ": notified response: " + message.getSummary());
             Optional.ofNullable(retryThreads.get(message.getSummary()))
@@ -353,7 +378,15 @@ class OutgoingMessage {
 }
 
 abstract class OutgoingConnection extends Thread {
+    private AtomicBoolean active = new AtomicBoolean(true);
     private final BlockingQueue<OutgoingMessage> messages = new LinkedBlockingQueue<>();
+    void deactivate() {
+        active.set(false);
+    }
+
+    boolean isActive() {
+        return active.get();
+    }
 
     protected void addMessage(OutgoingMessage message) {
         messages.add(message);
@@ -373,7 +406,7 @@ class OutgoingConnectionTCP extends OutgoingConnection {
     @Override
     public void run() {
         try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8))) {
-            while (!socket.isClosed()) {
+            while (!socket.isClosed() && isActive()) {
                 OutgoingMessage message = takeMessage();
                 out.write(message.message + "\n");
                 out.flush();
@@ -396,7 +429,7 @@ class OutgoingConnectionUDP extends OutgoingConnection {
     @Override
     public void run() {
         ServerMain.log.info("Outgoing thread starting");
-        while (!udpSocket.isClosed()) {
+        while (!udpSocket.isClosed() && isActive()) {
             try {
                 OutgoingMessage message = takeMessage();
                 byte[] buffer = message.message.getBytes(StandardCharsets.UTF_8);

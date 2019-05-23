@@ -67,16 +67,6 @@ public class HostPort {
     public String asAddress() {
         return toString();
     }
-    public String aliasAsAddress() {
-        return alias.toString();
-    }
-
-    public static boolean validate(String address) {
-        if (!address.contains(":")) {
-            return false;
-        }
-        return address.split(":")[1].matches("\\d+");
-    }
 
     @Override
     public String toString() {

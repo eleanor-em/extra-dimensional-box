@@ -126,9 +126,11 @@ public class Server implements Runnable {
 
         String responseMessage = response.toJson();
 
+        ServerMain.log.info("Unencrypted message: " + responseMessage);
         if (authenticated) {
             responseMessage = Crypto.encryptMessage(key, responseMessage);
         }
+        ServerMain.log.info("Replied to client: " + responseMessage);
         out.write(responseMessage + "\n");
         out.flush();
 

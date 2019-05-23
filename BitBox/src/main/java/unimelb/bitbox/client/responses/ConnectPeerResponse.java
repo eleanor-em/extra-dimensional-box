@@ -2,7 +2,6 @@ package unimelb.bitbox.client.responses;
 
 import unimelb.bitbox.ServerMain;
 import unimelb.bitbox.util.HostPort;
-import unimelb.bitbox.util.ResponseFormatException;
 
 /**
  * Generates the message content of CONNECT_PEER
@@ -18,7 +17,7 @@ import unimelb.bitbox.util.ResponseFormatException;
  */
 class ConnectPeerResponse extends ClientResponse {
 
-    protected ConnectPeerResponse(ServerMain server, HostPort hostPort) throws ResponseFormatException {
+    protected ConnectPeerResponse(ServerMain server, HostPort hostPort) {
         response.append("command", "CONNECT_PEER_RESPONSE");
 
         final String SUCCESS = "connected to peer";
