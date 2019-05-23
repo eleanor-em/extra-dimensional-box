@@ -234,7 +234,7 @@ public class FileReadWriteThreadPool {
                         " at position: [" + nextPosition + "/" + fileSize + "]");
             }
             catch (Exception e) {
-                ServerMain.log.warning(peer.getForeignName() + ": error writing " +
+                ServerMain.log.severe(peer.getForeignName() + ": error writing " +
                         pathName + " at position: [" + nextPosition + "/" + fileSize + "]");
                 // ELEANOR: if we're going to catch a generic `Exception`, we probably want a record of what happened
                 e.printStackTrace();
@@ -288,12 +288,12 @@ public class FileReadWriteThreadPool {
                 }
             } catch (OutOfMemoryError e) {
                 reply = "length requested too large";
-                ServerMain.log.severe(peer.getForeignName() + ": error writing bytes of file " + pathName + " at [" +
+                ServerMain.log.warning(peer.getForeignName() + ": error writing bytes of file " + pathName + " at [" +
                         position + "/" + fileSize + "]. The file size is too big: " + e.getMessage());
             } catch (Exception e) {
                 reply = "unsuccessful read";
                 e.printStackTrace();
-                ServerMain.log.warning(peer.getForeignName() + ": failed reading bytes of file " + pathName + " at [" +
+                ServerMain.log.severe(peer.getForeignName() + ": failed reading bytes of file " + pathName + " at [" +
                         position + "/" + fileSize + "]: " + e.getMessage());
             }
             try {

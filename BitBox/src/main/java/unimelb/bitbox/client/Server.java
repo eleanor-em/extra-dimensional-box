@@ -42,7 +42,7 @@ public class Server implements Runnable {
             try {
                 keys.add(new SSHPublicKey(keyString));
             } catch (InvalidKeyException e) {
-                System.out.println("warning: invalid keystring " + keyString + ": " + e.getMessage());
+                ServerMain.log.warning("invalid keystring " + keyString + ": " + e.getMessage());
             }
         }
 
@@ -61,7 +61,7 @@ public class Server implements Runnable {
                         try {
                             handleMessage(message, out);
                         } catch (ParseException | ResponseFormatException e) {
-                            System.out.println("malformed message: " + e.getMessage());
+                            ServerMain.log.warning("malformed message: " + e.getMessage());
                         }
                     }
                 } catch (IOException | IllegalBlockSizeException | InvalidKeyException | BadPaddingException
@@ -108,7 +108,7 @@ public class Server implements Runnable {
                 } catch (NoSuchAlgorithmException | NoSuchPaddingException | BadPaddingException
                         | IllegalBlockSizeException | InvalidKeyException e) {
                     // In case the crypto algorithms failed, we send a failure response
-                    System.out.println("Failed encryption: " + e.getMessage());
+                    ServerMain.log.severe("Failed encryption: " + e.getMessage());
                     response.append("status", false);
                     response.append("message", "error generating key");
                 }

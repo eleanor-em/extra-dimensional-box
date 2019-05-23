@@ -41,8 +41,10 @@ class MessageProcessingThread extends Thread {
                 ReceivedMessage message = messages.take();
                 processMessage(message);
             }
-        } catch (InterruptedException e) {
-            ServerMain.log.severe("Message processor interrupted: " + e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            ServerMain.log.severe("Restarting message processor");
+            server.restartProcessingThread();
         }
     }
 
@@ -311,6 +313,7 @@ class MessageProcessingThread extends Thread {
      */
     private void invalidProtocolResponse(@NotNull PeerConnection peer, String message) {
         ServerMain.log.info("Closing connection to " + peer.getForeignName() + ": " + message);
+        peer.activate();
         peer.sendMessageAndClose(new InvalidProtocol(message));
     }
 }
@@ -331,10 +334,15 @@ public class ServerMain implements FileSystemObserver {
      */
     private final List<PeerConnection> peers = Collections.synchronizedList(new ArrayList<>());
     // this is the thread that collects messages and processes them
-    private final MessageProcessingThread processor;
+    private MessageProcessingThread processor;
     // data read from the config file
     private int serverPort;
     private final String advertisedName;
+
+    public void restartProcessingThread() {
+        processor = new MessageProcessingThread(this);
+        processor.run();
+    }
 
     public enum CONNECTION_MODE {
         TCP,
@@ -408,21 +416,33 @@ public class ServerMain implements FileSystemObserver {
      * It loops forever so that more peers can be added later.
      */
     private void connectToPeers() {
-        while (true) {
-            try {
-                retryPeers();
-                Thread.sleep(PEER_RETRY_TIME * 1000);
-            } catch (InterruptedException e) {
-                log.warning("Peer connecting thread interrupted");
+        try {
+            while (true) {
+                try {
+                    retryPeers();
+                    Thread.sleep(PEER_RETRY_TIME * 1000);
+                } catch (InterruptedException e) {
+                    log.warning("Peer connecting thread interrupted");
+                }
             }
+        } catch (Exception e) {
+            e.printStackTrace();
+            log.severe("Restarting peer connection thread");
+            new Thread(this::connectToPeers).start();
         }
     }
 
     private void acceptConnections() {
-        if (mode == CONNECTION_MODE.TCP) {
-            acceptConnectionsTCP();
-        } else {
-            acceptConnectionsUDP();
+        try {
+            if (mode == CONNECTION_MODE.TCP) {
+                acceptConnectionsTCP();
+            } else {
+                acceptConnectionsUDP();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            log.severe("Restarting peer acceptor thread");
+            new Thread(this::acceptConnections).start();
         }
     }
 
@@ -488,6 +508,22 @@ public class ServerMain implements FileSystemObserver {
         names.add("Hannah");
         names.add("Imogen");
         names.add("Jacinta");
+        names.add("Kayleigh");
+        names.add("Lauren");
+        names.add("Maddy");
+        names.add("Nicole");
+        names.add("Opal");
+        names.add("Percival");
+        names.add("Quinn");
+        names.add("Ryan");
+        names.add("Steven");
+        names.add("Theodore");
+        names.add("Ulla");
+        names.add("Violet");
+        names.add("William");
+        names.add("Xinyu");
+        names.add("Yasmin");
+        names.add("Zuzanna");
     }
 
     public List<PeerConnection> getActivePeers() {
@@ -687,6 +723,7 @@ public class ServerMain implements FileSystemObserver {
             }
         } catch (SocketException e) {
             e.printStackTrace();
+            log.severe("Error from UDP socket");
         }
 
 
@@ -789,13 +826,19 @@ public class ServerMain implements FileSystemObserver {
 
     private void regularlySynchronise() {
         final int SYNC_INTERVAL = Integer.parseInt(Configuration.getConfigurationValue("syncInterval"));
-        while (true) {
-            try {
-                Thread.sleep(SYNC_INTERVAL * 1000);
-            } catch (InterruptedException e) {
-                log.warning("Synchronise thread interrupted");
+        try {
+            while (true) {
+                try {
+                    Thread.sleep(SYNC_INTERVAL * 1000);
+                } catch (InterruptedException e) {
+                    log.warning("Synchronise thread interrupted");
+                }
+                synchroniseFiles();
             }
-            synchroniseFiles();
+        } catch (Exception e) {
+            e.printStackTrace();
+            log.severe("Restarting synchroniser thread");
+            new Thread(this::regularlySynchronise).start();
         }
     }
 }

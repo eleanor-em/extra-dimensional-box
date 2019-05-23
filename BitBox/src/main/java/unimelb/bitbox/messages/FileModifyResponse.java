@@ -37,6 +37,7 @@ public class FileModifyResponse extends Message {
         } catch (ResponseFormatException e){
             throw e;
         } catch (Exception e) {
+            e.printStackTrace();
             reply = "there was a problem modifying the file";
         }
 
