@@ -74,7 +74,7 @@ class MessageProcessingThread extends Thread {
                     + friendlyName.map(name -> " (via " + name + ")").orElse("");
             ServerMain.log.info(logMessage);
             respondToMessage(message.peer, command, document);
-        } catch (ResponseFormatException e){
+        } catch (ResponseFormatException e) {
             invalidProtocolResponse(message.peer, e.getMessage());
         }
     }
@@ -191,45 +191,41 @@ class MessageProcessingThread extends Thread {
              * Handshake request and responses
              */
             case Message.HANDSHAKE_REQUEST:
-                try {
-                    JsonDocument hostPort = document.require("hostPort");
-                    String host = hostPort.require("host");
-                    long port = hostPort.require("port");
+                JsonDocument hostPort = document.require("hostPort");
+                String host = hostPort.require("host");
+                long port = hostPort.require("port");
 
-                    if (peer.getState() == PeerConnection.State.WAIT_FOR_REQUEST) {
-                        // we need to pass the host and port we received, as the socket's data may not be accurate
-                        // (since this socket was an accepted connection)
-                        ServerMain.log.info("Received connection request from " + host + ":" + port);
+                if (peer.getState() == PeerConnection.State.WAIT_FOR_REQUEST) {
+                    // we need to pass the host and port we received, as the socket's data may not be accurate
+                    // (since this socket was an accepted connection)
+                    ServerMain.log.info("Received connection request from " + host + ":" + port);
 
-                        // ELEANOR: this has to be done here because we don't know the foreign port until now
-                        // refuse connection if we are already connected to this address
-                        if (server.getOutgoingAddresses().contains(host + ":" + port)) {
-                            ServerMain.log.warning("Already connected to " + host + ":" + port);
-                            peer.close();
-                        } else {
-                            peer.activate(host, port);
-                            peer.sendMessage(new HandshakeResponse(peer.getLocalHost(), peer.getLocalPort(), false));
-                            // synchronise with this peer
-                            server.synchroniseFiles();
-                        }
+                    // ELEANOR: this has to be done here because we don't know the foreign port until now
+                    // refuse connection if we are already connected to this address
+                    if (server.getOutgoingAddresses().contains(host + ":" + port)) {
+                        ServerMain.log.warning("Already connected to " + host + ":" + port);
+                        peer.close();
                     } else {
-                        // EXTENSION: Just ignore unexpected handshakes.
-                        //invalidProtocolResponse(peer, "unexpected HANDSHAKE_REQUEST");
+                        peer.activate(host, port);
+                        peer.sendMessage(new HandshakeResponse(peer.getLocalHost(), peer.getLocalPort(), false));
+                        // synchronise with this peer
+                        server.synchroniseFiles();
                     }
-                } catch (ResponseFormatException e) {
-                    // In case there was an issue with the format, the peer needs to be activated so it can provide
-                    // a useful createResponse. Then, re-throw the exception.
-                    peer.activate();
-                    throw e;
+                } else {
+                    // EXTENSION: Just ignore unexpected handshakes.
+                    //invalidProtocolResponse(peer, "unexpected HANDSHAKE_REQUEST");
+                    peer.activate(host, port);
+                    peer.sendMessage(new HandshakeResponse(peer.getLocalHost(), peer.getLocalPort(), false));
+                    server.synchroniseFiles();
                 }
                 break;
 
             case Message.HANDSHAKE_RESPONSE:
-                JsonDocument hostPort = document.require("hostPort");
+                hostPort = document.require("hostPort");
                 parsedResponse = new HandshakeResponse(hostPort.require("host"), hostPort.require("port"), true);
 
                 if (peer.getState() == PeerConnection.State.WAIT_FOR_RESPONSE) {
-                    peer.activate();
+                    peer.activate(hostPort.require("host"), hostPort.require("port"));
                     // synchronise with this peer
                     server.synchroniseFiles();
                 } else {
@@ -249,8 +245,8 @@ class MessageProcessingThread extends Thread {
                 // now try to connect to the provided peer list
                 ArrayList<JsonDocument> peers = document.requireArray("peers");
                 for (JsonDocument peerHostPort : peers) {
-                    String host = peerHostPort.require("host");
-                    long port = peerHostPort.require("port");
+                    host = peerHostPort.require("host");
+                    port = peerHostPort.require("port");
 
                     String address = host + ":" + port;
 
@@ -292,7 +288,7 @@ class MessageProcessingThread extends Thread {
 
         if (!status) {
             // ELEANOR: Log any unsuccessful responses.
-            ServerMain.log.info("Failed createResponse: " + document.require("command") + ": " + message);
+            ServerMain.log.info("Failed response: " + document.require("command") + ": " + message);
         }
     }
 
@@ -314,7 +310,7 @@ class MessageProcessingThread extends Thread {
      * A helper method to send an INVALID_PROTOCOL message.
      */
     private void invalidProtocolResponse(@NotNull PeerConnection peer, String message) {
-        peer.activate();
+        peer.activateDefault();
         peer.sendMessageAndClose(new InvalidProtocol(peer, message));
     }
 }

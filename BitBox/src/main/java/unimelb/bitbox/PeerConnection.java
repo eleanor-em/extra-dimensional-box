@@ -1,7 +1,6 @@
 package unimelb.bitbox;
 
 import unimelb.bitbox.messages.HandshakeRequest;
-import unimelb.bitbox.messages.InvalidProtocol;
 import unimelb.bitbox.messages.Message;
 import unimelb.bitbox.messages.ReceivedMessage;
 import unimelb.bitbox.util.Configuration;
@@ -58,14 +57,18 @@ public abstract class PeerConnection {
 
     // Activate the peer connection after a handshake is complete.
     // Optionally, allow the port to be updated.
-    void activate() {
+    void activateDefault() {
         activate(host, port);
     }
     void activate(String host, long port) {
+        this.host = host;
+        this.port = (int) port;
+        activate();
+    }
+
+    private void activate() {
         synchronized (this) {
             if (state != State.CLOSED && state != State.INACTIVE) {
-                this.host = host;
-                this.port = (int) port;
                 state = State.ACTIVE;
                 KnownPeerTracker.addAddress(getHost() + ":" + getPort());
             }
@@ -144,12 +147,14 @@ public abstract class PeerConnection {
      * Implementation of the actual sendMessage code, to allow default parameters.
      */
     private void sendMessage(Message message, Runnable onSent) {
-        State state = getState();
-        if (state == State.ACTIVE) {
-            sendMessageInternal(message, onSent);
-        } else if (state != State.CLOSED && state != State.INACTIVE) {
-            sendMessageInternal(new InvalidProtocol(this, "handshake must be completed first"), this::close);
-        }
+        // EXTENSION: Allow lack of handshakes.
+        //State state = getState();
+        //if (state == State.ACTIVE) {
+        activate();
+        sendMessageInternal(message, onSent);
+        /*} else if (state != State.CLOSED && state != State.INACTIVE) {
+            //sendMessageInternal(new InvalidProtocol(this, "handshake must be completed first"), this::close);
+        }*/
     }
 
     /**
@@ -273,7 +278,7 @@ class PeerUDP extends PeerConnection {
 
     // EXTENSION: Allow sockets with the wrong port
     /*@Override
-    void activate(String host, long port) {
+    void activateDefault(String host, long port) {
         synchronized (this) {
             if (state != State.CLOSED && state != State.INACTIVE) {
                 // UDP peer already has accurate host and port
