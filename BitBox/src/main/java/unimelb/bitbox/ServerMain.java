@@ -206,7 +206,7 @@ class MessageProcessingThread extends Thread {
                         peer.close();
                     } else {
                         peer.activate(hostPort);
-                        peer.sendMessage(new HandshakeResponse(peer.getLocalHostPort(), false));
+                        peer.sendMessage(new HandshakeResponse(false));
                         // synchronise with this peer
                         server.synchroniseFiles();
                     }
@@ -214,14 +214,14 @@ class MessageProcessingThread extends Thread {
                     // EXTENSION: Just ignore unexpected handshakes.
                     //invalidProtocolResponse(peer, "unexpected HANDSHAKE_REQUEST");
                     peer.activate(hostPort);
-                    peer.sendMessage(new HandshakeResponse(peer.getLocalHostPort(), false));
+                    peer.sendMessage(new HandshakeResponse(false));
                     server.synchroniseFiles();
                 }
                 break;
 
             case Message.HANDSHAKE_RESPONSE:
                 hostPort = HostPort.fromJSON(document.require("hostPort"));
-                parsedResponse = new HandshakeResponse(hostPort, true);
+                parsedResponse = new HandshakeResponse(true);
 
                 if (peer.getState() == PeerConnection.State.WAIT_FOR_RESPONSE) {
                     peer.activate(hostPort);
@@ -335,7 +335,7 @@ public class ServerMain implements FileSystemObserver {
 
     public void restartProcessingThread() {
         processor = new MessageProcessingThread(this);
-        processor.run();
+        processor.start();
     }
 
     public enum CONNECTION_MODE {
@@ -346,7 +346,7 @@ public class ServerMain implements FileSystemObserver {
     public final CONNECTION_MODE mode;
     // for debugging purposes, each of the threads is given a different name
     private final Queue<String> names = new ConcurrentLinkedQueue<>();
-    private final Set<String> peerAddresses = ConcurrentHashMap.newKeySet();
+    private final Set<HostPort> peerAddresses = ConcurrentHashMap.newKeySet();
 
     private DatagramSocket udpSocket;
 
@@ -461,6 +461,9 @@ public class ServerMain implements FileSystemObserver {
         }
     }
 
+    public boolean hasPeer(HostPort hostPort) {
+        return getPeer(hostPort) != null;
+    }
     public PeerConnection getPeer(HostPort hostPort) {
         synchronized (peers) {
             for (PeerConnection peer : peers) {
@@ -486,12 +489,15 @@ public class ServerMain implements FileSystemObserver {
      * Add an address to the list of peers to connect to.
      */
     public void addPeerAddress(String address) {
-        if (HostPort.validate(address)) {
-            ServerMain.log.info("Adding address " + address + " to connection list.");
-            peerAddresses.add(address);
-        } else {
-            ServerMain.log.warning("Tried to add invalid address `" + address + "`.");
+        try {
+            addPeerAddress(HostPort.fromAddress(address));
+            ServerMain.log.info("Adding address " + address + " to connection list");
+        } catch (HostPortParseException e) {
+            ServerMain.log.warning("Tried to add invalid address `" + address + "`");
         }
+    }
+    public void addPeerAddress(HostPort peerHostPort) {
+        peerAddresses.add(peerHostPort);
     }
 
     public void addPeerAddressAll(String[] addresses) {
@@ -542,17 +548,6 @@ public class ServerMain implements FileSystemObserver {
             return peers.stream()
                     .filter(peer -> !peer.getOutgoing())
                     .count();
-        }
-    }
-
-    public Collection<String> getAllAddresses() {
-        synchronized (peers) {
-            HashSet<String> results = new HashSet<>();
-            for (PeerConnection conn : peers) {
-                results.add(conn.getHostPort().asAddress());
-                results.add(conn.getHostPort().aliasAsAddress());
-            }
-            return results;
         }
     }
 
@@ -612,42 +607,35 @@ public class ServerMain implements FileSystemObserver {
 		peerAddresses.removeIf(addr -> tryPeer(addr) != null);
 	}
 
-    private PeerConnection tryPeerTCP(String peerAddress) {
-        // if it's already in our set, this does nothing, so just make sure (in case the peer is temporarily
-        // unavailable)
-        addPeerAddress(peerAddress);
-
-        if (getAllAddresses().contains(peerAddress)) {
+    private PeerConnection tryPeerTCP(HostPort peerHostPort) {
+        if (hasPeer(peerHostPort)) {
             return null;
         }
-        // separate the address into a hostname and port
-        // HostPort doesn't handle this safely
-        String[] parts = peerAddress.trim().split(":");
-        if (parts.length > 1) {
-            String hostname = parts[0];
-            int port = Integer.parseInt(parts[1]);
 
-            try {
-                Socket socket = new Socket(hostname, port);
+        try {
+            Socket socket = new Socket(peerHostPort.hostname, peerHostPort.port);
 
-                // find a name
-                String name = getAnyName();
-                PeerConnection peer = new PeerTCP(name, socket, this, PeerConnection.State.WAIT_FOR_RESPONSE);
-                peers.add(peer);
-                // success: remove this peer from the set of peers to connect to
-                log.info("Connected to peer " + name + " (" + peerAddress + ")");
-            } catch (IOException e) {
-                log.warning("Connection to peer `" + peerAddress + "` failed: " + e.getMessage());
-            }
+            // find a name
+            String name = getAnyName();
+            PeerConnection peer = new PeerTCP(name, socket, this, PeerConnection.State.WAIT_FOR_RESPONSE);
+            peers.add(peer);
+            // success: remove this peer from the set of peers to connect to
+            log.info("Connected to peer " + name + " @ " + peerHostPort);
+            return peer;
+        } catch (IOException e) {
+            log.warning("Connection to peer `" + peerHostPort + "` failed: " + e.getMessage());
+            return null;
         }
-        return null;
     }
 
-    public PeerConnection tryPeer(String addr) {
+    public PeerConnection tryPeer(HostPort target) {
+        // if it's already in our set, this does nothing, so just make sure (in case the peer is temporarily
+        // unavailable)
+        addPeerAddress(target);
         if (mode == CONNECTION_MODE.TCP) {
-            return tryPeerTCP(addr);
+            return tryPeerTCP(target);
         } else {
-            return tryPeerUDP(addr);
+            return tryPeerUDP(target);
         }
     }
 
@@ -656,7 +644,7 @@ public class ServerMain implements FileSystemObserver {
 			return false;
 		}
 
-		PeerConnection peer = tryPeer(hostPort.toString());
+		PeerConnection peer = tryPeer(hostPort);
 		if (peer != null) {
 			peer.forceIncoming();
 			return true;
@@ -715,12 +703,10 @@ public class ServerMain implements FileSystemObserver {
             e.printStackTrace();
             log.severe("Error from UDP socket");
         }
-
-
     }
 
-    private PeerConnection tryPeerUDP(String addr) {
-        if (getAllAddresses().contains(addr)) {
+    private PeerConnection tryPeerUDP(HostPort peerHostPort) {
+        if (hasPeer(peerHostPort)) {
             return null;
         }
 
@@ -730,27 +716,17 @@ public class ServerMain implements FileSystemObserver {
             return null;
         }
 
-        // separate the address into a hostname and port
-        // HostPort doesn't handle this safely
-        String[] parts = addr.trim().split(":");
-        if (parts.length > 1) {
-            String hostname = parts[0];
-            int port = Integer.parseInt(parts[1]);
+        String name = getAnyName();
 
-            String name = getAnyName();
-
-            byte[] buffer = new byte[65507];
-            //send handshake request,
-            DatagramPacket packet = new DatagramPacket(buffer, buffer.length, new InetSocketAddress(hostname, port));
-            //it should send handshake request without creating the peer.
-            if (!getAllAddresses().contains(packet.getAddress().toString() + ":" + packet.getPort())) {
-                PeerUDP p = new PeerUDP(name, this, PeerConnection.State.WAIT_FOR_RESPONSE, udpSocket, packet);
-                peers.add(p);
-                log.info("Attempting to send handshake to " + name + " (" + addr + "), waiting for response;");
-                return p;
-            }
-        }
-        return null;
+        byte[] buffer = new byte[65507];
+        //send handshake request
+        DatagramPacket packet = new DatagramPacket(buffer,
+                                                   buffer.length,
+                                                   new InetSocketAddress(peerHostPort.hostname, peerHostPort.port));
+        PeerUDP p = new PeerUDP(name, this, PeerConnection.State.WAIT_FOR_RESPONSE, udpSocket, packet);
+        peers.add(p);
+        log.info("Attempting to send handshake to " + name + " @ " + peerHostPort + ", waiting for response;");
+        return p;
     }
 
     /**

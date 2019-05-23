@@ -28,6 +28,6 @@ public abstract class ClientResponse {
     }
 
     private static HostPort getHostPort(JsonDocument document) throws ResponseFormatException {
-        return new HostPort(document.require("host"), document.require("port"));
+        return new HostPort(document.require("host"), (int)(long)document.<Long>require("port"));
     }
 }

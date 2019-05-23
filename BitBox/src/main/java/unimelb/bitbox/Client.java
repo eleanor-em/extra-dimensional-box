@@ -128,7 +128,12 @@ public class Client {
             out.flush();
 
             // Wait for authentication response
-            AuthResponseParser response = new AuthResponseParser(in.readLine());
+            String responseText = in.readLine();
+            if (responseText == null) {
+                System.out.println("No response");
+                return;
+            }
+            AuthResponseParser response = new AuthResponseParser(responseText);
             if (response.isError()) {
                 System.out.println("Authentication failure: " + response.getMessage());
                 return;
@@ -143,6 +148,8 @@ public class Client {
             String encryptedResponse = in.readLine();
             if (encryptedResponse != null) {
                 System.out.println(Crypto.decryptMessage(key, encryptedResponse));
+            } else {
+                System.out.println("No response");
             }
         } catch (IOException e) {
             System.out.println("Error reading/writing socket: " + e.getMessage());
