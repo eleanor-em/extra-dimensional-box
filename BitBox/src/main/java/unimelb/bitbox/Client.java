@@ -10,8 +10,8 @@ import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.json.simple.parser.ParseException;
 import unimelb.bitbox.client.AuthResponseParser;
-import unimelb.bitbox.client.requests.ClientRequestProtocol;
 import unimelb.bitbox.client.requests.ClientRequest;
+import unimelb.bitbox.client.requests.ClientRequestProtocol;
 import unimelb.bitbox.util.Crypto;
 import unimelb.bitbox.util.HostPort;
 import unimelb.bitbox.util.JsonDocument;
@@ -135,13 +135,16 @@ public class Client {
             SecretKey key = response.decryptKey(privateKey);
 
             // Send encrypted message
-            out.write(Crypto.encryptMessage(key, message.encoded()) + "\n");
+            String encryptedMessage = Crypto.encryptMessage(key, message.encoded());
+            out.write(encryptedMessage + "\n");
             out.flush();
 
             // Wait for response
             String encryptedResponse = in.readLine();
             if (encryptedResponse != null) {
                 System.out.println(Crypto.decryptMessage(key, encryptedResponse));
+            } else {
+                System.out.println("No response");
             }
         } catch (IOException e) {
             System.out.println("Error reading/writing socket: " + e.getMessage());

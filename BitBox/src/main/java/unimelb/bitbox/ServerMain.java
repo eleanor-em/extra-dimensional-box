@@ -319,7 +319,7 @@ public class ServerMain implements FileSystemObserver {
 		processor = new MessageProcessingThread(this);
 		serverPort = Integer.parseInt(Configuration.getConfigurationValue("port"));
 		advertisedName = Configuration.getConfigurationValue("advertisedName");
-		maxIncomingConnections = Integer.parseInt(Configuration.getConfigurationValue("maximumgIncommingConnections"));
+		maxIncomingConnections = Integer.parseInt(Configuration.getConfigurationValue("maximumIncommingConnections"));
 		createNames();
 
 		// create the processor thread

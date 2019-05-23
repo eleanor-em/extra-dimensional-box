@@ -51,6 +51,7 @@ public class Server implements Runnable {
             while (true) {
                 authenticated = false;
                 Socket socket = serverSocket.accept();
+                ServerMain.log.info("Received connection: " + socket.getInetAddress().toString() + ":" + socket.getPort());
 
                 // Open the read/write streams and process messages until the socket closes
                 try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
@@ -82,12 +83,12 @@ public class Server implements Runnable {
     private void handleMessage(String message, BufferedWriter out)
             throws IOException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException,
             NoSuchAlgorithmException, NoSuchPaddingException, ResponseFormatException, ParseException {
-        System.out.println(message);
         // Parse the message. If there is a payload key, then we need to decrypt the payload to get the actual message
         JsonDocument document = JsonDocument.parse(message);
         if (document.containsKey("payload")) {
             document = JsonDocument.parse(Crypto.decryptMessage(key, message));
         }
+        ServerMain.log.info("Received from client: " + document.toJson());
 
         // Generate a response
         JsonDocument response = new JsonDocument();
@@ -128,6 +129,7 @@ public class Server implements Runnable {
 
         String responseMessage = response.toJson();
 
+        ServerMain.log.info("Sending client: " + responseMessage);
         if (authenticated) {
             responseMessage = Crypto.encryptMessage(key, responseMessage);
         }

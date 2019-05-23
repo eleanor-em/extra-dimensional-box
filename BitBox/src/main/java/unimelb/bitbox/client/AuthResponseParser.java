@@ -52,10 +52,10 @@ public class AuthResponseParser {
             throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException,
                    BadPaddingException, IllegalBlockSizeException {
         if (key != null) {
-            Cipher decipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+            Cipher decipher = Cipher.getInstance("RSA/ECB/NoPadding");
             decipher.init(Cipher.PRIVATE_KEY, privateKey);
             byte[] decrypted = decipher.doFinal(key);
-            return new SecretKeySpec(decrypted, 0, decrypted.length, "AES");
+            return new SecretKeySpec(decrypted, 1, 16, "AES");
         }
         return null;
     }
