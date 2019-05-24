@@ -49,6 +49,10 @@ public class Crypto {
             encipher.init(Cipher.PUBLIC_KEY, publicKey);
             byte[] padding = new byte[240];
             rand.nextBytes(padding);
+            // We need to pad the message to 256 bytes total. However, Java does not allow a 256 byte message, as it
+            // always must prepend at least 1 null byte (otherwise we get BadPaddingException). To this end,
+            // we pad the message to 255 bytes, *appending* the random data to the key (rather than prepending)
+            // as requested by Aaron.
             byte[] input = Arrays.copyOf(secretKey.getEncoded(), 255);
             System.arraycopy(padding, 0, input, 16, 239);
             byte[] encrypted = encipher.doFinal(input);

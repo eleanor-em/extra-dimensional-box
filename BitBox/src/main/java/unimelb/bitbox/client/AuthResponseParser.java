@@ -47,6 +47,7 @@ public class AuthResponseParser {
                 Cipher decipher = Cipher.getInstance("RSA/ECB/NoPadding");
                 decipher.init(Cipher.PRIVATE_KEY, privateKey);
                 byte[] decrypted = decipher.doFinal(key);
+                // See Crypto.encryptSecretKey: Java always prepends at least 1 null byte to the RSA-encrypted message
                 return new SecretKeySpec(decrypted, 1, 16, "AES");
             } catch (NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException | BadPaddingException | IllegalBlockSizeException e) {
                 throw new CryptoException(e);

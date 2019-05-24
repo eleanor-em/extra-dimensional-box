@@ -22,9 +22,9 @@ public class JsonDocument {
             JSONObject obj = (JSONObject) parser.parse(json);
             return new JsonDocument(obj);
         } catch (ClassCastException | NullPointerException e) {
-            throw new ResponseFormatException("Error parsing JSON: " + e.getMessage());
+            throw new ResponseFormatException("Error parsing JSON string `" + json + "`:\n" + e.getMessage());
         } catch (ParseException e) {
-            throw new ResponseFormatException(e);
+            throw new ResponseFormatException(json, e);
         }
     }
 

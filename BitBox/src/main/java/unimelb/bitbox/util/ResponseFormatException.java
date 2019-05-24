@@ -21,8 +21,8 @@ public class ResponseFormatException extends Exception {
     public ResponseFormatException(String message) {
         super("Response format invalid: " + message);
     }
-    public ResponseFormatException(ParseException cause) {
-        super("Error parsing JSON: " + cause);
+    public ResponseFormatException(String json, ParseException cause) {
+        super("Error parsing JSON string `" + json + "`:\n" + cause);
         this.cause = cause;
     }
 }
