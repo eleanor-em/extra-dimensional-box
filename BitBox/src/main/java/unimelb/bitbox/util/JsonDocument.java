@@ -16,10 +16,16 @@ public class JsonDocument {
         this.obj = obj;
     }
     public static JsonDocument parse(String json)
-        throws ClassCastException, ParseException {
-        JSONParser parser = new JSONParser();
-        JSONObject obj  = (JSONObject) parser.parse(json);
-        return new JsonDocument(obj);
+        throws ResponseFormatException {
+        try {
+            JSONParser parser = new JSONParser();
+            JSONObject obj = (JSONObject) parser.parse(json);
+            return new JsonDocument(obj);
+        } catch (ClassCastException | NullPointerException e) {
+            throw new ResponseFormatException("Error parsing JSON: " + e.getMessage());
+        } catch (ParseException e) {
+            throw new ResponseFormatException(e);
+        }
     }
 
     // Allow a limited subset of appends
@@ -47,6 +53,9 @@ public class JsonDocument {
         obj.put(key,list);
     }
 
+    public boolean isEmpty() {
+        return obj.isEmpty();
+    }
 
     public String toJson(){
         return obj.toJSONString();

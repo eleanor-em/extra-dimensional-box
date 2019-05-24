@@ -8,23 +8,18 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
-import org.json.simple.parser.ParseException;
 import unimelb.bitbox.client.AuthResponseParser;
 import unimelb.bitbox.client.requests.ClientRequest;
 import unimelb.bitbox.client.requests.ClientRequestProtocol;
-import unimelb.bitbox.util.Crypto;
-import unimelb.bitbox.util.HostPort;
-import unimelb.bitbox.util.JsonDocument;
-import unimelb.bitbox.util.ResponseFormatException;
+import unimelb.bitbox.util.*;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import java.io.*;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.security.*;
+import java.security.KeyPair;
+import java.security.PrivateKey;
+import java.security.Security;
 
 /**
  * Contains the main method for the Client.
@@ -132,27 +127,40 @@ public class Client {
                 System.out.println("Authentication failure: " + response.getMessage());
                 return;
             }
-            SecretKey key = response.decryptKey(privateKey);
+            SecretKey key;
+            try {
+                key = response.decryptKey(privateKey);
+            } catch (CryptoException e) {
+                System.out.println("While decrypting secret key:");
+                e.printStackTrace();
+                return;
+            }
 
             // Send encrypted message
-            String encryptedMessage = Crypto.encryptMessage(key, message.encoded());
-            out.write(encryptedMessage + "\n");
-            out.flush();
+            try {
+                JsonDocument encryptedRequest = Crypto.encryptMessage(key, message.getDocument());
+                out.write(encryptedRequest.toJson() + "\n");
+                out.flush();
+            } catch (CryptoException e) {
+                System.out.println("While encrypting request:");
+                e.printStackTrace();
+                return;
+            }
 
             // Wait for response
-            String encryptedResponse = in.readLine();
-            if (encryptedResponse != null) {
-                System.out.println(Crypto.decryptMessage(key, encryptedResponse));
-            } else {
+            JsonDocument encryptedResponse = JsonDocument.parse(in.readLine());
+            if (encryptedResponse.isEmpty()) {
                 System.out.println("No response");
+            } else {
+                System.out.println(Crypto.decryptMessage(key, encryptedResponse));
             }
         } catch (IOException e) {
             System.out.println("Error reading/writing socket: " + e.getMessage());
-        } catch (ParseException | ResponseFormatException e) {
+        } catch (ResponseFormatException e) {
             System.out.println("Peer sent invalid response: " + e.getMessage());
-        } catch (NoSuchPaddingException | NoSuchAlgorithmException | InvalidKeyException | IllegalBlockSizeException
-                | BadPaddingException e) {
-            System.out.println("Error decrypting secret key: " + e.getMessage());
+        } catch (CryptoException e) {
+            System.out.println("While decrypting response:");
+            e.printStackTrace();
         } finally {
             // Make sure we close the socket!
             try {

@@ -1,19 +1,14 @@
 package unimelb.bitbox.client;
 
-import org.json.simple.parser.ParseException;
 import unimelb.bitbox.ServerMain;
 import unimelb.bitbox.client.responses.ClientResponse;
 import unimelb.bitbox.util.*;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Optional;
 
@@ -61,32 +56,33 @@ public class Server implements Runnable {
                         String message = in.readLine();
                         if (message != null) {
                             try {
-                                handleMessage(message, out);
-                            } catch (ParseException | ResponseFormatException e) {
-                                System.out.println("malformed message: " + e.getMessage());
+                                out.write(handleMessage(message).toJson() + "\n");
+                                out.flush();
+                            } catch (ResponseFormatException e) {
+                                ServerMain.log.warning("malformed message: " + e.getMessage());
                             }
                         } else {
                             // If we received null, the client disconnected
                             break;
                         }
                     }
-                } catch (IOException | IllegalBlockSizeException | InvalidKeyException | BadPaddingException
-                        | NoSuchAlgorithmException | NoSuchPaddingException | IllegalArgumentException e) {
+                } catch (IOException | CryptoException e) {
+                    ServerMain.log.warning("Error while responding to client:");
                     e.printStackTrace();
                 }
             }
         } catch (IOException e) {
+            ServerMain.log.severe("Error with server socket:");
             e.printStackTrace();
         }
     }
 
-    private void handleMessage(String message, BufferedWriter out)
-            throws IOException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException,
-            NoSuchAlgorithmException, NoSuchPaddingException, ResponseFormatException, ParseException {
+    private JsonDocument handleMessage(String message)
+            throws CryptoException, ResponseFormatException {
         // Parse the message. If there is a payload key, then we need to decrypt the payload to get the actual message
         JsonDocument document = JsonDocument.parse(message);
         if (document.containsKey("payload")) {
-            document = JsonDocument.parse(Crypto.decryptMessage(key, message));
+            document = Crypto.decryptMessage(key, document);
         }
         ServerMain.log.info("Received from client: " + document.toJson());
 
@@ -111,12 +107,11 @@ public class Server implements Runnable {
                     response.append("AES128", Crypto.encryptSecretKey(key, matchedKey.get().getKey()));
                     response.append("status", true);
                     response.append("message", "public key found");
-                } catch (NoSuchAlgorithmException | NoSuchPaddingException | BadPaddingException
-                        | IllegalBlockSizeException | InvalidKeyException e) {
+                } catch (CryptoException e) {
                     // In case the crypto algorithms failed, we send a failure response
-                    System.out.println("Failed encryption: " + e.getMessage());
+                    ServerMain.log.warning("Failed encryption: " + e.getMessage());
                     response.append("status", false);
-                    response.append("message", "error generating key");
+                    response.append("message", "error generating key: " + e.toString());
                 }
             } else {
                 // If the ident wasn't found, inform the user
@@ -127,15 +122,12 @@ public class Server implements Runnable {
             response = ClientResponse.getResponse(command, server, document);
         }
 
-        String responseMessage = response.toJson();
-
-        ServerMain.log.info("Sending client: " + responseMessage);
+        ServerMain.log.info("Sending client: " + response.toJson());
         if (authenticated) {
-            responseMessage = Crypto.encryptMessage(key, responseMessage);
+            response = Crypto.encryptMessage(key, response);
         }
-        out.write(responseMessage + "\n");
-        out.flush();
 
         authenticated = true;
+        return response;
     }
 }

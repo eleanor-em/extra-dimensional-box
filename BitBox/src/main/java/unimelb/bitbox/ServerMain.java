@@ -1,7 +1,6 @@
 package unimelb.bitbox;
 
 import org.jetbrains.annotations.NotNull;
-import org.json.simple.parser.ParseException;
 import unimelb.bitbox.client.Server;
 import unimelb.bitbox.messages.*;
 import unimelb.bitbox.util.*;
@@ -56,8 +55,8 @@ class MessageProcessingThread extends Thread {
 		// first check the message is correct JSON
 		try {
 			document = JsonDocument.parse(text);
-		} catch (ParseException e) {
-			ServerMain.log.warning("Error parsing `" + message + "`.");
+		} catch (ResponseFormatException e) {
+			ServerMain.log.warning(e.getMessage());
 			invalidProtocolResponse(message.peer, "message must be valid JSON data");
 			return;
 		}
