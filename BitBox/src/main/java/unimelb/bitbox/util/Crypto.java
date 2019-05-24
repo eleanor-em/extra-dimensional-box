@@ -12,6 +12,8 @@ import java.util.Base64;
  * Contains utility methods for working with the cryptography library.
  */
 public class Crypto {
+    private static final int AES_KEY_BITS = 128;
+    private static final int AES_KEY_BYTES = AES_KEY_BITS / 8;
     /**
      * Generates a secret AES key.
      */
@@ -19,7 +21,7 @@ public class Crypto {
             throws CryptoException {
         try {
             KeyGenerator generator = KeyGenerator.getInstance("AES");
-            generator.init(128);
+            generator.init(AES_KEY_BITS);
             return generator.generateKey();
         } catch (NoSuchAlgorithmException e) {
             throw new CryptoException(e);
@@ -45,16 +47,17 @@ public class Crypto {
         try {
             assignCRNG();
 
+            final int PUBLIC_KEY_BYTES = publicKey.getEncoded().length;
             Cipher encipher = Cipher.getInstance("RSA/ECB/NoPadding");
             encipher.init(Cipher.PUBLIC_KEY, publicKey);
-            byte[] padding = new byte[240];
-            rand.nextBytes(padding);
             // We need to pad the message to 256 bytes total. However, Java does not allow a 256 byte message, as it
-            // always must prepend at least 1 null byte (otherwise we get BadPaddingException). To this end,
-            // we pad the message to 255 bytes, *appending* the random data to the key (rather than prepending)
-            // as requested by Aaron.
-            byte[] input = Arrays.copyOf(secretKey.getEncoded(), 255);
-            System.arraycopy(padding, 0, input, 16, 239);
+            // always must prepend at least 1 null byte (otherwise we get BadPaddingException). To this end, we pad the
+            // message to 255 bytes, *appending* the random data to the key (rather than prepending) as requested by
+            // Aaron. This requires 256 - (key size) - 1 bytes of padding.
+            byte[] padding = new byte[PUBLIC_KEY_BYTES - AES_KEY_BYTES - 1];
+            rand.nextBytes(padding);
+            byte[] input = Arrays.copyOf(secretKey.getEncoded(), PUBLIC_KEY_BYTES - 1);
+            System.arraycopy(padding, 0, input, AES_KEY_BYTES, padding.length);
             byte[] encrypted = encipher.doFinal(input);
             return new String(Base64.getEncoder().encode(encrypted));
         } catch (NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException | BadPaddingException | IllegalBlockSizeException e) {
@@ -76,6 +79,8 @@ public class Crypto {
             Cipher cipher = Cipher.getInstance("AES/ECB/NoPadding");
             cipher.init(Cipher.DECRYPT_MODE, secretKey);
             result = new String(cipher.doFinal(Base64.getDecoder().decode(payload)));
+            // Padding comes after a newline character
+            result = result.split("\n")[0];
         } catch (NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException | BadPaddingException | IllegalBlockSizeException e) {
             throw new CryptoException(e);
         }
@@ -104,14 +109,11 @@ public class Crypto {
             Cipher cipher = Cipher.getInstance("AES/ECB/NoPadding");
             cipher.init(Cipher.ENCRYPT_MODE, secretKey);
 
-            StringBuilder padding = new StringBuilder();
-            message.append("padding", "");
-
+            // Pad the message (if necessary)
+            StringBuilder paddedMessage = new StringBuilder(message.toJson() + "\n");
             // The number of bytes we need is 16 minus the remainder, so that we end up with a multiple of 16 total
-            // I would prefer to do this by negating the value, but Java helpfully gives you a signed result...
-            int messageSize = message.toJson().length();
-            if (messageSize % 16 != 0) {
-                int requiredBytes = 16 - message.toJson().length() % 16;
+            int requiredBytes = AES_KEY_BYTES - paddedMessage.length() % AES_KEY_BYTES;
+            if (requiredBytes < AES_KEY_BYTES) {
                 for (int i = 0; i < requiredBytes; ++i) {
                     // Printable character range is 32-126. Trust me on this.
                     char next = (char) cryptoRandRange(32, 126);
@@ -121,14 +123,14 @@ public class Crypto {
                     if (next == '"' || next == '\\') {
                         --i;
                     } else {
-                        padding.append(next);
+                        paddedMessage.append(next);
                     }
                 }
-                message.append("padding", padding.toString());
             }
+            byte[] encryptedBytes = cipher.doFinal(paddedMessage.toString().getBytes());
 
             JsonDocument encrypted = new JsonDocument();
-            encrypted.append("payload", Base64.getEncoder().encodeToString(cipher.doFinal(message.toJson().getBytes())));
+            encrypted.append("payload", Base64.getEncoder().encodeToString(encryptedBytes));
             return encrypted;
         } catch (NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException | BadPaddingException | IllegalBlockSizeException e) {
             throw new CryptoException(e);
