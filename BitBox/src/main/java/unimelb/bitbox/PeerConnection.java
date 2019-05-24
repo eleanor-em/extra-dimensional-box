@@ -437,7 +437,7 @@ class OutgoingConnectionUDP extends OutgoingConnection {
         while (!udpSocket.isClosed() && isActive()) {
             try {
                 OutgoingMessage message = takeMessage();
-                byte[] buffer = message.message.getBytes(StandardCharsets.UTF_8);
+                byte[] buffer = (message.message + "\n").getBytes(StandardCharsets.UTF_8);
                 packet.setData(buffer);
                 packet.setLength(buffer.length);
                 udpSocket.send(packet);

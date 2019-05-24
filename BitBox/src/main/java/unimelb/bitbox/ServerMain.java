@@ -685,7 +685,7 @@ public class ServerMain implements FileSystemObserver {
                     // Send CONNECTION_REFUSED
                     if (connectedPeer == null) {
                         Message message = new ConnectionRefused(getActivePeers());
-                        byte[] responseBuffer = message.encode().getBytes(StandardCharsets.UTF_8);
+                        byte[] responseBuffer = (message.encode() + "\n").getBytes(StandardCharsets.UTF_8);
                         packet.setData(responseBuffer);
                         packet.setLength(responseBuffer.length);
                         udpSocket.send(packet);
