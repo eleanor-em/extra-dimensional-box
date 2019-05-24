@@ -43,6 +43,7 @@ class MessageProcessingThread extends Thread {
             }
         } catch (Exception e) {
             e.printStackTrace();
+        } finally {
             ServerMain.log.severe("Restarting message processor");
             server.restartProcessingThread();
         }
@@ -417,15 +418,12 @@ public class ServerMain implements FileSystemObserver {
     private void connectToPeers() {
         try {
             while (true) {
-                try {
-                    retryPeers();
-                    Thread.sleep(PEER_RETRY_TIME * 1000);
-                } catch (InterruptedException e) {
-                    log.warning("Peer connecting thread interrupted");
-                }
+                retryPeers();
+                Thread.sleep(PEER_RETRY_TIME * 1000);
             }
         } catch (Exception e) {
             e.printStackTrace();
+        } finally {
             log.severe("Restarting peer connection thread");
             new Thread(this::connectToPeers).start();
         }
@@ -440,6 +438,7 @@ public class ServerMain implements FileSystemObserver {
             }
         } catch (Exception e) {
             e.printStackTrace();
+        } finally {
             log.severe("Restarting peer acceptor thread");
             new Thread(this::acceptConnections).start();
         }
@@ -796,6 +795,7 @@ public class ServerMain implements FileSystemObserver {
             }
         } catch (Exception e) {
             e.printStackTrace();
+        } finally {
             log.severe("Restarting synchroniser thread");
             new Thread(this::regularlySynchronise).start();
         }

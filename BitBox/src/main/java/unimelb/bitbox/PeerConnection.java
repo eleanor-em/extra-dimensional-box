@@ -202,7 +202,13 @@ public abstract class PeerConnection {
     public void notify(Message message) {}
 
     public String toString() {
-        return name + " @ " + hostPort;
+        String address = hostPort.asAddress();
+        String alias = hostPort.asAliasedAddress();
+        if (!address.equals(alias)) {
+            address += " (" + alias + ")";
+        }
+
+        return name + " @ " + address;
     }
 
     public boolean equals(Object other) {
@@ -248,6 +254,69 @@ class PeerTCP extends PeerConnection {
 
 class PeerUDP extends PeerConnection {
     private HashMap<String, RetryThread> retryThreads;
+    private HashMap<String, RetryThread> getRetryThreads() {
+        if (retryThreads == null) {
+            retryThreads = new HashMap<>();
+        }
+        return retryThreads;
+    }
+
+    // EXTENSION: Allow sockets with the wrong port
+    /*@Override
+    void activateDefault(String host, long port) {
+        synchronized (this) {
+            if (state != State.CLOSED && state != State.INACTIVE) {
+                // UDP peer already has accurate host and port
+                state = State.ACTIVE;
+                KnownPeerTracker.addAddress(getHost() + ":" + getPort());
+            }
+        }
+    }*/
+
+    PeerUDP(String name, ServerMain server, State state, DatagramSocket socket, DatagramPacket packet) {
+        super(name, server, state,packet.getAddress().toString().split("/")[1],
+              packet.getPort(), new OutgoingConnectionUDP(socket, packet));
+    }
+
+    @Override
+    // Override to not close the socket, as it's shared between all peers.
+    void close() {
+        synchronized (this) {
+            if (state == State.CLOSED) {
+                return;
+            }
+            ServerMain.log.warning("Connection to peer `" + getForeignName() + "` closed.");
+            state = State.CLOSED;
+            server.closeConnection(this);
+
+            outConn.deactivate();
+            getRetryThreads().forEach((ignored, thread) -> thread.kill());
+        }
+    }
+
+    public void retryMessage(Message message) {
+        sendMessageInternal(message);
+    }
+
+    @Override
+    protected void sendMessageInternal(Message message, Runnable onSent) {
+        if (message.isRequest() && !getRetryThreads().containsKey(message.getSummary())) {
+            ServerMain.log.info(getForeignName() + ": waiting for response: " + message.getSummary());
+            RetryThread thread = new RetryThread(this, message);
+            getRetryThreads().put(message.getSummary(), thread);
+            thread.start();
+        }
+        super.sendMessageInternal(message, onSent);
+    }
+
+    @Override
+    public void notify(Message message) {
+        if (!message.isRequest()) {
+            ServerMain.log.info(getForeignName() + ": notified response: " + message.getSummary());
+            Optional.ofNullable(getRetryThreads().get(message.getSummary()))
+                    .ifPresent(Thread::interrupt);
+        }
+    }
 
     private class RetryThread extends Thread {
         private Message message;
@@ -295,70 +364,6 @@ class PeerUDP extends PeerConnection {
             }
             ServerMain.log.warning(parent.getForeignName() + ": timed out: " + message.getCommand());
             parent.close();
-        }
-    }
-
-    // EXTENSION: Allow sockets with the wrong port
-    /*@Override
-    void activateDefault(String host, long port) {
-        synchronized (this) {
-            if (state != State.CLOSED && state != State.INACTIVE) {
-                // UDP peer already has accurate host and port
-                state = State.ACTIVE;
-                KnownPeerTracker.addAddress(getHost() + ":" + getPort());
-            }
-        }
-    }*/
-
-    PeerUDP(String name, ServerMain server, State state, DatagramSocket socket, DatagramPacket packet) {
-        super(name, server, state,packet.getAddress().toString().split("/")[1],
-              packet.getPort(), new OutgoingConnectionUDP(socket, packet));
-    }
-
-    @Override
-    // Override to not close the socket, as it's shared between all peers.
-    void close() {
-        synchronized (this) {
-            if (state == State.CLOSED) {
-                return;
-            }
-            ServerMain.log.warning("Connection to peer `" + getForeignName() + "` closed.");
-            state = State.CLOSED;
-            server.closeConnection(this);
-
-            outConn.deactivate();
-            retryThreads.forEach((ignored, thread) -> thread.kill());
-        }
-    }
-
-    public void retryMessage(Message message) {
-        sendMessageInternal(message);
-    }
-
-    @Override
-    protected void sendMessageInternal(Message message, Runnable onSent) {
-        // Workaround: constructor ordering means retryThreads is not assigned to with the handshake message
-        if (retryThreads == null) {
-            retryThreads = new HashMap<>();
-        }
-        if (message.isRequest() && !retryThreads.containsKey(message.getSummary())) {
-            ServerMain.log.info(getForeignName() + ": waiting for response: " + message.getSummary());
-            RetryThread thread = new RetryThread(this, message);
-            retryThreads.put(message.getSummary(), thread);
-            thread.start();
-        }
-        super.sendMessageInternal(message, onSent);
-    }
-
-    @Override
-    public void notify(Message message) {
-        if (retryThreads == null) {
-            retryThreads = new HashMap<>();
-        }
-        if (!message.isRequest()) {
-            ServerMain.log.info(getForeignName() + ": notified response: " + message.getSummary());
-            Optional.ofNullable(retryThreads.get(message.getSummary()))
-                    .ifPresent(Thread::interrupt);
         }
     }
 }

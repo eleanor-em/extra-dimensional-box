@@ -67,6 +67,9 @@ public class HostPort {
     public String asAddress() {
         return toString();
     }
+    public String asAliasedAddress() {
+        return alias.toString();
+    }
 
     @Override
     public String toString() {
