@@ -19,7 +19,7 @@ import java.util.Optional;
 public class Server implements Runnable {
     // ELEANOR: Nothing needs to be static here; since we instantiate the class, better to be consistent.
     private final int clientPort = Integer.parseInt(Configuration.getConfigurationValue("clientPort"));
-    private final String authorized_keys = Configuration.getConfigurationValue("authorized_keys");
+    private static final String authorized_keys = Configuration.getConfigurationValue("authorized_keys");
     private final ArrayList<SSHPublicKey> keys = new ArrayList<>();
     private SecretKey key;
     private boolean authenticated;
@@ -27,10 +27,6 @@ public class Server implements Runnable {
 
     public Server(ServerMain server) {
         this.server = server;
-    }
-
-    @Override
-    public void run() {
         // Load the public keys
         String[] keyStrings = authorized_keys.split(",");
         for (String keyString : keyStrings) {
@@ -40,7 +36,10 @@ public class Server implements Runnable {
                 ServerMain.log.warning("invalid keystring " + keyString + ": " + e.getMessage());
             }
         }
+    }
 
+    @Override
+    public void run() {
         // Accept connections repeatedly.
         try (ServerSocket serverSocket = new ServerSocket(clientPort)) {
             while (!serverSocket.isClosed()) {
@@ -69,6 +68,11 @@ public class Server implements Runnable {
         } catch (IOException e) {
             ServerMain.log.severe("Error with server socket:");
             e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            ServerMain.log.severe("Restarting server thread");
+            new Thread(new Server(server)).start();
         }
     }
 
@@ -98,6 +102,7 @@ public class Server implements Runnable {
                     .findFirst();
             if (matchedKey.isPresent()) {
                 try {
+                    ServerMain.log.info("Generating new session key");
                     // We attempt to generate a key, and then encrypt it with the looked-up public key
                     key = Crypto.generateSecretKey();
                     response.append("AES128", Crypto.encryptSecretKey(key, matchedKey.get().getKey()));
@@ -111,6 +116,7 @@ public class Server implements Runnable {
                     response.append("message", "error generating key: " + e.toString());
                 }
             } else {
+                ServerMain.log.warning("Client provided unknown ident");
                 // If the ident wasn't found, inform the user
                 response.append("status", false);
                 response.append("message", "public key not found");

@@ -9,19 +9,18 @@ import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import unimelb.bitbox.client.AuthResponseParser;
+import unimelb.bitbox.client.ClientArgsException;
 import unimelb.bitbox.client.requests.ClientRequest;
 import unimelb.bitbox.client.requests.ClientRequestProtocol;
 import unimelb.bitbox.util.*;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-==== BASE ====
 import javax.crypto.SecretKey;
 import java.io.*;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.security.*;
+import java.security.KeyPair;
+import java.security.PrivateKey;
+import java.security.Security;
 
 /**
  * Contains the main method for the Client.
@@ -163,8 +162,6 @@ public class Client {
                 System.out.println("No response");
             } else {
                 System.out.println(Crypto.decryptMessage(key, encryptedResponse));
-            } else {
-                System.out.println("No response");
             }
         } catch (IOException e) {
             System.out.println("Error reading/writing socket: " + e.getMessage());

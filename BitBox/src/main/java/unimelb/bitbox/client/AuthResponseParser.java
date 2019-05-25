@@ -29,8 +29,10 @@ public class AuthResponseParser {
         doc = JsonDocument.parse(message);
 
         status = doc.require("status");
-        String keyVal = doc.require("AES128");
-        key = Base64.getDecoder().decode(keyVal);
+        if (status) {
+            String keyVal = doc.require("AES128");
+            key = Base64.getDecoder().decode(keyVal);
+        }
         this.message = doc.require("message");
     }
 
