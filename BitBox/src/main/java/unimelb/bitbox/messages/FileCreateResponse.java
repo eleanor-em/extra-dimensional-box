@@ -1,12 +1,9 @@
 package unimelb.bitbox.messages;
 
 import unimelb.bitbox.ServerMain;
-import unimelb.bitbox.util.JsonDocument;
 import unimelb.bitbox.util.FileSystemManager;
+import unimelb.bitbox.util.JsonDocument;
 import unimelb.bitbox.util.ResponseFormatException;
-
-import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
 
 public class FileCreateResponse extends Message {
     private static final String SUCCESS = "file loader ready";
@@ -63,8 +60,9 @@ public class FileCreateResponse extends Message {
                 }
             }
         }
-        catch (IOException | NullPointerException | NoSuchAlgorithmException e){
+        catch (Exception e){
             ServerMain.log.severe("error generating file loader for " + pathName);
+            e.printStackTrace();
             return "misc error: " + e.getMessage() + ": " + pathName;
         }
     }

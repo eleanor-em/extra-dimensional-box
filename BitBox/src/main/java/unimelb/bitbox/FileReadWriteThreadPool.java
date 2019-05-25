@@ -10,7 +10,6 @@ import unimelb.bitbox.util.ResponseFormatException;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -227,7 +226,7 @@ public class FileReadWriteThreadPool {
                     ServerMain.log.info(peer.getForeignName() + ": received all bytes for " + pathName +
                             ". File created successfully");
                 }
-            } catch (NoSuchAlgorithmException | IOException e) {
+            } catch (IOException e) {
                 ServerMain.log.warning(peer.getForeignName() + ": error closing file loader for " + pathName);
             } catch (OutOfMemoryError e){
                 ServerMain.log.info(peer.getForeignName() + ": not enough memory to write " + pathName +

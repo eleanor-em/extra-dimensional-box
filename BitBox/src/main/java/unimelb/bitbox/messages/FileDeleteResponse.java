@@ -15,7 +15,7 @@ public class FileDeleteResponse extends Message{
             if (!fsManager.isSafePathName(pathName)) {
                 reply = "unsafe pathname given";
             } else if (!fsManager.fileNameExists(pathName)) {
-                reply = "pathname does not exists";
+                reply = "pathname does not exist";
             } else {
                 long lastModified = fileDescriptor.require("lastModified");
                 String md5 = fileDescriptor.require("md5");
