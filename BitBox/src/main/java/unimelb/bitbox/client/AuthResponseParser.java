@@ -1,6 +1,6 @@
 package unimelb.bitbox.client;
 
-import org.json.simple.parser.ParseException;
+import unimelb.bitbox.util.CryptoException;
 import unimelb.bitbox.util.JsonDocument;
 import unimelb.bitbox.util.ResponseFormatException;
 
@@ -26,11 +26,7 @@ public class AuthResponseParser {
      */
     public AuthResponseParser(String message) throws ResponseFormatException {
         JsonDocument doc;
-        try {
-            doc = JsonDocument.parse(message);
-        } catch (ParseException e) {
-            throw new ResponseFormatException("Error parsing message: " + e.getMessage());
-        }
+        doc = JsonDocument.parse(message);
 
         status = doc.require("status");
         String keyVal = doc.require("AES128");
@@ -40,22 +36,24 @@ public class AuthResponseParser {
 
     /**
      * Decrypts the received secret key using the provided private key.
+     * See {@link unimelb.bitbox.util.Crypto#encryptSecretKey} for details on the quirks involved.
+     *
      * @param privateKey the private key to use for decryption
      * @return the decrypted secret key
-     * @throws NoSuchPaddingException    in case of a cryptography error
-     * @throws NoSuchAlgorithmException  in case of a cryptography error
-     * @throws InvalidKeyException       in case of a cryptography error
-     * @throws BadPaddingException       in case of a cryptography error
-     * @throws IllegalBlockSizeException in case of a cryptography error
+     * @throws CryptoException  in case of a cryptography error
      */
     public SecretKey decryptKey(PrivateKey privateKey)
-            throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException,
-                   BadPaddingException, IllegalBlockSizeException {
+            throws CryptoException {
         if (key != null) {
-            Cipher decipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-            decipher.init(Cipher.PRIVATE_KEY, privateKey);
-            byte[] decrypted = decipher.doFinal(key);
-            return new SecretKeySpec(decrypted, 0, decrypted.length, "AES");
+            try {
+                Cipher decipher = Cipher.getInstance("RSA/ECB/NoPadding");
+                decipher.init(Cipher.PRIVATE_KEY, privateKey);
+                byte[] decrypted = decipher.doFinal(key);
+                // See Crypto.encryptSecretKey: Java always prepends at least 1 null byte to the RSA-encrypted message
+                return new SecretKeySpec(decrypted, 1, 16, "AES");
+            } catch (NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException | BadPaddingException | IllegalBlockSizeException e) {
+                throw new CryptoException(e);
+            }
         }
         return null;
     }
