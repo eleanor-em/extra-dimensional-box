@@ -10,6 +10,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.InvalidKeyException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Optional;
 
 /**
@@ -61,8 +62,7 @@ public class Server implements Runnable {
                             }
                     }
                 } catch (IOException | CryptoException e) {
-                    ServerMain.log.warning("Error while responding to client:");
-                    e.printStackTrace();
+                    ServerMain.log.warning("Error while responding to client: " + e.getMessage());
                 }
             }
         } catch (IOException e) {
@@ -105,6 +105,7 @@ public class Server implements Runnable {
                     ServerMain.log.info("Generating new session key");
                     // We attempt to generate a key, and then encrypt it with the looked-up public key
                     key = Crypto.generateSecretKey();
+                    ServerMain.log.info("Generated session key: " + new String(Base64.getEncoder().encode(key.getEncoded())));
                     response.append("AES128", Crypto.encryptSecretKey(key, matchedKey.get().getKey()));
                     response.append("status", true);
                     response.append("message", "public key found");
