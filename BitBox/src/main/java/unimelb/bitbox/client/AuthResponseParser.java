@@ -36,6 +36,8 @@ public class AuthResponseParser {
 
     /**
      * Decrypts the received secret key using the provided private key.
+     * See {@link unimelb.bitbox.util.Crypto#encryptSecretKey} for details on the quirks involved.
+     *
      * @param privateKey the private key to use for decryption
      * @return the decrypted secret key
      * @throws CryptoException  in case of a cryptography error

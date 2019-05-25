@@ -109,6 +109,7 @@ public class Server implements Runnable {
                     response.append("message", "public key found");
                 } catch (CryptoException e) {
                     // In case the crypto algorithms failed, we send a failure response
+                    e.printStackTrace();
                     ServerMain.log.warning("Failed encryption: " + e.getMessage());
                     response.append("status", false);
                     response.append("message", "error generating key: " + e.toString());
