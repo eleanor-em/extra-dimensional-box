@@ -296,7 +296,7 @@ class MessageProcessingThread extends Thread {
         boolean notExist = false;
         try {
             notExist = server.fileSystemManager.checkShortcut(pathName);
-        } catch (IOException | NoSuchAlgorithmException e) {
+        } catch (IOException e) {
             ServerMain.log.severe(peer.getForeignName() + ": error checking shortcut for " + pathName);
         }
         return !notExist;
