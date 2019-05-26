@@ -1,5 +1,6 @@
 package unimelb.bitbox.client;
 
+import unimelb.bitbox.util.Crypto;
 import unimelb.bitbox.util.CryptoException;
 import unimelb.bitbox.util.JsonDocument;
 import unimelb.bitbox.util.ResponseFormatException;
@@ -17,7 +18,7 @@ import java.util.Base64;
 public class AuthResponseParser {
     private boolean status;
     private byte[] key;
-    private String message = "";
+    private String message;
 
     /**
      * Extract the data from the provided message.
@@ -51,8 +52,12 @@ public class AuthResponseParser {
                 Cipher decipher = Cipher.getInstance("RSA/ECB/NoPadding");
                 decipher.init(Cipher.PRIVATE_KEY, privateKey);
                 byte[] decrypted = decipher.doFinal(key);
-                // See Crypto.encryptSecretKey: Java always prepends at least 1 null byte to the RSA-encrypted message
-                return new SecretKeySpec(decrypted, 1, 16, "AES");
+                // Ignore any null bytes prepended to the key
+                int nullHeader = 0;
+                while (decrypted[nullHeader] == 0) {
+                    ++nullHeader;
+                }
+                return new SecretKeySpec(decrypted, nullHeader, Crypto.AES_KEY_BYTES, "AES");
             } catch (NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException | BadPaddingException | IllegalBlockSizeException e) {
                 throw new CryptoException(e);
             }

@@ -487,7 +487,8 @@ class KnownPeerTracker {
             String line;
             while ((line = reader.readLine()) != null) {
                 try {
-                    loaded.add(HostPort.fromAddress(line));
+                    // File contains details after a space
+                    loaded.add(HostPort.fromAddress(line.split(" ")[0]));
                 } catch (HostPortParseException e) {
                     ServerMain.log.warning("Failed to parse stored peer `" + line + "`");
                 }
@@ -514,7 +515,7 @@ class KnownPeerTracker {
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(PEER_LIST_FILE))) {
                 synchronized (addresses) {
                     for (HostPort hostPort : addresses) {
-                        writer.write(hostPort.asAddress() + "\n");
+                        writer.write(hostPort.asAliasedAddress() + " (via " + hostPort.asAddress() + ")" + "\n");
                     }
                 }
             } catch (IOException e) {

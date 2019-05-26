@@ -13,7 +13,7 @@ import java.util.Base64;
  */
 public class Crypto {
     private static final int AES_KEY_BITS = 128;
-    private static final int AES_KEY_BYTES = AES_KEY_BITS / 8;
+    public static final int AES_KEY_BYTES = AES_KEY_BITS / 8;
     private static final int PUBLIC_KEY_BYTES = 256;
 
     /**
@@ -31,7 +31,7 @@ public class Crypto {
     }
 
     private static SecureRandom rand;
-    private static void assignCRNG() throws CryptoException {
+    private static synchronized void assignCRNG() throws CryptoException {
         if (rand == null) {
             try {
                 rand = SecureRandom.getInstanceStrong();

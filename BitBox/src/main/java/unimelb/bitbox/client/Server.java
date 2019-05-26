@@ -106,7 +106,9 @@ public class Server implements Runnable {
                     // We attempt to generate a key, and then encrypt it with the looked-up public key
                     key = Crypto.generateSecretKey();
                     ServerMain.log.info("Generated session key: " + new String(Base64.getEncoder().encode(key.getEncoded())));
-                    response.append("AES128", Crypto.encryptSecretKey(key, matchedKey.get().getKey()));
+                    String encryptedKey = Crypto.encryptSecretKey(key, matchedKey.get().getKey());
+                    response.append("AES128", encryptedKey);
+                    ServerMain.log.info("Encrypted session key: " + encryptedKey);
                     response.append("status", true);
                     response.append("message", "public key found");
                 } catch (CryptoException e) {
@@ -130,7 +132,7 @@ public class Server implements Runnable {
         if (authenticated) {
             response = Crypto.encryptMessage(key, response);
         }
-
+        ServerMain.log.info("Response encrypted");
         authenticated = true;
         return response;
     }
