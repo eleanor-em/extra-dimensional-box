@@ -2,7 +2,7 @@ package unimelb.bitbox.client.requests;
 
 import org.apache.commons.cli.CommandLine;
 import unimelb.bitbox.client.ClientArgsException;
-import unimelb.bitbox.util.HostPortParseException;
+import unimelb.bitbox.util.network.HostPortParseException;
 
 /**
  * Process client commands into messages that can be sent to a Peer.

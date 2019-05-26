@@ -1,8 +1,8 @@
 package unimelb.bitbox.messages;
 
 import unimelb.bitbox.ServerMain;
-import unimelb.bitbox.util.JsonDocument;
-import unimelb.bitbox.util.ResponseFormatException;
+import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.network.ResponseFormatException;
 
 public class FileBytesRequest extends Message {
     public FileBytesRequest(String pathName, JsonDocument fileDescriptor, long position) throws ResponseFormatException {

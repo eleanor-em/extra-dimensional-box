@@ -3,15 +3,23 @@ package unimelb.bitbox;
 import org.jetbrains.annotations.NotNull;
 import unimelb.bitbox.client.Server;
 import unimelb.bitbox.messages.*;
-import unimelb.bitbox.util.*;
-import unimelb.bitbox.util.FileSystemManager.FileSystemEvent;
+import unimelb.bitbox.util.config.CfgDependent;
+import unimelb.bitbox.util.config.CfgEnumValue;
+import unimelb.bitbox.util.config.CfgValue;
+import unimelb.bitbox.util.config.Configuration;
+import unimelb.bitbox.util.fs.FileSystemManager;
+import unimelb.bitbox.util.fs.FileSystemManager.FileSystemEvent;
+import unimelb.bitbox.util.fs.FileSystemObserver;
+import unimelb.bitbox.util.network.HostPort;
+import unimelb.bitbox.util.network.HostPortParseException;
+import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.network.ResponseFormatException;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
-import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -311,98 +319,119 @@ class MessageProcessingThread extends Thread {
     }
 }
 
+
 public class ServerMain implements FileSystemObserver {
+    public enum ConnectionMode {
+        TCP,
+        UDP
+    }
+
     static final public Logger log = Logger.getLogger(ServerMain.class.getName());
     private static final int PEER_RETRY_TIME = 60;
     private static final String DEFAULT_NAME = "Anonymous";
-    private static long blockSize;
     public static long getBlockSize() {
-        return blockSize;
+        return blockSize.get();
     }
     final FileSystemManager fileSystemManager;
 
-    private final int maxIncomingConnections;
+    private static final CfgValue<Integer> maxIncomingConnections = CfgValue.createInt("maximumIncommingConnections");
+    private static final CfgValue<String> advertisedName = CfgValue.create("advertisedName");
+    private static final CfgValue<Integer> tcpPort = CfgValue.createInt("port");
+    private static final CfgValue<Integer> udpPort = CfgValue.createInt("udpPort");
+    static final CfgEnumValue<ConnectionMode> mode = new CfgEnumValue<>("mode", ConnectionMode.class);
+    private static final CfgValue<String[]> peersToConnect = CfgValue.create("peers", val -> val.split(","));
+
     /**
      * Create a thread-safe list of the peer connections this program has active.
      */
     private final List<PeerConnection> peers = Collections.synchronizedList(new ArrayList<>());
     // this is the thread that collects messages and processes them
     private MessageProcessingThread processor;
-    private static HostPort hostPort;
+    private static CfgDependent<HostPort> hostPort = new CfgDependent<>(Arrays.asList(advertisedName, tcpPort, udpPort),
+                                                                        ServerMain::calculateHostPort);
     public static HostPort getHostPort() {
-        return hostPort;
+        return hostPort.get();
     }
+
+    private static CfgDependent<Long> blockSize = new CfgDependent<>(mode, ServerMain::calculateBlockSize);
 
     public void restartProcessingThread() {
         processor = new MessageProcessingThread(this);
         processor.start();
     }
 
-    public enum CONNECTION_MODE {
-        TCP,
-        UDP
+    private static long calculateBlockSize() {
+        long blockSize;
+        blockSize = Long.parseLong(Configuration.getConfigurationValue("blockSize"));
+        if (mode.get() == ConnectionMode.UDP) {
+            blockSize = Math.min(blockSize, 8192);
+        }
+        return blockSize;
+    }
+    private static HostPort calculateHostPort() {
+        int serverPort;
+        if (mode.get() == ConnectionMode.TCP) {
+            serverPort = tcpPort.get();
+        } else {
+            serverPort = udpPort.get();
+        }
+        return new HostPort(advertisedName.get(), serverPort);
     }
 
-    public final CONNECTION_MODE mode;
     // for debugging purposes, each of the threads is given a different name
     private final Queue<String> names = new ConcurrentLinkedQueue<>();
     private final Set<HostPort> peerAddresses = ConcurrentHashMap.newKeySet();
 
     private DatagramSocket udpSocket;
+    private ServerSocket tcpServerSocket;
 
-    public ServerMain() throws NumberFormatException, IOException, NoSuchAlgorithmException {
+    public ServerMain() throws NumberFormatException, IOException {
         // initialise things
         KnownPeerTracker.load();
         fileSystemManager = new FileSystemManager(Configuration.getConfigurationValue("path"), this);
         processor = new MessageProcessingThread(this);
-        maxIncomingConnections = Integer.parseInt(Configuration.getConfigurationValue("maximumIncommingConnections"));
         createNames();
 
         // load the mode
         // data read from the config file
-        String advertisedName = Configuration.getConfigurationValue("advertisedName");
-        int serverPort;
-        switch (Configuration.getConfigurationValue("mode")) {
-            case "tcp":
-                mode = CONNECTION_MODE.TCP;
-                serverPort = Integer.parseInt(Configuration.getConfigurationValue("port"));
-                break;
-            case "udp":
-                mode = CONNECTION_MODE.UDP;
-                serverPort = Integer.parseInt(Configuration.getConfigurationValue("udpPort"));
-                break;
-            default:
-                mode = null;
-                serverPort = 0;
-                log.severe("Invalid mode set, process will be terminated.");
-                System.exit(1);
-        }
-        if (mode == CONNECTION_MODE.TCP) {
-            blockSize = Long.parseLong(Configuration.getConfigurationValue("blockSize"));
-        } else {
-            blockSize = Math.min(Long.parseLong(Configuration.getConfigurationValue("blockSize")), 8192);
-        }
-        hostPort = new HostPort(advertisedName, serverPort);
 
 		// create the processor thread
 		processor.start();
 		log.info("Processor thread started");
 
 		// create the server thread
-		new Thread(this::acceptConnections).start();
-		log.info("Peer-to-Peer server thread started");
+		Thread acceptThread = new Thread(this::acceptConnections);
+        log.info("Accepting thread started");
+		acceptThread.start();
+
+        // start the peer connection thread
+        peersToConnect.setOnChanged(this::addPeerAddressAll);
+        addPeerAddressAll(peersToConnect.get());
+        Thread connectThread = new Thread(this::connectToPeers);
+        connectThread.start();
+        log.info("Peer connection thread started");
+
+        mode.setOnChanged(() -> {
+            closeAllConnections();
+            try {
+                if (tcpServerSocket != null) {
+                    tcpServerSocket.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            if (udpSocket != null) {
+                udpSocket.close();
+            }
+            connectThread.interrupt();
+            acceptThread.interrupt();
+        });
 
 		// ELEANOR: terminology is confusing, so we introduce consistency
 		// create the server thread for the client
 		new Thread(new Server(this)).start();
 		log.info("Server thread started");
 
-		// connect to each of the listed peers
-		String[] addresses = Configuration.getConfigurationValue("peers").split(",");
-		addPeerAddressAll(addresses);
-		// start the peer connection thread
-		new Thread(this::connectToPeers).start();
-		log.info("Peer connection thread started");
 
 		// create the synchroniser thread
 		new Thread(this::regularlySynchronise).start();
@@ -430,7 +459,7 @@ public class ServerMain implements FileSystemObserver {
 
     private void acceptConnections() {
         try {
-            if (mode == CONNECTION_MODE.TCP) {
+            if (mode.get() == ConnectionMode.TCP) {
                 acceptConnectionsTCP();
             } else {
                 acceptConnectionsUDP();
@@ -447,9 +476,21 @@ public class ServerMain implements FileSystemObserver {
      * Close the connection to the given peer.
      */
     public void closeConnection(PeerConnection peer) {
+        closeConnectionInternal(peer);
+        synchronized (peers) {
+            peers.remove(peer);
+        }
+    }
+    public void closeAllConnections() {
+        // TODO: Problem here is peer.close() will call closeConnection, not closeConnectionInternal.
+        synchronized (peers) {
+            peers.forEach(this::closeConnectionInternal);
+            peers.clear();
+        }
+    }
+    private void closeConnectionInternal(PeerConnection peer) {
         peer.close();
         ServerMain.log.info("Removing " + peer.getForeignName() + " from peer list");
-        peers.remove(peer);
         processor.rwManager.cancelPeerFiles(peer);
 
         // return the plain name to the queue, if it's not the default
@@ -561,39 +602,40 @@ public class ServerMain implements FileSystemObserver {
     // This method creates a server thread that continually accepts new connections from other peers
     // and then creates a PeerConnection object to communicate with them.
     private void acceptConnectionsTCP() {
-        try (ServerSocket serverSocket = new ServerSocket(hostPort.port)) {
-            while (!serverSocket.isClosed()) {
-                try {
-                    Socket socket = serverSocket.accept();
-
-                    // check we have room for more peers
-                    // (only count incoming connections)
-                    if (getIncomingPeerCount() >= maxIncomingConnections) {
-                        // if not, write a CONNECTION_REFUSED message and close the connection
-                        try (BufferedWriter out = new BufferedWriter(
-                                new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8))) {
-                            out.write(new ConnectionRefused(getActivePeers()).encode());
-                            out.flush();
-                            log.info("Sending CONNECTION_REFUSED");
-                        } catch (IOException e) {
-                            log.warning("Failed writing CONNECTION_REFUSED");
-                        } finally {
-                            socket.close();
-                        }
-                    } else {
-                        String name = getAnyName();
-
-                        PeerConnection peer = new PeerTCP(name, socket, this, PeerConnection.State.WAIT_FOR_REQUEST);
-                        peers.add(peer);
-                        log.info("Connected to peer " + peer);
-                    }
-                } catch (IOException e) {
-                    log.warning("Failed connecting to peer");
-                    e.printStackTrace();
-                }
-            }
+        try {
+            tcpServerSocket = new ServerSocket(hostPort.get().port);
         } catch (IOException e) {
-            log.severe("Opening server socket on port " + hostPort.port + " failed: " + e.getMessage());
+            log.severe("Opening server socket on port " + hostPort.get().port + " failed: " + e.getMessage());
+        }
+        while (!tcpServerSocket.isClosed()) {
+            try {
+                Socket socket = tcpServerSocket.accept();
+
+                // check we have room for more peers
+                // (only count incoming connections)
+                if (getIncomingPeerCount() >= maxIncomingConnections.get()) {
+                    // if not, write a CONNECTION_REFUSED message and close the connection
+                    try (BufferedWriter out = new BufferedWriter(
+                            new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8))) {
+                        out.write(new ConnectionRefused(getActivePeers()).encode());
+                        out.flush();
+                        log.info("Sending CONNECTION_REFUSED");
+                    } catch (IOException e) {
+                        log.warning("Failed writing CONNECTION_REFUSED");
+                    } finally {
+                        socket.close();
+                    }
+                } else {
+                    String name = getAnyName();
+
+                    PeerConnection peer = new PeerTCP(name, socket, this, PeerConnection.State.WAIT_FOR_REQUEST);
+                    peers.add(peer);
+                    log.info("Connected to peer " + peer);
+                }
+            } catch (IOException e) {
+                log.warning("Failed connecting to peer");
+                e.printStackTrace();
+            }
         }
     }
 
@@ -630,7 +672,7 @@ public class ServerMain implements FileSystemObserver {
         // if it's already in our set, this does nothing, so just make sure (in case the peer is temporarily
         // unavailable)
         addPeerAddress(target);
-        if (mode == CONNECTION_MODE.TCP) {
+        if (mode.get() == ConnectionMode.TCP) {
             return tryPeerTCP(target);
         } else {
             return tryPeerUDP(target);
@@ -638,7 +680,7 @@ public class ServerMain implements FileSystemObserver {
     }
 
     public boolean clientTryPeer(HostPort hostPort){
-		if (getIncomingPeerCount() >= maxIncomingConnections) {
+		if (getIncomingPeerCount() >= maxIncomingConnections.get()) {
 			return false;
 		}
 
@@ -654,7 +696,8 @@ public class ServerMain implements FileSystemObserver {
         // Maximum packet size is 65507 bytes
         byte[] buffer = new byte[65507];
 
-        try (DatagramSocket udpSocket = new DatagramSocket(hostPort.port)) {
+        try (DatagramSocket udpSocket = new DatagramSocket(hostPort.get().port)) {
+            udpSocket.setSoTimeout(1);
             this.udpSocket = udpSocket;
             while (!udpSocket.isClosed()) {
                 try {
@@ -668,7 +711,7 @@ public class ServerMain implements FileSystemObserver {
 
                     // Check if this is a new peer
                     if (connectedPeer == null) {
-                        if (getIncomingPeerCount() < maxIncomingConnections) {
+                        if (getIncomingPeerCount() < maxIncomingConnections.get()) {
                             // Create the peer if we have room for another
                             connectedPeer = new PeerUDP(name, this,
                                                         PeerConnection.State.WAIT_FOR_REQUEST,
@@ -687,6 +730,7 @@ public class ServerMain implements FileSystemObserver {
                     // The actual message may be shorter than what we got from the socket
                     String packetData = new String(packet.getData(), 0, packet.getLength());
                     connectedPeer.receiveMessage(packetData);
+                } catch (SocketTimeoutException ignored) {
                 } catch (IOException e) {
                     log.severe("Failed receiving from peer: " + e.getMessage());
                 }

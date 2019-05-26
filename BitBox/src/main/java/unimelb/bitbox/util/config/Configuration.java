@@ -1,11 +1,14 @@
-package unimelb.bitbox.util;
+package unimelb.bitbox.util.config;
 
+import unimelb.bitbox.util.fs.FileWatcher;
+
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -24,30 +27,51 @@ public class Configuration {
 	private static Logger log = Logger.getLogger(Configuration.class.getName());
     // the configuration file is stored in the root of the class path as a .properties file
     private static final String CONFIGURATION_FILE = "configuration.properties";
+    private static final File file = new File(CONFIGURATION_FILE);
+    private static final FileWatcher watcher = new FileWatcher(file, Configuration::updateValues);
+    private static long modified;
 
-    private static final Properties properties;
+    static final List<CfgValue> watchedValues = Collections.synchronizedList(new ArrayList<>());
+
+    static boolean isOutdated() {
+        return new File(CONFIGURATION_FILE).lastModified() != modified;
+    }
+
+    static void updateValues() {
+        if (isOutdated()) {
+            synchronized (watchedValues) {
+                loadProperties();
+                watchedValues.forEach(CfgValue::get);
+            }
+        }
+    }
+
+    private static Properties properties;
 
     // use static initializer to read the configuration file when the class is loaded
     static {
+        loadProperties();
+        watcher.start();
+    }
+
+    private static void loadProperties() {
         properties = new Properties();
         try (InputStream inputStream = new FileInputStream(CONFIGURATION_FILE)) {
+            modified = new File(CONFIGURATION_FILE).lastModified();
             properties.load(inputStream);
         } catch (IOException e) {
             log.warning("Could not read file " + CONFIGURATION_FILE);
         }
     }
 
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-	public static Map<String, String> getConfiguration() {
-        // ugly workaround to get String as generics
-        Map temp = properties;
-        Map<String, String> map = new HashMap<String, String>(temp);
-        // prevent the returned configuration from being modified 
-        return Collections.unmodifiableMap(map);
+    public static boolean contains(String key) {
+        return properties.containsKey(key);
     }
 
-
     public static String getConfigurationValue(String key) {
+        if (properties == null) {
+            loadProperties();
+        }
         // EXTENSION: prevent spurious errors due to typos
         return properties.getProperty(key).trim();
     }
@@ -55,5 +79,4 @@ public class Configuration {
     // private constructor to prevent initialization
     private Configuration() {
     }
-
 }

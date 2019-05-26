@@ -1,4 +1,4 @@
-package unimelb.bitbox.util;
+package unimelb.bitbox.util.fs;
 
 import unimelb.bitbox.ServerMain;
 

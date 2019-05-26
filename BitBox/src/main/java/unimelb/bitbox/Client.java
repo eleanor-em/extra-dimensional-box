@@ -12,7 +12,12 @@ import unimelb.bitbox.client.AuthResponseParser;
 import unimelb.bitbox.client.ClientArgsException;
 import unimelb.bitbox.client.requests.ClientRequest;
 import unimelb.bitbox.client.requests.ClientRequestProtocol;
-import unimelb.bitbox.util.*;
+import unimelb.bitbox.util.crypto.Crypto;
+import unimelb.bitbox.util.crypto.CryptoException;
+import unimelb.bitbox.util.network.HostPort;
+import unimelb.bitbox.util.network.HostPortParseException;
+import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.network.ResponseFormatException;
 
 import javax.crypto.SecretKey;
 import java.io.*;

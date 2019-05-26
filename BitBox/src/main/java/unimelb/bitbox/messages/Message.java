@@ -1,7 +1,7 @@
 package unimelb.bitbox.messages;
 
 import unimelb.bitbox.ServerMain;
-import unimelb.bitbox.util.JsonDocument;
+import unimelb.bitbox.util.network.JsonDocument;
 
 /*
  * Base class for all Messages that peers can send.

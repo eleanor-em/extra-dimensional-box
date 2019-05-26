@@ -1,6 +1,6 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.util.JsonDocument;
+import unimelb.bitbox.util.network.JsonDocument;
 
 /**
  * @Auther Benjamin(Jingyi Li) Li

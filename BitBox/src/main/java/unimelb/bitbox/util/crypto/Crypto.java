@@ -1,11 +1,13 @@
-package unimelb.bitbox.util;
+package unimelb.bitbox.util.crypto;
+
+import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.network.ResponseFormatException;
 
 import javax.crypto.*;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.SecureRandom;
-import java.util.Arrays;
 import java.util.Base64;
 
 /**
@@ -14,7 +16,7 @@ import java.util.Base64;
 public class Crypto {
     private static final int AES_KEY_BITS = 128;
     public static final int AES_KEY_BYTES = AES_KEY_BITS / 8;
-    private static final int PUBLIC_KEY_BYTES = 256;
+    public static final int RSA_KEY_BYTES = 256;
 
     /**
      * Generates a secret AES key.
@@ -45,20 +47,14 @@ public class Crypto {
         try {
             assignCSRNG();
 
-            Cipher encipher = Cipher.getInstance("RSA/ECB/NoPadding");
+            Cipher encipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
             encipher.init(Cipher.PUBLIC_KEY, publicKey);
             // We need to pad the message to 256 bytes total, and Aaron has requested that the padding data be random
             // and *appended* to the message. However, if the message does not have a leading null byte, there's a very
             // good chance that it will be larger than the RSA modulus when converted to a BigInteger. This causes a
             // BadPaddingException. To this end, we simply provide a total message that is 255 bytes long, and allow
             // Java to prepend a null byte.
-            byte[] padding = new byte[PUBLIC_KEY_BYTES - AES_KEY_BYTES - 1];
-            rand.nextBytes(padding);
-
-            byte[] input = Arrays.copyOf(secretKey.getEncoded(), PUBLIC_KEY_BYTES - 1);
-            System.arraycopy(padding, 0, input, AES_KEY_BYTES, padding.length);
-
-            byte[] encrypted = encipher.doFinal(input);
+            byte[] encrypted = encipher.doFinal(secretKey.getEncoded());
             return new String(Base64.getEncoder().encode(encrypted));
         } catch (NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException | BadPaddingException | IllegalBlockSizeException e) {
             throw new CryptoException(e);

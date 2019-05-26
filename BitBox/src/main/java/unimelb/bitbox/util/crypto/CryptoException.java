@@ -1,4 +1,4 @@
-package unimelb.bitbox.util;
+package unimelb.bitbox.util.crypto;
 
 public class CryptoException extends Exception {
     private Exception cause;

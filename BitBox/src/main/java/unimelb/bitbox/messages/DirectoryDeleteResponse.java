@@ -1,6 +1,6 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.util.FileSystemManager;
+import unimelb.bitbox.util.fs.FileSystemManager;
 
 public class DirectoryDeleteResponse extends Message {
     private static final String SUCCESS = "directory deleted";

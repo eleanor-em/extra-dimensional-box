@@ -4,9 +4,9 @@ import org.jetbrains.annotations.NotNull;
 import unimelb.bitbox.messages.FileBytesRequest;
 import unimelb.bitbox.messages.FileBytesResponse;
 import unimelb.bitbox.messages.InvalidProtocol;
-import unimelb.bitbox.util.FileSystemManager;
-import unimelb.bitbox.util.JsonDocument;
-import unimelb.bitbox.util.ResponseFormatException;
+import unimelb.bitbox.util.fs.FileSystemManager;
+import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.network.ResponseFormatException;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -103,10 +103,9 @@ public class FileReadWriteThreadPool {
         String pathName = document.require("pathName");
         long position = document.require("position");
         // ELEANOR: the length is the minimum of the bytes remaining and the block size
-        long length = document.require("length");/*Math.min(fileDescriptor.getLong("fileSize") - position,
-                               Long.parseLong(Configuration.getConfigurationValue("blockSize")));*/
+        long length = document.require("length");
         // Cap length at 8192 if UDP
-        length = peer.server.mode == ServerMain.CONNECTION_MODE.UDP ? Math.min(8192, length) : length;
+        length = ServerMain.mode.get() == ServerMain.ConnectionMode.UDP ? Math.min(8192, length) : length;
         Runnable worker = new ReadWorker(peer, document, position, length);
         executor.execute(worker);
 

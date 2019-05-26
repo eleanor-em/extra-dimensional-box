@@ -1,9 +1,9 @@
 package unimelb.bitbox.client;
 
-import unimelb.bitbox.util.Crypto;
-import unimelb.bitbox.util.CryptoException;
-import unimelb.bitbox.util.JsonDocument;
-import unimelb.bitbox.util.ResponseFormatException;
+import unimelb.bitbox.util.crypto.Crypto;
+import unimelb.bitbox.util.crypto.CryptoException;
+import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.network.ResponseFormatException;
 
 import javax.crypto.*;
 import javax.crypto.spec.SecretKeySpec;
@@ -39,7 +39,7 @@ public class AuthResponseParser {
 
     /**
      * Decrypts the received secret key using the provided private key.
-     * See {@link unimelb.bitbox.util.Crypto#encryptSecretKey} for details on the quirks involved.
+     * See {@link Crypto#encryptSecretKey} for details on the quirks involved.
      *
      * @param privateKey the private key to use for decryption
      * @return the decrypted secret key
@@ -53,7 +53,10 @@ public class AuthResponseParser {
                 decipher.init(Cipher.PRIVATE_KEY, privateKey);
                 byte[] decrypted = decipher.doFinal(key);
                 // We have a leading 0 byte, so we ignore the first index
-                return new SecretKeySpec(decrypted, 1, Crypto.AES_KEY_BYTES, "AES");
+                return new SecretKeySpec(decrypted,
+                                      Crypto.RSA_KEY_BYTES - Crypto.AES_KEY_BYTES,
+                                         Crypto.AES_KEY_BYTES,
+                                      "AES");
             } catch (NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException | BadPaddingException | IllegalBlockSizeException e) {
                 throw new CryptoException(e);
             }

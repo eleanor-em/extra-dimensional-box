@@ -1,6 +1,6 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.util.JsonDocument;
+import unimelb.bitbox.util.network.JsonDocument;
 
 public class FileCreateRequest extends Message {
     public FileCreateRequest(JsonDocument fileDescriptor, String pathName) {

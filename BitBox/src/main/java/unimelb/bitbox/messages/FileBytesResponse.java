@@ -1,7 +1,6 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.util.JsonDocument;
-import unimelb.bitbox.util.ResponseFormatException;
+import unimelb.bitbox.util.network.JsonDocument;
 
 public class FileBytesResponse extends Message {
     public static String SUCCESS = "successful read";

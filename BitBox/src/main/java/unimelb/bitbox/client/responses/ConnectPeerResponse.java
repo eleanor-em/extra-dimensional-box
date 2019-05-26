@@ -1,7 +1,7 @@
 package unimelb.bitbox.client.responses;
 
 import unimelb.bitbox.ServerMain;
-import unimelb.bitbox.util.HostPort;
+import unimelb.bitbox.util.network.HostPort;
 
 /**
  * Generates the message content of CONNECT_PEER

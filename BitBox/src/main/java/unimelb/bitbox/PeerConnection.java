@@ -3,9 +3,9 @@ package unimelb.bitbox;
 import unimelb.bitbox.messages.HandshakeRequest;
 import unimelb.bitbox.messages.Message;
 import unimelb.bitbox.messages.ReceivedMessage;
-import unimelb.bitbox.util.Configuration;
-import unimelb.bitbox.util.HostPort;
-import unimelb.bitbox.util.HostPortParseException;
+import unimelb.bitbox.util.config.CfgValue;
+import unimelb.bitbox.util.network.HostPort;
+import unimelb.bitbox.util.network.HostPortParseException;
 
 import java.io.*;
 import java.net.DatagramPacket;
@@ -321,28 +321,25 @@ class PeerUDP extends PeerConnection {
     private class RetryThread extends Thread {
         private Message message;
         private PeerUDP parent;
-        private final int RETRY_COUNT;
-        private final int RETRY_TIME;
+        private CfgValue<Integer> retryCount = CfgValue.createInt("udpRetries");
+        private CfgValue<Integer> retryTime = CfgValue.createInt("udpTimeout");
         private int retries = 0;
+        private AtomicBoolean alive = new AtomicBoolean(true);
 
         public RetryThread(PeerUDP parent, Message message) {
             this.parent = parent;
             this.message = message;
-
-            // Load settings
-            RETRY_COUNT = Integer.parseInt(Configuration.getConfigurationValue("udpRetries"));
-            RETRY_TIME = Integer.parseInt(Configuration.getConfigurationValue("udpTimeout"));
         }
 
         private boolean shouldRetry() {
             synchronized (this) {
-                return retries < RETRY_COUNT;
+                return alive.get() && retries < retryCount.get();
             }
         }
 
         public void kill() {
             synchronized (this) {
-                retries = RETRY_COUNT;
+                alive.set(false);
                 interrupt();
             }
         }
@@ -351,18 +348,22 @@ class PeerUDP extends PeerConnection {
         public void run() {
             while (shouldRetry()) {
                 try {
-                    Thread.sleep(RETRY_TIME);
+                    Thread.sleep(retryTime.get());
                 } catch (InterruptedException e) {
                     return;
                 }
-                ServerMain.log.info(parent.getForeignName() + ": resending "  + message.getCommand() + " (" + retries + ")");
-                parent.retryMessage(message);
+                if (alive.get()) {
+                    ServerMain.log.info(parent.getForeignName() + ": resending " + message.getCommand() + " (" + retries + ")");
+                    parent.retryMessage(message);
 
-                synchronized (this) {
-                    ++retries;
+                    synchronized (this) {
+                        ++retries;
+                    }
                 }
             }
-            ServerMain.log.warning(parent.getForeignName() + ": timed out: " + message.getCommand());
+            if (alive.get()) {
+                ServerMain.log.warning(parent.getForeignName() + ": timed out: " + message.getCommand());
+            }
             parent.close();
         }
     }

@@ -1,9 +1,9 @@
 package unimelb.bitbox.client.responses;
 
 import unimelb.bitbox.ServerMain;
-import unimelb.bitbox.util.HostPort;
-import unimelb.bitbox.util.JsonDocument;
-import unimelb.bitbox.util.ResponseFormatException;
+import unimelb.bitbox.util.network.HostPort;
+import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.network.ResponseFormatException;
 
 /**
  * Parent class of responses to client requests

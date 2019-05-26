@@ -2,38 +2,54 @@ package unimelb.bitbox.client;
 
 import unimelb.bitbox.ServerMain;
 import unimelb.bitbox.client.responses.ClientResponse;
-import unimelb.bitbox.util.*;
+import unimelb.bitbox.util.config.CfgValue;
+import unimelb.bitbox.util.crypto.Crypto;
+import unimelb.bitbox.util.crypto.CryptoException;
+import unimelb.bitbox.util.crypto.SSHPublicKey;
+import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.network.ResponseFormatException;
 
 import javax.crypto.SecretKey;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.InvalidKeyException;
-import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * An example class that acts as a server for the client.
  * To integrate with the project, this code should be adapted to fit into ServerMain.
  */
 public class Server implements Runnable {
-    // ELEANOR: Nothing needs to be static here; since we instantiate the class, better to be consistent.
-    private final int clientPort = Integer.parseInt(Configuration.getConfigurationValue("clientPort"));
-    private static final String authorized_keys = Configuration.getConfigurationValue("authorized_keys");
-    private final ArrayList<SSHPublicKey> keys = new ArrayList<>();
+    private static final CfgValue<Integer> clientPort = CfgValue.createInt("clientPort");
+    private static final CfgValue<String> authorizedKeys = CfgValue.create("authorized_keys");
+
+    private final Set<SSHPublicKey> keys = new HashSet<>();
     private SecretKey key;
     private ServerMain server;
 
+    private ExecutorService pool = Executors.newCachedThreadPool();
+
     public Server(ServerMain server) {
         this.server = server;
-        // Load the public keys
-        String[] keyStrings = authorized_keys.split(",");
-        for (String keyString : keyStrings) {
-            try {
-                keys.add(new SSHPublicKey(keyString.trim()));
-            } catch (InvalidKeyException e) {
-                ServerMain.log.warning("invalid keystring " + keyString + ": " + e.getMessage());
+        authorizedKeys.setOnChanged(this::loadKeys);
+    }
+
+    private void loadKeys() {
+        synchronized (keys) {
+            // Load the public keys
+            String[] keyStrings = authorizedKeys.get().split(",");
+            for (String keyString : keyStrings) {
+                try {
+                    keys.add(new SSHPublicKey(keyString.trim()));
+                } catch (InvalidKeyException e) {
+                    ServerMain.log.warning("invalid keystring " + keyString + ": " + e.getMessage());
+                }
             }
         }
     }
@@ -53,8 +69,6 @@ public class Server implements Runnable {
                     out.flush();
                 } catch (ResponseFormatException e) {
                     ServerMain.log.warning(client + ": malformed message: " + e.getMessage());
-                } catch (CryptoException e) {
-                    ServerMain.log.warning(client + ": error while responding: " + e.getMessage());
                 }
             }
         } catch (IOException e) {
@@ -67,10 +81,10 @@ public class Server implements Runnable {
     @Override
     public void run() {
         // Accept connections repeatedly.
-        try (ServerSocket serverSocket = new ServerSocket(clientPort)) {
+        try (ServerSocket serverSocket = new ServerSocket(clientPort.get())) {
             while (!serverSocket.isClosed()) {
                 Socket socket = serverSocket.accept();
-                new Thread(() -> handleClient(new ClientData(socket))).start();
+                pool.submit(() -> handleClient(new ClientData(socket)));
             }
         } catch (IOException e) {
             ServerMain.log.severe("Error with server socket:");
@@ -84,16 +98,22 @@ public class Server implements Runnable {
     }
 
     private JsonDocument handleMessage(String message, ClientData client)
-            throws CryptoException, ResponseFormatException {
+            throws ResponseFormatException {
+        JsonDocument response = new JsonDocument();
         // Parse the message. If there is a payload key, then we need to decrypt the payload to get the actual message
         JsonDocument document = JsonDocument.parse(message);
-        if (document.containsKey("payload")) {
-            document = Crypto.decryptMessage(key, document);
-        }
         ServerMain.log.info(client + ": received " + document.toJson());
 
-        // Generate a response
-        JsonDocument response = new JsonDocument();
+        if (document.containsKey("payload")) {
+            try {
+                document = Crypto.decryptMessage(key, document);
+            } catch (CryptoException e) {
+                response.append("command", "AUTH_RESPONSE");
+                response.append("status", false);
+                response.append("message", "failed decrypting request: " + e.getMessage());
+                return response;
+            }
+        }
 
         String command = document.require("command");
 
@@ -105,18 +125,19 @@ public class Server implements Runnable {
 
             // Look up the provided ident in our list of keys to find the relevant key
             // (if there are several matching idents, just pick the first)
-            Optional<SSHPublicKey> matchedKey = keys.stream()
-                    .filter(key -> key.getIdent().equals(ident))
-                    .findFirst();
+            Optional<SSHPublicKey> matchedKey;
+            synchronized (keys) {
+                matchedKey = keys.stream()
+                        .filter(key -> key.getIdent().equals(ident))
+                        .findFirst();
+            }
             if (matchedKey.isPresent()) {
                 try {
-                    ServerMain.log.info(client + ": generating new session key");
                     // We attempt to generate a key, and then encrypt it with the looked-up public key
                     key = Crypto.generateSecretKey();
-                    ServerMain.log.info(client + ": generated session key " + new String(Base64.getEncoder().encode(key.getEncoded())));
                     String encryptedKey = Crypto.encryptSecretKey(key, matchedKey.get().getKey());
+                    ServerMain.log.info(client + ": generated session key " + Base64.getEncoder().encodeToString(key.getEncoded()));
                     response.append("AES128", encryptedKey);
-                    ServerMain.log.info(client + ": encrypted session key");
                     response.append("status", true);
                     response.append("message", "public key found");
                 } catch (CryptoException e) {
@@ -138,10 +159,14 @@ public class Server implements Runnable {
 
         ServerMain.log.info(client + ": sending " + response.toJson());
         if (client.isAuthenticated()) {
-            response = Crypto.encryptMessage(key, response);
+            try {
+                response = Crypto.encryptMessage(key, response);
+            } catch (CryptoException e) {
+                response.append("status", false);
+                response.append("message", "failed encrypting response: " + e.getMessage());
+            }
         }
         client.authenticate();
-        ServerMain.log.info(client + ": response encrypted");
         return response;
     }
 }

@@ -1,4 +1,4 @@
-package unimelb.bitbox.util;
+package unimelb.bitbox.util.network;
 
 public class HostPortParseException extends Exception {
     public HostPortParseException(String failedString) {

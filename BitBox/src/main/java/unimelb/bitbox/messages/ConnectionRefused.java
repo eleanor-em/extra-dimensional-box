@@ -1,7 +1,7 @@
 package unimelb.bitbox.messages;
 
 import unimelb.bitbox.PeerConnection;
-import unimelb.bitbox.util.JsonDocument;
+import unimelb.bitbox.util.network.JsonDocument;
 
 import java.util.ArrayList;
 import java.util.Collection;

@@ -1,7 +1,7 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.util.JsonDocument;
-import unimelb.bitbox.util.FileSystemManager;
+import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.fs.FileSystemManager;
 
 public class FileDeleteResponse extends Message{
     private static final String SUCCESS = "File deleted";

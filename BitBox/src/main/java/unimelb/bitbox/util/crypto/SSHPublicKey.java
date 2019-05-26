@@ -1,4 +1,4 @@
-package unimelb.bitbox.util;
+package unimelb.bitbox.util.crypto;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -23,6 +23,7 @@ public class SSHPublicKey {
     private static final byte[] INITIAL_PREFIX = new byte[]{0x00, 0x00, 0x00, 0x07, 0x73, 0x73, 0x68, 0x2d, 0x72, 0x73, 0x61};
     private static final Pattern SSH_RSA_PATTERN = Pattern.compile("ssh-rsa[\\s]+([A-Za-z0-9/+]+=*)[\\s]+(.*)");
 
+    private String keyString;
     private PublicKey key;
     public PublicKey getKey() {
         return key;
@@ -48,6 +49,8 @@ public class SSHPublicKey {
      * @throws InvalidKeyException in case the key is not a valid key
      */
     public SSHPublicKey(String keyString) throws InvalidKeyException {
+        this.keyString = keyString;
+
         Matcher matcher = SSH_RSA_PATTERN.matcher(keyString.trim());
         if (!matcher.matches()) {
             throw new InvalidKeyException("Key format is invalid for SSH RSA");
@@ -86,5 +89,20 @@ public class SSHPublicKey {
         }
 
         return new BigInteger(valueArray);
+    }
+
+    @Override
+    public String toString() {
+        return keyString;
+    }
+
+    @Override
+    public boolean equals(Object rhs) {
+        return rhs instanceof SSHPublicKey && rhs.toString().equals(toString());
+    }
+
+    @Override
+    public int hashCode() {
+        return toString().hashCode();
     }
 }

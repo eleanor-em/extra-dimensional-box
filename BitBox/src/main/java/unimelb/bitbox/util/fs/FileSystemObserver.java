@@ -1,6 +1,6 @@
-package unimelb.bitbox.util;
+package unimelb.bitbox.util.fs;
 
-import unimelb.bitbox.util.FileSystemManager.FileSystemEvent;
+import unimelb.bitbox.util.fs.FileSystemManager.FileSystemEvent;
 
 public interface FileSystemObserver {
 	public void processFileSystemEvent(FileSystemEvent fileSystemEvent);

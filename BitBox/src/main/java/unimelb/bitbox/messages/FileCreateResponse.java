@@ -1,9 +1,9 @@
 package unimelb.bitbox.messages;
 
 import unimelb.bitbox.ServerMain;
-import unimelb.bitbox.util.FileSystemManager;
-import unimelb.bitbox.util.JsonDocument;
-import unimelb.bitbox.util.ResponseFormatException;
+import unimelb.bitbox.util.fs.FileSystemManager;
+import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.network.ResponseFormatException;
 
 public class FileCreateResponse extends Message {
     private static final String SUCCESS = "file loader ready";

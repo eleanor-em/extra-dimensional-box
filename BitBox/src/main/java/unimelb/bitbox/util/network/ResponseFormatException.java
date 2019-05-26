@@ -1,4 +1,4 @@
-package unimelb.bitbox.util;
+package unimelb.bitbox.util.network;
 
 
 import org.json.simple.parser.ParseException;

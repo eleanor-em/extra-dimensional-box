@@ -1,8 +1,8 @@
 package unimelb.bitbox.client.requests;
 
-import unimelb.bitbox.util.JsonDocument;
-import unimelb.bitbox.util.HostPort;
-import unimelb.bitbox.util.HostPortParseException;
+import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.network.HostPort;
+import unimelb.bitbox.util.network.HostPortParseException;
 
 /**
  * Parent class of requests sent by the Client to a Peer.
