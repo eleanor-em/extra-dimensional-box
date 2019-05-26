@@ -193,11 +193,11 @@ class MessageProcessingThread extends Thread {
              */
             case Message.HANDSHAKE_REQUEST:
                 HostPort hostPort = HostPort.fromJSON(document.require("hostPort"));
+                ServerMain.log.info("Received connection request from " + hostPort);
 
                 if (peer.getState() == PeerConnection.State.WAIT_FOR_REQUEST) {
                     // we need to pass the host and port we received, as the socket's data may not be accurate
                     // (since this socket was an accepted connection)
-                    ServerMain.log.info("Received connection request from " + hostPort);
 
                     // ELEANOR: this has to be done here because we don't know the foreign port until now
                     // refuse connection if we are already connected to this address

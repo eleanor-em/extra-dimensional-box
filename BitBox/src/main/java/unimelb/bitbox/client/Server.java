@@ -53,11 +53,15 @@ public class Server implements Runnable {
                     out.flush();
                 } catch (ResponseFormatException e) {
                     ServerMain.log.warning(client + ": malformed message: " + e.getMessage());
+                } catch (CryptoException e) {
+                    ServerMain.log.warning(client + ": error while responding: " + e.getMessage());
                 }
             }
-        } catch (IOException | CryptoException e) {
+        } catch (IOException e) {
             ServerMain.log.warning(client + ": error while responding: " + e.getMessage());
         }
+
+        ServerMain.log.info(client + ": disconnected");
     }
 
     @Override
@@ -106,13 +110,13 @@ public class Server implements Runnable {
                     .findFirst();
             if (matchedKey.isPresent()) {
                 try {
-                    ServerMain.log.info(ident + ": generating new session key");
+                    ServerMain.log.info(client + ": generating new session key");
                     // We attempt to generate a key, and then encrypt it with the looked-up public key
                     key = Crypto.generateSecretKey();
-                    ServerMain.log.info(ident + ": generated session key " + new String(Base64.getEncoder().encode(key.getEncoded())));
+                    ServerMain.log.info(client + ": generated session key " + new String(Base64.getEncoder().encode(key.getEncoded())));
                     String encryptedKey = Crypto.encryptSecretKey(key, matchedKey.get().getKey());
                     response.append("AES128", encryptedKey);
-                    ServerMain.log.info(ident + ": encrypted session key " + encryptedKey);
+                    ServerMain.log.info(client + ": encrypted session key");
                     response.append("status", true);
                     response.append("message", "public key found");
                 } catch (CryptoException e) {
@@ -136,8 +140,8 @@ public class Server implements Runnable {
         if (client.isAuthenticated()) {
             response = Crypto.encryptMessage(key, response);
         }
-        ServerMain.log.info(client + ": response encrypted");
         client.authenticate();
+        ServerMain.log.info(client + ": response encrypted");
         return response;
     }
 }
@@ -181,7 +185,10 @@ class ClientData {
 
     @Override
     public String toString() {
-        return ident + ": " + (authenticated ? "authenticated" : "unauthenticated");
+        if (!authenticated) {
+            return ident + " (unauthenticated)";
+        }
+        return ident;
     }
 
     @Override

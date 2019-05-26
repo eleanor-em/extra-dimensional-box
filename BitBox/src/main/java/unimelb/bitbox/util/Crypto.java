@@ -31,13 +31,9 @@ public class Crypto {
     }
 
     private static SecureRandom rand;
-    private static synchronized void assignCRNG() throws CryptoException {
+    private static synchronized void assignCSRNG() {
         if (rand == null) {
-            try {
-                rand = SecureRandom.getInstanceStrong();
-            } catch (NoSuchAlgorithmException e) {
-                throw new CryptoException(e);
-            }
+            rand = new SecureRandom();
         }
     }
 
@@ -47,7 +43,7 @@ public class Crypto {
     public static String encryptSecretKey(SecretKey secretKey, PublicKey publicKey)
             throws CryptoException {
         try {
-            assignCRNG();
+            assignCSRNG();
 
             Cipher encipher = Cipher.getInstance("RSA/ECB/NoPadding");
             encipher.init(Cipher.PUBLIC_KEY, publicKey);
@@ -97,8 +93,8 @@ public class Crypto {
      * @param max the maximum value to return
      * @return the generated number
      */
-    public static int cryptoRandRange(int min, int max) throws CryptoException {
-        assignCRNG();
+    public static int cryptoRandRange(int min, int max) {
+        assignCSRNG();
         // + 1 because nextInt(bound) is exclusive
         return min + rand.nextInt(max - min + 1);
     }

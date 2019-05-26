@@ -52,12 +52,8 @@ public class AuthResponseParser {
                 Cipher decipher = Cipher.getInstance("RSA/ECB/NoPadding");
                 decipher.init(Cipher.PRIVATE_KEY, privateKey);
                 byte[] decrypted = decipher.doFinal(key);
-                // Ignore any null bytes prepended to the key
-                int nullHeader = 0;
-                while (decrypted[nullHeader] == 0) {
-                    ++nullHeader;
-                }
-                return new SecretKeySpec(decrypted, nullHeader, Crypto.AES_KEY_BYTES, "AES");
+                // We have a leading 0 byte, so we ignore the first index
+                return new SecretKeySpec(decrypted, 1, Crypto.AES_KEY_BYTES, "AES");
             } catch (NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException | BadPaddingException | IllegalBlockSizeException e) {
                 throw new CryptoException(e);
             }
