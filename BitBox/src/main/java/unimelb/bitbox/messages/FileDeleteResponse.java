@@ -12,15 +12,17 @@ public class FileDeleteResponse extends Message{
         }
         String reply = SUCCESS;
         try {
-            if (!fsManager.isSafePathName(pathName)) {
-                reply = "unsafe pathname given";
-            } else if (!fsManager.fileNameExists(pathName)) {
-                reply = "pathname does not exist";
-            } else {
-                long lastModified = fileDescriptor.require("lastModified");
-                String md5 = fileDescriptor.require("md5");
-                if (!fsManager.deleteFile(pathName, lastModified, md5)) {
-                    reply = "there was a problem deleting the file";
+            if (!fsManager.cancelFileLoader(pathName)) {
+                if (!fsManager.isSafePathName(pathName)) {
+                    reply = "unsafe pathname given";
+                } else if (!fsManager.fileNameExists(pathName)) {
+                    reply = "pathname does not exist";
+                } else {
+                    long lastModified = fileDescriptor.require("lastModified");
+                    String md5 = fileDescriptor.require("md5");
+                    if (!fsManager.deleteFile(pathName, lastModified, md5)) {
+                        reply = "there was a problem deleting the file";
+                    }
                 }
             }
         } catch (Exception e) {

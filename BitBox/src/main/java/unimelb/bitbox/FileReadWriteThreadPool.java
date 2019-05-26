@@ -137,16 +137,11 @@ public class FileReadWriteThreadPool {
             ServerMain.log.info(peer + ": write " + pathName +
                     " at position: [" + position + "/" + fileSize + "]");
         } else {
-            FileTransfer ft = new FileTransfer(pathName, peer);
-            try {
-                fsManager.cancelFileLoader(pathName);
-            } catch (IOException e) {
-                ServerMain.log.warning("failed to delete file loader of " + pathName);
-            }
-            fileModifiedDates.remove(ft);
             // ELEANOR: it's useful to know /why/ we got an unsuccessful response ;)
             ServerMain.log.warning("unsuccessful response: " + document.require("message"));
-            ServerMain.log.info(peer.getForeignName() + ": closed file loader of " + pathName);
+            ServerMain.log.info("Retrying byte request for " + pathName);
+            // Let's try to read the bytes again!
+            sendReadRequest(peer, pathName, fileDescriptor, position);
         }
     }
 
@@ -252,6 +247,17 @@ public class FileReadWriteThreadPool {
                                                        .filter(ft -> ft.peer.equals(peer))
                                                        .collect(Collectors.toList());
         toRemove.forEach(fileModifiedDates::remove);
+        // Clear any file transfers associated with this peer
+        toRemove.forEach(ft -> {
+            try {
+                if (!fsManager.cancelFileLoader(ft.pathName)) {
+                    throw new IOException(ft.pathName);
+                }
+                ServerMain.log.info(ft.peer.getForeignName() + ":Cancelling transfer of " + ft.pathName);
+            } catch (IOException e) {
+                ServerMain.log.warning(ft.peer.getForeignName() + ": failed cancelling file loader: "+ e.getMessage());
+            }
+        });
     }
 
     class ReadWorker extends Worker {

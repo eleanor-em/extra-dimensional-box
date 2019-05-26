@@ -664,35 +664,29 @@ public class ServerMain implements FileSystemObserver {
                     HostPort hostPort = new HostPort(packet.getAddress().toString(), packet.getPort());
 
                     String name = getAnyName();
-                    PeerConnection connectedPeer;
-                    synchronized (peers) {
-                        connectedPeer = peers.stream()
-                                .filter(peer -> hostPort.fuzzyEquals(peer.getHostPort()))
-                                .findFirst()
-                                .orElseGet(() -> {
-                                    if (getIncomingPeerCount() < maxIncomingConnections) {
-                                        final PeerUDP result = new PeerUDP(name, this,
-                                                PeerConnection.State.WAIT_FOR_REQUEST,
-                                                udpSocket, packet);
-                                        peers.add(result);
-                                        return result;
-                                    } else {
-                                        return null;
-                                    }
-                                });
-                    }
-                    // Send CONNECTION_REFUSED
+                    PeerConnection connectedPeer = getPeer(hostPort);
+
+                    // Check if this is a new peer
                     if (connectedPeer == null) {
-                        Message message = new ConnectionRefused(getActivePeers());
-                        byte[] responseBuffer = (message.encode() + "\n").getBytes(StandardCharsets.UTF_8);
-                        packet.setData(responseBuffer);
-                        packet.setLength(responseBuffer.length);
-                        udpSocket.send(packet);
-                    } else {
-                        // The actual message may be shorter than what we got from the socket
-                        String packetData = new String(packet.getData(), 0, packet.getLength());
-                        connectedPeer.receiveMessage(packetData);
+                        if (getIncomingPeerCount() < maxIncomingConnections) {
+                            // Create the peer if we have room for another
+                            connectedPeer = new PeerUDP(name, this,
+                                                        PeerConnection.State.WAIT_FOR_REQUEST,
+                                                        udpSocket, packet);
+                            peers.add(connectedPeer);
+                        } else {
+                            // Send CONNECTION_REFUSED
+                            Message message = new ConnectionRefused(getActivePeers());
+                            byte[] responseBuffer = (message.encode() + "\n").getBytes(StandardCharsets.UTF_8);
+                            packet.setData(responseBuffer);
+                            packet.setLength(responseBuffer.length);
+                            udpSocket.send(packet);
+                            continue;
+                        }
                     }
+                    // The actual message may be shorter than what we got from the socket
+                    String packetData = new String(packet.getData(), 0, packet.getLength());
+                    connectedPeer.receiveMessage(packetData);
                 } catch (IOException e) {
                     log.severe("Failed receiving from peer: " + e.getMessage());
                 }

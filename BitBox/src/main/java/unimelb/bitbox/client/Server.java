@@ -102,7 +102,7 @@ public class Server implements Runnable {
                     .findFirst();
             if (matchedKey.isPresent()) {
                 try {
-                    ServerMain.log.info("Generating new session key");
+                    ServerMain.log.info("Generating new session key for " + ident);
                     // We attempt to generate a key, and then encrypt it with the looked-up public key
                     key = Crypto.generateSecretKey();
                     ServerMain.log.info("Generated session key: " + new String(Base64.getEncoder().encode(key.getEncoded())));
@@ -112,12 +112,12 @@ public class Server implements Runnable {
                 } catch (CryptoException e) {
                     // In case the crypto algorithms failed, we send a failure response
                     e.printStackTrace();
-                    ServerMain.log.warning("Failed encryption: " + e.getMessage());
+                    ServerMain.log.warning("Failed encryption: " + e.getMessage() + ": " + ident);
                     response.append("status", false);
                     response.append("message", "error generating key: " + e.toString());
                 }
             } else {
-                ServerMain.log.warning("Client provided unknown ident");
+                ServerMain.log.warning("Client provided unknown ident: " + ident);
                 // If the ident wasn't found, inform the user
                 response.append("status", false);
                 response.append("message", "public key not found");
