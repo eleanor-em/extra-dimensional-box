@@ -9,10 +9,11 @@ abstract class OutgoingConnection extends Thread {
     private final BlockingQueue<OutgoingMessage> messages = new LinkedBlockingQueue<>();
     void deactivate() {
         active.set(false);
+        interrupt();
     }
 
     boolean isActive() {
-        return active.get();
+        return !isInterrupted() && active.get();
     }
 
     protected void addMessage(OutgoingMessage message) {

@@ -5,9 +5,12 @@ import java.net.ServerSocket;
 
 public class TCPSocket extends SocketWrapper {
     private ServerSocket socket;
-
     public TCPSocket(int port) throws IOException {
+        this(port, 0);
+    }
+    public TCPSocket(int port, int timeout) throws IOException {
         socket = new ServerSocket(port);
+        socket.setSoTimeout(timeout);
     }
 
     @Override

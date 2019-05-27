@@ -27,7 +27,7 @@ public class UDPConnectionHandler extends ConnectionHandler {
         // Maximum packet size is 65507 bytes
         byte[] buffer = new byte[65507];
 
-        setSocket(new UDPSocket(port));
+        setSocket(new UDPSocket(port, 100));
         Optional<DatagramSocket> maybeSocket = awaitUDPSocket();
         if (!maybeSocket.isPresent()) {
             return;
@@ -35,6 +35,7 @@ public class UDPConnectionHandler extends ConnectionHandler {
 
         DatagramSocket udpSocket = maybeSocket.get();
 
+        ServerMain.log.info("Listening on port " + this.port);
         while (!udpSocket.isClosed()) {
             try {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -69,6 +70,7 @@ public class UDPConnectionHandler extends ConnectionHandler {
                 ServerMain.log.severe("Failed receiving from peer: " + e.getMessage());
             }
         }
+        ServerMain.log.info("No longer listening on port " + this.port);
     }
 
     @Override

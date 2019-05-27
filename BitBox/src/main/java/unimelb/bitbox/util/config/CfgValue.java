@@ -73,7 +73,7 @@ public class CfgValue<T> {
 
     public T get() {
         if (hasChanged()) {
-            System.out.println(propertyName + " changed!");
+            Configuration.log.info("Configuation value `" + propertyName + "` changed");
             strValue = Configuration.getConfigurationValue(propertyName);
             if (converter != null) {
                 cached = converter.apply(strValue);

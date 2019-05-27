@@ -1,7 +1,7 @@
 package unimelb.bitbox.peers;
 
-import unimelb.bitbox.server.ServerMain;
 import unimelb.bitbox.messages.Message;
+import unimelb.bitbox.server.ServerMain;
 import unimelb.bitbox.util.config.CfgValue;
 
 import java.io.IOException;
@@ -21,18 +21,6 @@ public class PeerUDP extends PeerConnection {
         return retryThreads;
     }
 
-    // EXTENSION: Allow sockets with the wrong port
-    /*@Override
-    void activateDefault(String host, long port) {
-        synchronized (this) {
-            if (state != PeerState.CLOSED && state != PeerState.INACTIVE) {
-                // UDP peer already has accurate host and port
-                state = PeerState.ACTIVE;
-                KnownPeerTracker.addAddress(getHost() + ":" + getPort());
-            }
-        }
-    }*/
-
     public PeerUDP(String name, ServerMain server, boolean outgoing, DatagramSocket socket, DatagramPacket packet) {
         super(name, server, outgoing, packet.getAddress().toString().split("/")[1],
               packet.getPort(), new OutgoingConnectionUDP(socket, packet));
@@ -41,21 +29,11 @@ public class PeerUDP extends PeerConnection {
 
     // Override to not close the socket, as it's shared between all peers.
     @Override
-    public void close() {
-        synchronized (this) {
-            if (state == PeerState.CLOSED) {
-                return;
-            }
-            ServerMain.log.warning("Connection to peer `" + getForeignName() + "` closed.");
-            state = PeerState.CLOSED;
-            server.getConnection().closeConnection(this);
-
-            outConn.deactivate();
-            getRetryThreads().forEach((ignored, thread) -> thread.kill());
-        }
+    protected void closeInternal() {
+        getRetryThreads().forEach((ignored, thread) -> thread.kill());
     }
 
-    public void retryMessage(Message message) {
+    private void retryMessage(Message message) {
         sendMessageInternal(message);
     }
 
@@ -141,19 +119,19 @@ class OutgoingConnectionUDP extends OutgoingConnection {
 
     @Override
     public void run() {
-        ServerMain.log.info("Outgoing thread starting");
         while (!udpSocket.isClosed() && isActive()) {
             try {
                 OutgoingMessage message = takeMessage();
-                byte[] buffer = message.encoded().getBytes(StandardCharsets.UTF_8);
+                byte[] buffer = message.networkEncoded().getBytes(StandardCharsets.UTF_8);
                 packet.setData(buffer);
                 packet.setLength(buffer.length);
                 udpSocket.send(packet);
                 message.onSent.run();
-            } catch (IOException | InterruptedException | NullPointerException e) {
+            } catch (IOException e) {
                 ServerMain.log.severe("Error sending packet to UDP socket: " + e.getMessage());
+            } catch (InterruptedException e) {
+                ServerMain.log.info("thread interrupted: " + e.getMessage());
             }
         }
-        ServerMain.log.warning("Outgoing thread exiting");
     }
 }

@@ -12,32 +12,23 @@ import unimelb.bitbox.util.network.HostPort;
  * this queue. The IncomingConnectionTCP relays messages to the ServerThread's queue.
  */
 public abstract class PeerConnection {
+    // Data
     private final String name;
-
     private boolean wasOutgoing;
-
-    protected OutgoingConnection outConn;
-    public final ServerMain server;
-
     private HostPort localHostPort;
     private HostPort hostPort;
+    protected PeerState state;
+
+    // Objects needed
+    private OutgoingConnection outConn;
+    private final ServerMain server;
 
     public void forceIncoming() {
         wasOutgoing = false;
     }
 
-    enum PeerState {
-        WAIT_FOR_REQUEST,
-        WAIT_FOR_RESPONSE,
-        ACTIVE,
-        CLOSED,
-        INACTIVE
-    }
-
-    protected PeerState state;
-
     // Returns the current state of the PeerConnection
-    PeerState getState() {
+    protected PeerState getState() {
         synchronized (this) {
             return state;
         }
@@ -70,9 +61,9 @@ public abstract class PeerConnection {
             if (state == PeerState.WAIT_FOR_RESPONSE || state == PeerState.WAIT_FOR_REQUEST) {
                 ServerMain.log.info("Activating " + getForeignName());
                 state = PeerState.ACTIVE;
-                KnownPeerTracker.addAddress(hostPort);
             }
         }
+        KnownPeerTracker.addAddress(hostPort);
     }
 
     private void deactivate() {
@@ -132,7 +123,20 @@ public abstract class PeerConnection {
     }
 
     // Closes this peer.
-    public abstract void close();
+    public final void close() {
+        synchronized (this) {
+            if (state == PeerState.CLOSED) {
+                return;
+            }
+            state = PeerState.CLOSED;
+        }
+        ServerMain.log.warning("Connection to peer `" + getForeignName() + "` closed.");
+        outConn.deactivate();
+        server.getConnection().closeConnection(this);
+        closeInternal();
+    }
+
+    protected abstract void closeInternal();
 
     /**
      * Send a message to this peer. Validates the state first.
@@ -153,22 +157,15 @@ public abstract class PeerConnection {
      * Implementation of the actual sendMessage code, to allow default parameters.
      */
     private void sendMessage(Message message, Runnable onSent) {
-        // EXTENSION: Allow lack of handshakes.
-        //PeerState state = getState();
-        //if (state == PeerState.ACTIVE) {
         activateInternal();
         sendMessageInternal(message, onSent);
-        /*} else if (state != PeerState.CLOSED && state != PeerState.INACTIVE) {
-            //sendMessageInternal(new InvalidProtocol(this, "handshake must be completed first"), this::close);
-        }*/
     }
 
     /**
      * Send a message to this peer, regardless of state.
      */
     protected void sendMessageInternal(Message message) {
-        sendMessageInternal(message, () -> {
-        });
+        sendMessageInternal(message, () -> {});
     }
 
     /**
@@ -197,6 +194,7 @@ public abstract class PeerConnection {
      */
     public void notify(Message message) {}
 
+    @Override
     public String toString() {
         String address = hostPort.asAddress();
         String alias = hostPort.asAliasedAddress();
@@ -207,6 +205,7 @@ public abstract class PeerConnection {
         return name + " @ " + address;
     }
 
+    @Override
     public boolean equals(Object other) {
         if (other instanceof PeerConnection) {
             PeerConnection rhs = (PeerConnection) other;
@@ -229,7 +228,15 @@ class OutgoingMessage {
         this.onSent = onSent;
     }
 
-    public String encoded() {
+    public String networkEncoded() {
         return message.trim() + "\n";
     }
+}
+
+enum PeerState {
+    WAIT_FOR_REQUEST,
+    WAIT_FOR_RESPONSE,
+    ACTIVE,
+    CLOSED,
+    INACTIVE
 }

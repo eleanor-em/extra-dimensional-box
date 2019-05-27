@@ -18,22 +18,11 @@ public class PeerTCP extends PeerConnection {
     }
 
     @Override
-    public void close() {
-        synchronized (this) {
-            if (state == PeerState.CLOSED) {
-                return;
-            }
-            ServerMain.log.warning("Connection to peer `" + getForeignName() + "` closed.");
-
-            try {
-                socket.close();
-            } catch (IOException e) {
-                ServerMain.log.severe("Error closing socket: " + e.getMessage());
-            }
-            state = PeerState.CLOSED;
-
-            outConn.deactivate();
-            server.getConnection().closeConnection(this);
+    protected void closeInternal() {
+        try {
+            socket.close();
+        } catch (IOException e) {
+            ServerMain.log.severe("Error closing socket: " + e.getMessage());
         }
     }
 }
@@ -56,7 +45,7 @@ class IncomingConnectionTCP extends Thread {
                 consumer.receiveMessage(message);
             }
         } catch (IOException e) {
-            if (consumer.getState() != PeerConnection.PeerState.CLOSED) {
+            if (consumer.getState() != PeerState.CLOSED) {
                 ServerMain.log.severe("Error reading from socket: " + e.getMessage());
                 consumer.close();
             }
@@ -80,8 +69,10 @@ class OutgoingConnectionTCP extends OutgoingConnection {
                 out.flush();
                 message.onSent.run();
             }
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
             ServerMain.log.severe("Error writing to socket: " + e.getMessage());
+        } catch (InterruptedException e) {
+            ServerMain.log.info("thread interrupted: " + e.getMessage());
         }
     }
 }

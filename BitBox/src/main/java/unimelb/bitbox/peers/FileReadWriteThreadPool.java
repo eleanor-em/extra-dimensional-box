@@ -119,7 +119,7 @@ public class FileReadWriteThreadPool {
 
 
     /**
-     * This method checks if any encoded ByteBuffer is received successfully from other peers.
+     * This method checks if any networkEncoded ByteBuffer is received successfully from other peers.
      * If any, it adds and runs a WriteWorker to write the bytes.
      * The WriteWorker will decide if the peer should send another FILE_BYTES_REQUEST.
      */
@@ -288,7 +288,7 @@ public class FileReadWriteThreadPool {
                 return;
             }
             try {
-                ByteBuffer byteBuffer = peer.server.fileSystemManager.readFile(md5, position, length);
+                ByteBuffer byteBuffer = server.fileSystemManager.readFile(md5, position, length);
                 if (byteBuffer == null) {
                     reply = "no matching file found: " + md5 + ", " + position + ", " + length;
                 } else {

@@ -21,10 +21,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/**
- * An example class that acts as a server for the client.
- * To integrate with the project, this code should be adapted to fit into ServerMain.
- */
 public class Server implements Runnable {
     private static final CfgValue<Integer> clientPort = CfgValue.createInt("clientPort");
     private static final CfgValue<String> authorizedKeys = CfgValue.create("authorized_keys");

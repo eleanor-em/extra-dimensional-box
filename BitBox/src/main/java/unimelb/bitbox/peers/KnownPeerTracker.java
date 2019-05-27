@@ -7,9 +7,10 @@ import unimelb.bitbox.util.network.HostPortParseException;
 import java.io.*;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class KnownPeerTracker {
-    private static final Set<HostPort> addresses = new HashSet<>();
+    private static final Set<HostPort> addresses = ConcurrentHashMap.newKeySet();
     private static final String PEER_LIST_FILE = "peerlist";
     private static WriteAddresses worker = new WriteAddresses();
 
@@ -45,11 +46,16 @@ public class KnownPeerTracker {
         @Override
         public synchronized void run() {
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(PEER_LIST_FILE))) {
+                StringBuilder builder = new StringBuilder();
                 synchronized (addresses) {
                     for (HostPort hostPort : addresses) {
-                        writer.write(hostPort.asAliasedAddress() + " (via " + hostPort.asAddress() + ")" + "\n");
+                        builder.append(hostPort.asAliasedAddress())
+                               .append(" (via ")
+                               .append(hostPort.asAddress())
+                               .append(")\n");
                     }
                 }
+                writer.write(builder.toString());
             } catch (IOException e) {
                 e.printStackTrace();
             }

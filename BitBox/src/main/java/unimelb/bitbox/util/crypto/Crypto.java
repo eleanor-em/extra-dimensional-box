@@ -96,7 +96,7 @@ public class Crypto {
     }
 
     /**
-     * Encrypts a prepared message that has been encoded in JSON.
+     * Encrypts a prepared message that has been networkEncoded in JSON.
      * Returns a JSON message ready to be sent of the form {"payload":"CIPHERTEXT"}.
      */
     public static JSONDocument encryptMessage(SecretKey secretKey, JSONDocument message)

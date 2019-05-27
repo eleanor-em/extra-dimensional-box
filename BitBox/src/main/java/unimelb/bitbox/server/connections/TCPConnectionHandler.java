@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
@@ -23,7 +24,7 @@ public class TCPConnectionHandler extends ConnectionHandler {
     @Override
     void acceptConnections() throws IOException {
         // Need to set and then await in case there was already a socket created
-        setSocket(new TCPSocket(this.port));
+        setSocket(new TCPSocket(this.port, 100));
         Optional<ServerSocket> maybeSocket = awaitTCPSocket();
         if (!maybeSocket.isPresent()) {
             return;
@@ -55,11 +56,13 @@ public class TCPConnectionHandler extends ConnectionHandler {
                         socket.close();
                     }
                 }
+            } catch (SocketTimeoutException ignored) {
             } catch (IOException e) {
                 ServerMain.log.warning("Failed connecting to peer");
                 e.printStackTrace();
             }
         }
+        ServerMain.log.info("No longer listening on port " + this.port);
     }
 
     @Override

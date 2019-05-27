@@ -12,9 +12,6 @@ public class FileWatcher extends Thread {
     private final Runnable action;
     private final int timeout;
 
-    public FileWatcher(File file, Runnable action) {
-        this(file, action, 1000);
-    }
     public FileWatcher(File file, Runnable action, int timeoutMilliseconds) {
         this.file = file;
         this.action = action;

@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
 /**
@@ -24,21 +25,20 @@ import java.util.logging.Logger;
  *
  */
 public class Configuration {
-	private static Logger log = Logger.getLogger(Configuration.class.getName());
+	static Logger log = Logger.getLogger(Configuration.class.getName());
     // the configuration file is stored in the root of the class path as a .properties file
     private static final String CONFIGURATION_FILE = "configuration.properties";
     private static final File file = new File(CONFIGURATION_FILE);
-    private static final FileWatcher watcher = new FileWatcher(file, Configuration::updateValues);
-    private static long modified;
+    private static final FileWatcher watcher = new FileWatcher(file, Configuration::updateValues, 100);
+    private static AtomicLong modified = new AtomicLong();
 
     static final List<CfgValue> watchedValues = Collections.synchronizedList(new ArrayList<>());
 
-    static boolean isOutdated() {
-        return new File(CONFIGURATION_FILE).lastModified() != modified;
-    }
-
     static void updateValues() {
-        if (isOutdated()) {
+        long nextModified = file.lastModified();
+        log.info(modified.get() + " // " + nextModified);
+        if (modified.getAndSet(nextModified) != nextModified) {
+            log.info("Configuration file modified");
             synchronized (watchedValues) {
                 loadProperties();
                 watchedValues.forEach(CfgValue::get);
@@ -47,17 +47,22 @@ public class Configuration {
     }
 
     private static Properties properties;
+    private static Properties getProperties() {
+        if (properties == null) {
+            updateValues();
+        }
+        return properties;
+    }
 
     // use static initializer to read the configuration file when the class is loaded
     static {
-        loadProperties();
+        updateValues();
         watcher.start();
     }
 
     private static void loadProperties() {
         properties = new Properties();
         try (InputStream inputStream = new FileInputStream(CONFIGURATION_FILE)) {
-            modified = new File(CONFIGURATION_FILE).lastModified();
             properties.load(inputStream);
         } catch (IOException e) {
             log.warning("Could not read file " + CONFIGURATION_FILE);
@@ -65,15 +70,11 @@ public class Configuration {
     }
 
     public static boolean contains(String key) {
-        return properties.containsKey(key);
+        return getProperties().containsKey(key);
     }
 
     public static String getConfigurationValue(String key) {
-        if (properties == null) {
-            loadProperties();
-        }
-        // EXTENSION: prevent spurious errors due to typos
-        return properties.getProperty(key).trim();
+        return getProperties().getProperty(key).trim();
     }
 
     // private constructor to prevent initialization
