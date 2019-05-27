@@ -1,8 +1,8 @@
 package unimelb.bitbox.client.responses;
 
-import unimelb.bitbox.PeerConnection;
-import unimelb.bitbox.ServerMain;
-import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.peers.PeerConnection;
+import unimelb.bitbox.server.ServerMain;
+import unimelb.bitbox.util.network.JSONDocument;
 
 import java.util.ArrayList;
 
@@ -17,7 +17,7 @@ class ListPeersResponse extends ClientResponse {
 
         // add all peers currently connected to and previously
         // connected to by this peer
-        ArrayList<JsonDocument> peers = new ArrayList<>();
+        ArrayList<JSONDocument> peers = new ArrayList<>();
         for (PeerConnection peer : server.getActivePeers()){
             peers.add(peer.getHostPort().toJSON());
         }

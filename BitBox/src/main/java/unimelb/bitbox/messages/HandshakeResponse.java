@@ -1,6 +1,6 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.ServerMain;
+import unimelb.bitbox.server.ServerMain;
 
 public class HandshakeResponse extends Message {
     public HandshakeResponse(boolean dryRun) {

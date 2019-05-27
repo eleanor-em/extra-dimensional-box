@@ -1,7 +1,7 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.PeerConnection;
-import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.peers.PeerConnection;
+import unimelb.bitbox.util.network.JSONDocument;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -12,7 +12,7 @@ public class ConnectionRefused extends Message {
         super(CONNECTION_REFUSED);
         document.append("command", CONNECTION_REFUSED);
         document.append("message", "connection limit reached");
-        ArrayList<JsonDocument> peersDoc = peers.stream()
+        ArrayList<JSONDocument> peersDoc = peers.stream()
                                                 .map(peer -> peer.getHostPort().toJSON())
                                                 .collect(Collectors.toCollection(ArrayList::new));
         document.append("peers", peersDoc);

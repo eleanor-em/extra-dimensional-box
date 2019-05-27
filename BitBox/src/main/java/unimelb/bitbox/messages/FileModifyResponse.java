@@ -1,6 +1,6 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.fs.FileSystemManager;
 import unimelb.bitbox.util.network.ResponseFormatException;
 
@@ -9,7 +9,7 @@ public class FileModifyResponse extends Message {
     private static final String SUCCESS = "file loader ready";
     public final boolean successful;
 
-    public FileModifyResponse(FileSystemManager fsManager, JsonDocument fileDescriptor, String pathName, boolean dryRun)
+    public FileModifyResponse(FileSystemManager fsManager, JSONDocument fileDescriptor, String pathName, boolean dryRun)
             throws ResponseFormatException {
         super("MODIFY:" + pathName + ":" + fileDescriptor.toJson());
         if (dryRun) {

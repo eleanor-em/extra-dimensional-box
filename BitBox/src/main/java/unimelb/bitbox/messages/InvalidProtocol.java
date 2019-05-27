@@ -1,7 +1,7 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.PeerConnection;
-import unimelb.bitbox.ServerMain;
+import unimelb.bitbox.peers.PeerConnection;
+import unimelb.bitbox.server.ServerMain;
 
 public class InvalidProtocol extends Message {
     public InvalidProtocol(PeerConnection peer, String message) {

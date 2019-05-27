@@ -1,7 +1,7 @@
 package unimelb.bitbox.client.responses;
 
-import unimelb.bitbox.PeerConnection;
-import unimelb.bitbox.ServerMain;
+import unimelb.bitbox.peers.PeerConnection;
+import unimelb.bitbox.server.ServerMain;
 import unimelb.bitbox.util.network.HostPort;
 
 /**

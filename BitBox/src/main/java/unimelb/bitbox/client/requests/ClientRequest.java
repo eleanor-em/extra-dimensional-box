@@ -1,6 +1,6 @@
 package unimelb.bitbox.client.requests;
 
-import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.HostPort;
 import unimelb.bitbox.util.network.HostPortParseException;
 
@@ -8,7 +8,7 @@ import unimelb.bitbox.util.network.HostPortParseException;
  * Parent class of requests sent by the Client to a Peer.
  */
 abstract public class ClientRequest {
-    private final JsonDocument document = new JsonDocument();
+    private final JSONDocument document = new JSONDocument();
 
     /**
      * Constructor. Intended for use only by subclasses.
@@ -39,10 +39,10 @@ abstract public class ClientRequest {
     }
 
     /**
-     * Returns the generated JsonDocument.
+     * Returns the generated JSONDocument.
      * @return the document
      */
-    public JsonDocument getDocument() {
+    public JSONDocument getDocument() {
         return document;
     }
 }

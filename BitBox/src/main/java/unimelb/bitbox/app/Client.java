@@ -1,4 +1,4 @@
-package unimelb.bitbox;
+package unimelb.bitbox.app;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -16,7 +16,7 @@ import unimelb.bitbox.util.crypto.Crypto;
 import unimelb.bitbox.util.crypto.CryptoException;
 import unimelb.bitbox.util.network.HostPort;
 import unimelb.bitbox.util.network.HostPortParseException;
-import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.ResponseFormatException;
 
 import javax.crypto.SecretKey;
@@ -152,7 +152,7 @@ public class Client {
 
             // Send encrypted message
             try {
-                JsonDocument encryptedRequest = Crypto.encryptMessage(key, message.getDocument());
+                JSONDocument encryptedRequest = Crypto.encryptMessage(key, message.getDocument());
                 out.write(encryptedRequest.toJson() + "\n");
                 out.flush();
             } catch (CryptoException e) {
@@ -162,7 +162,7 @@ public class Client {
             }
 
             // Wait for response
-            JsonDocument encryptedResponse = JsonDocument.parse(in.readLine());
+            JSONDocument encryptedResponse = JSONDocument.parse(in.readLine());
             if (encryptedResponse.isEmpty()) {
                 System.out.println("No response");
             } else {
@@ -191,7 +191,7 @@ public class Client {
      * @return the JSON message to send
      */
     private static String generateAuthRequest(String ident) {
-        JsonDocument authRequest = new JsonDocument();
+        JSONDocument authRequest = new JSONDocument();
         authRequest.append("command", "AUTH_REQUEST");
         authRequest.append("identity", ident);
         return authRequest.toJson();

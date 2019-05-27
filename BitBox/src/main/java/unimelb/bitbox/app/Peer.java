@@ -1,4 +1,6 @@
-package unimelb.bitbox;
+package unimelb.bitbox.app;
+
+import unimelb.bitbox.server.ServerMain;
 
 import java.util.logging.Logger;
 

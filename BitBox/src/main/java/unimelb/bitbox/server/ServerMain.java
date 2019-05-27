@@ -1,8 +1,11 @@
-package unimelb.bitbox;
+package unimelb.bitbox.server;
 
-import org.jetbrains.annotations.NotNull;
 import unimelb.bitbox.client.Server;
 import unimelb.bitbox.messages.*;
+import unimelb.bitbox.peers.KnownPeerTracker;
+import unimelb.bitbox.peers.PeerConnection;
+import unimelb.bitbox.peers.PeerTCP;
+import unimelb.bitbox.peers.PeerUDP;
 import unimelb.bitbox.util.config.CfgDependent;
 import unimelb.bitbox.util.config.CfgEnumValue;
 import unimelb.bitbox.util.config.CfgValue;
@@ -12,8 +15,7 @@ import unimelb.bitbox.util.fs.FileSystemManager.FileSystemEvent;
 import unimelb.bitbox.util.fs.FileSystemObserver;
 import unimelb.bitbox.util.network.HostPort;
 import unimelb.bitbox.util.network.HostPortParseException;
-import unimelb.bitbox.util.network.JsonDocument;
-import unimelb.bitbox.util.network.ResponseFormatException;
+import unimelb.bitbox.util.network.JSONDocument;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -21,304 +23,10 @@ import java.io.OutputStreamWriter;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-
-/**
- * The ServerThread collects messages from the various PeerConnections, and then does something with them.
- */
-class MessageProcessingThread extends Thread {
-    private ServerMain server;
-    public final FileReadWriteThreadPool rwManager;
-    final BlockingQueue<ReceivedMessage> messages = new LinkedBlockingQueue<>();
-
-    public MessageProcessingThread(ServerMain server) {
-        this.server = server;
-        this.rwManager = new FileReadWriteThreadPool(this.server);
-    }
-
-    @Override
-    public void run() {
-        try {
-            while (true) {
-                ReceivedMessage message = messages.take();
-                processMessage(message);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            ServerMain.log.severe("Restarting message processor");
-            server.restartProcessingThread();
-        }
-    }
-
-	/**
-	 * Perform error checking, and send appropriate reply messages.
-	 */
-	private void processMessage(@NotNull ReceivedMessage message) {
-		String text = message.text;
-		JsonDocument document;
-		// first check the message is correct JSON
-		try {
-			document = JsonDocument.parse(text);
-		} catch (ResponseFormatException e) {
-			ServerMain.log.warning(e.getMessage());
-			invalidProtocolResponse(message.peer, "message must be valid JSON data");
-			return;
-		}
-
-        // try to respond to the message
-        String command;
-        try {
-            command = document.require("command");
-            Optional<String> friendlyName = document.get("friendlyName");
-
-            // if we got a friendly name, log it
-            String logMessage = message.peer.getForeignName() + " received: " + command
-                    + friendlyName.map(name -> " (via " + name + ")").orElse("");
-            ServerMain.log.info(logMessage);
-            respondToMessage(message.peer, command, document);
-        } catch (ResponseFormatException e) {
-            invalidProtocolResponse(message.peer, e.getMessage());
-        }
-    }
-
-    /**
-     * Respond to the message, after error checking and parsing.
-     */
-
-    private void respondToMessage(PeerConnection peer, @NotNull String command, JsonDocument document)
-            throws ResponseFormatException {
-        Message parsedResponse = null;
-        switch (command) {
-            /*
-             * File and directory requests
-             */
-            case Message.FILE_CREATE_REQUEST:
-				validateFileDescriptor(document);
-
-                String pathName = document.require("pathName");
-                JsonDocument fileDescriptor = document.require("fileDescriptor");
-
-                FileCreateResponse createResponse = new FileCreateResponse(server.fileSystemManager, pathName, fileDescriptor, false);
-                peer.sendMessage(createResponse);
-                if (createResponse.successful && noLocalCopies(peer, pathName)) {
-                    ServerMain.log.info(peer.getForeignName() + ": file " + pathName +
-                            " not available locally. Send a FILE_BYTES_REQUEST");
-                    rwManager.addFile(peer, pathName, fileDescriptor);
-                }
-                break;
-            case Message.FILE_MODIFY_REQUEST:
-                validateFileDescriptor(document);
-                pathName = document.require("pathName");
-                fileDescriptor = document.require("fileDescriptor");
-
-                FileModifyResponse modifyResponse = new FileModifyResponse(server.fileSystemManager, fileDescriptor, pathName, false);
-                peer.sendMessage(modifyResponse);
-                if (modifyResponse.successful) {
-                    rwManager.addFile(peer, pathName, fileDescriptor);
-                }
-                break;
-            case Message.FILE_BYTES_REQUEST:
-                validateFileDescriptor(document);
-                document.<String>require("pathName");
-                document.<Long>require("position");
-                document.<Long>require("length");
-
-                rwManager.readFile(peer, document);
-                break;
-            case Message.FILE_DELETE_REQUEST:
-                validateFileDescriptor(document);
-                pathName = document.require("pathName");
-                fileDescriptor = document.require("fileDescriptor");
-
-                peer.sendMessage(new FileDeleteResponse(server.fileSystemManager, fileDescriptor, pathName, false));
-                break;
-
-            case Message.DIRECTORY_CREATE_REQUEST:
-                pathName = document.require("pathName");
-
-                peer.sendMessage(new DirectoryCreateResponse(server.fileSystemManager, pathName, false));
-                break;
-
-            case Message.DIRECTORY_DELETE_REQUEST:
-                pathName = document.require("pathName");
-
-                peer.sendMessage(new DirectoryDeleteResponse(server.fileSystemManager, pathName, false));
-                break;
-
-            /*
-             * File and directory responses
-             */
-            case Message.FILE_CREATE_RESPONSE:
-                validateFileDescriptor(document);
-                checkStatus(document);
-                parsedResponse = new FileCreateResponse(server.fileSystemManager, document.require("pathName"), document.require("fileDescriptor"), true);
-                break;
-            case Message.FILE_DELETE_RESPONSE:
-                validateFileDescriptor(document);
-                checkStatus(document);
-                parsedResponse = new FileDeleteResponse(server.fileSystemManager, document.require("fileDescriptor"), document.require("pathName"), true);
-                break;
-            case Message.FILE_MODIFY_RESPONSE:
-                validateFileDescriptor(document);
-                checkStatus(document);
-                parsedResponse = new FileModifyResponse(server.fileSystemManager, document.require("fileDescriptor"), document.require("pathName"), true);
-                break;
-            case Message.DIRECTORY_CREATE_RESPONSE:
-                checkStatus(document);
-                parsedResponse = new DirectoryCreateResponse(server.fileSystemManager, document.require("pathName"), true);
-                break;
-            case Message.DIRECTORY_DELETE_RESPONSE:
-                checkStatus(document);
-                parsedResponse = new DirectoryDeleteResponse(server.fileSystemManager, document.require("pathName"), true);
-                break;
-
-            case Message.FILE_BYTES_RESPONSE:
-                checkStatus(document);
-                validateFileDescriptor(document);
-                document.<String>require("pathName");
-                document.<Long>require("length");
-                document.<String>require("content");
-                document.<String>require("message");
-                document.<Boolean>require("status");
-                parsedResponse = new FileBytesResponse(document.require("fileDescriptor"),
-                                                       document.require("pathName"),
-                                                       document.require("length"),
-                                                       document.require("position"),
-                                                       document.require("content"),
-                                                  "", false);
-
-                rwManager.writeFile(peer, document);
-                break;
-
-            /*
-             * Handshake request and responses
-             */
-            case Message.HANDSHAKE_REQUEST:
-                HostPort hostPort = HostPort.fromJSON(document.require("hostPort"));
-                ServerMain.log.info("Received connection request from " + hostPort);
-
-                if (peer.getState() == PeerConnection.State.WAIT_FOR_REQUEST) {
-                    // we need to pass the host and port we received, as the socket's data may not be accurate
-                    // (since this socket was an accepted connection)
-
-                    // ELEANOR: this has to be done here because we don't know the foreign port until now
-                    // refuse connection if we are already connected to this address
-                    if (server.getOutgoingAddresses().contains(hostPort)) {
-                        ServerMain.log.warning("Already connected to " + hostPort);
-                        peer.close();
-                    } else {
-                        peer.activate(hostPort);
-                        peer.sendMessage(new HandshakeResponse(false));
-                        // synchronise with this peer
-                        server.synchroniseFiles();
-                    }
-                } else {
-                    // EXTENSION: Just ignore unexpected handshakes.
-                    //invalidProtocolResponse(peer, "unexpected HANDSHAKE_REQUEST");
-                    peer.activate(hostPort);
-                    peer.sendMessage(new HandshakeResponse(false));
-                    server.synchroniseFiles();
-                }
-                break;
-
-            case Message.HANDSHAKE_RESPONSE:
-                hostPort = HostPort.fromJSON(document.require("hostPort"));
-                parsedResponse = new HandshakeResponse(true);
-
-                if (peer.getState() == PeerConnection.State.WAIT_FOR_RESPONSE) {
-                    peer.activate(hostPort);
-                    // synchronise with this peer
-                    server.synchroniseFiles();
-                }
-                // EXTENSION: Just ignore unexpected handshakes.
-                /* else {
-                    /invalidProtocolResponse(peer, "unexpected HANDSHAKE_RESPONSE");
-                }*/
-                break;
-
-            case Message.CONNECTION_REFUSED:
-                if (peer.getState() != PeerConnection.State.WAIT_FOR_RESPONSE) {
-                    // why did they send this to us..?
-                    invalidProtocolResponse(peer, "unexpected CONNECTION_REFUSED");
-                }
-                ServerMain.log.warning("Connection refused: " + document.<String>require("message"));
-                peer.close();
-
-                // now try to connect to the provided peer list
-                ArrayList<JsonDocument> peers = document.requireArray("peers");
-                for (JsonDocument peerHostPort : peers) {
-                    String address = HostPort.fromJSON(peerHostPort).toString();
-                    server.addPeerAddress(address);
-                    ServerMain.log.info("Added peer `" + address + "`");
-                    server.retryPeers();
-                }
-                break;
-
-            /*
-             * Invalid protocol messages
-             */
-            case Message.INVALID_PROTOCOL:
-                // crap.
-                ServerMain.log.severe("Invalid protocol response from "
-                        + peer.getForeignName() + ": " + document.require("message"));
-                peer.close();
-                break;
-
-            default:
-                invalidProtocolResponse(peer, "unrecognised command `" + command + "`");
-                break;
-        }
-        if (parsedResponse != null) {
-            peer.notify(parsedResponse);
-        }
-    }
-
-    private void validateFileDescriptor(JsonDocument document) throws ResponseFormatException {
-        JsonDocument fileDescriptor = document.require("fileDescriptor");
-        fileDescriptor.<String>require("md5");
-        fileDescriptor.<Long>require("lastModified");
-        fileDescriptor.<Long>require("fileSize");
-    }
-
-    private void checkStatus(JsonDocument document) throws ResponseFormatException {
-        String message = document.require("message");
-        boolean status = document.require("status");
-
-        if (!status) {
-            // ELEANOR: Log any unsuccessful responses.
-            ServerMain.log.warning("Received failed " + document.require("command") + ": " + message);
-        }
-    }
-
-    /**
-     * This method checks if any local file has the same content. If any, copy the content and
-     * close the file loader.
-     */
-    private boolean noLocalCopies(PeerConnection peer, String pathName) {
-        boolean notExist = false;
-        try {
-            notExist = server.fileSystemManager.checkShortcut(pathName);
-        } catch (IOException e) {
-            ServerMain.log.severe(peer.getForeignName() + ": error checking shortcut for " + pathName);
-        }
-        return !notExist;
-    }
-
-    /**
-     * A helper method to send an INVALID_PROTOCOL message.
-     */
-    private void invalidProtocolResponse(@NotNull PeerConnection peer, String message) {
-        peer.activateDefault();
-        peer.sendMessageAndClose(new InvalidProtocol(peer, message));
-    }
-}
-
 
 public class ServerMain implements FileSystemObserver {
     public enum ConnectionMode {
@@ -332,13 +40,13 @@ public class ServerMain implements FileSystemObserver {
     public static long getBlockSize() {
         return blockSize.get();
     }
-    final FileSystemManager fileSystemManager;
+    public final FileSystemManager fileSystemManager;
 
     private static final CfgValue<Integer> maxIncomingConnections = CfgValue.createInt("maximumIncommingConnections");
     private static final CfgValue<String> advertisedName = CfgValue.create("advertisedName");
     private static final CfgValue<Integer> tcpPort = CfgValue.createInt("port");
     private static final CfgValue<Integer> udpPort = CfgValue.createInt("udpPort");
-    static final CfgEnumValue<ConnectionMode> mode = new CfgEnumValue<>("mode", ConnectionMode.class);
+    public static final CfgEnumValue<ConnectionMode> mode = new CfgEnumValue<>("mode", ConnectionMode.class);
     private static final CfgValue<String[]> peersToConnect = CfgValue.create("peers", val -> val.split(","));
 
     /**
@@ -436,6 +144,35 @@ public class ServerMain implements FileSystemObserver {
 		// create the synchroniser thread
 		new Thread(this::regularlySynchronise).start();
 	}
+
+    private void createNames() {
+        names.add("Alice");
+        names.add("Bob");
+        names.add("Carol");
+        names.add("Declan");
+        names.add("Eve");
+        names.add("Fred");
+        names.add("Gerald");
+        names.add("Hannah");
+        names.add("Imogen");
+        names.add("Jacinta");
+        names.add("Kayleigh");
+        names.add("Lauren");
+        names.add("Maddy");
+        names.add("Nicole");
+        names.add("Opal");
+        names.add("Percival");
+        names.add("Quinn");
+        names.add("Ryan");
+        names.add("Steven");
+        names.add("Theodore");
+        names.add("Ulla");
+        names.add("Violet");
+        names.add("William");
+        names.add("Xinyu");
+        names.add("Yasmin");
+        names.add("Zuzanna");
+    }
 
     /**
      * This method loops through the list of provided peers and attempts to connect to each one,
@@ -545,39 +282,10 @@ public class ServerMain implements FileSystemObserver {
         }
     }
 
-    private void createNames() {
-        names.add("Alice");
-        names.add("Bob");
-        names.add("Carol");
-        names.add("Declan");
-        names.add("Eve");
-        names.add("Fred");
-        names.add("Gerald");
-        names.add("Hannah");
-        names.add("Imogen");
-        names.add("Jacinta");
-        names.add("Kayleigh");
-        names.add("Lauren");
-        names.add("Maddy");
-        names.add("Nicole");
-        names.add("Opal");
-        names.add("Percival");
-        names.add("Quinn");
-        names.add("Ryan");
-        names.add("Steven");
-        names.add("Theodore");
-        names.add("Ulla");
-        names.add("Violet");
-        names.add("William");
-        names.add("Xinyu");
-        names.add("Yasmin");
-        names.add("Zuzanna");
-    }
-
     public Collection<PeerConnection> getActivePeers() {
         synchronized (peers) {
             return peers.stream()
-                    .filter(peer -> peer.getState() == PeerConnection.State.ACTIVE)
+                    .filter(PeerConnection::isActive)
                     .collect(Collectors.toList());
         }
     }
@@ -605,7 +313,7 @@ public class ServerMain implements FileSystemObserver {
         try {
             tcpServerSocket = new ServerSocket(hostPort.get().port);
         } catch (IOException e) {
-            log.severe("Opening server socket on port " + hostPort.get().port + " failed: " + e.getMessage());
+            log.severe("Opening server socketContainer on port " + hostPort.get().port + " failed: " + e.getMessage());
         }
         while (!tcpServerSocket.isClosed()) {
             try {
@@ -628,7 +336,7 @@ public class ServerMain implements FileSystemObserver {
                 } else {
                     String name = getAnyName();
 
-                    PeerConnection peer = new PeerTCP(name, socket, this, PeerConnection.State.WAIT_FOR_REQUEST);
+                    PeerConnection peer = new PeerTCP(name, socket, this, false);
                     peers.add(peer);
                     log.info("Connected to peer " + peer);
                 }
@@ -657,7 +365,7 @@ public class ServerMain implements FileSystemObserver {
 
             // find a name
             String name = getAnyName();
-            PeerConnection peer = new PeerTCP(name, socket, this, PeerConnection.State.WAIT_FOR_RESPONSE);
+            PeerConnection peer = new PeerTCP(name, socket, this, true);
             peers.add(peer);
             // success: remove this peer from the set of peers to connect to
             log.info("Connected to peer " + name + " @ " + peerHostPort);
@@ -713,21 +421,19 @@ public class ServerMain implements FileSystemObserver {
                     if (connectedPeer == null) {
                         if (getIncomingPeerCount() < maxIncomingConnections.get()) {
                             // Create the peer if we have room for another
-                            connectedPeer = new PeerUDP(name, this,
-                                                        PeerConnection.State.WAIT_FOR_REQUEST,
-                                                        udpSocket, packet);
+                            connectedPeer = new PeerUDP(name, this, false, udpSocket, packet);
                             peers.add(connectedPeer);
                         } else {
                             // Send CONNECTION_REFUSED
                             Message message = new ConnectionRefused(getActivePeers());
-                            byte[] responseBuffer = (message.encode() + "\n").getBytes(StandardCharsets.UTF_8);
+                            byte[] responseBuffer = message.encode().getBytes(StandardCharsets.UTF_8);
                             packet.setData(responseBuffer);
                             packet.setLength(responseBuffer.length);
                             udpSocket.send(packet);
                             continue;
                         }
                     }
-                    // The actual message may be shorter than what we got from the socket
+                    // The actual message may be shorter than what we got from the socketContainer
                     String packetData = new String(packet.getData(), 0, packet.getLength());
                     connectedPeer.receiveMessage(packetData);
                 } catch (SocketTimeoutException ignored) {
@@ -737,7 +443,7 @@ public class ServerMain implements FileSystemObserver {
             }
         } catch (SocketException e) {
             e.printStackTrace();
-            log.severe("Error from UDP socket");
+            log.severe("Error from UDP socketContainer");
         }
     }
 
@@ -746,7 +452,7 @@ public class ServerMain implements FileSystemObserver {
             return null;
         }
 
-        // check if the socket is available yet
+        // check if the socketContainer is available yet
         if (udpSocket == null) {
             // try again later
             return null;
@@ -759,7 +465,7 @@ public class ServerMain implements FileSystemObserver {
         DatagramPacket packet = new DatagramPacket(buffer,
                                                    buffer.length,
                                                    new InetSocketAddress(peerHostPort.hostname, peerHostPort.port));
-        PeerUDP p = new PeerUDP(name, this, PeerConnection.State.WAIT_FOR_RESPONSE, udpSocket, packet);
+        PeerUDP p = new PeerUDP(name, this, true, udpSocket, packet);
         peers.add(p);
         log.info("Attempting to send handshake to " + name + " @ " + peerHostPort + ", waiting for response;");
         return p;
@@ -772,12 +478,12 @@ public class ServerMain implements FileSystemObserver {
         getActivePeers().forEach(peer -> peer.sendMessage(message));
     }
 
-    private JsonDocument docFileDescriptor(FileSystemManager.FileDescriptor fd) {
+    private JSONDocument docFileDescriptor(FileSystemManager.FileDescriptor fd) {
         if (fd == null) {
             return null;
         }
 
-        JsonDocument doc = new JsonDocument();
+        JSONDocument doc = new JSONDocument();
         doc.append("md5", fd.md5);
         doc.append("lastModified", fd.lastModified);
         doc.append("fileSize", fd.fileSize);
@@ -786,7 +492,7 @@ public class ServerMain implements FileSystemObserver {
 
     @Override
     public void processFileSystemEvent(FileSystemEvent fileSystemEvent) {
-        JsonDocument fileDescriptor = docFileDescriptor(fileSystemEvent.fileDescriptor);
+        JSONDocument fileDescriptor = docFileDescriptor(fileSystemEvent.fileDescriptor);
         switch (fileSystemEvent.event) {
             case DIRECTORY_CREATE:
                 broadcastMessage(new DirectoryCreateRequest(fileSystemEvent.pathName));

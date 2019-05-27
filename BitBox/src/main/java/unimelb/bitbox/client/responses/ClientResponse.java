@@ -1,20 +1,20 @@
 package unimelb.bitbox.client.responses;
 
-import unimelb.bitbox.ServerMain;
+import unimelb.bitbox.server.ServerMain;
 import unimelb.bitbox.util.network.HostPort;
-import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.ResponseFormatException;
 
 /**
  * Parent class of responses to client requests
  */
 public abstract class ClientResponse {
-    protected JsonDocument response = new JsonDocument();
+    protected JSONDocument response = new JSONDocument();
 
     protected ClientResponse() {}
 
     // ELEANOR: In my review I meant that ClientResponse should be a factory, so I've implemented that here
-    public static JsonDocument getResponse(String command, ServerMain server, JsonDocument document)
+    public static JSONDocument getResponse(String command, ServerMain server, JSONDocument document)
             throws ResponseFormatException {
         switch (command) {
             case "LIST_PEERS_REQUEST":
@@ -27,7 +27,7 @@ public abstract class ClientResponse {
         throw new ResponseFormatException("Unrecognised command `" + command + "`");
     }
 
-    private static HostPort getHostPort(JsonDocument document) throws ResponseFormatException {
+    private static HostPort getHostPort(JSONDocument document) throws ResponseFormatException {
         return new HostPort(document.require("host"), (int)(long)document.<Long>require("port"));
     }
 }

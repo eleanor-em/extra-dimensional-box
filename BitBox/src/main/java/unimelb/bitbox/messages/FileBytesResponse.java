@@ -1,11 +1,11 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.network.JSONDocument;
 
 public class FileBytesResponse extends Message {
     public static String SUCCESS = "successful read";
 
-    public FileBytesResponse(JsonDocument fileDescriptor, String pathName, long length, long position, String content, String reply, boolean dryRun) {
+    public FileBytesResponse(JSONDocument fileDescriptor, String pathName, long length, long position, String content, String reply, boolean dryRun) {
         super("BYTES:" + pathName + ":" + fileDescriptor.toJson() + ":" + position);
         if (dryRun) {
             return;

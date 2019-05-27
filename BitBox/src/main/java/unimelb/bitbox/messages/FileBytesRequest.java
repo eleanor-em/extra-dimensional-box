@@ -1,11 +1,11 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.ServerMain;
-import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.server.ServerMain;
+import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.ResponseFormatException;
 
 public class FileBytesRequest extends Message {
-    public FileBytesRequest(String pathName, JsonDocument fileDescriptor, long position) throws ResponseFormatException {
+    public FileBytesRequest(String pathName, JSONDocument fileDescriptor, long position) throws ResponseFormatException {
         super("BYTES:" + pathName + ":" + fileDescriptor.toJson() + ":" + position);
         // ELEANOR: the modulus is a good idea, but it's a bit complicated and I don't think it worked
         // this is simpler and works correctly

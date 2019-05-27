@@ -1,6 +1,6 @@
 package unimelb.bitbox.util.network;
 
-import unimelb.bitbox.ServerMain;
+import unimelb.bitbox.server.ServerMain;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -14,7 +14,7 @@ public class HostPort {
 
     private HostPort alias;
 
-    public static HostPort fromJSON(JsonDocument doc) throws ResponseFormatException {
+    public static HostPort fromJSON(JSONDocument doc) throws ResponseFormatException {
         String host = doc.require("host");
         long port = doc.require("port");
 
@@ -81,8 +81,8 @@ public class HostPort {
         return (rhs instanceof HostPort) && (rhs.toString().equals(toString()));
     }
 
-    public JsonDocument toJSON() {
-        JsonDocument doc = new JsonDocument();
+    public JSONDocument toJSON() {
+        JSONDocument doc = new JSONDocument();
         doc.append("host", hostname);
         doc.append("port", port);
         return doc;

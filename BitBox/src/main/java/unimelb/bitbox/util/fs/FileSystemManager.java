@@ -1,6 +1,6 @@
 package unimelb.bitbox.util.fs;
 
-import unimelb.bitbox.ServerMain;
+import unimelb.bitbox.server.ServerMain;
 
 import java.io.*;
 import java.nio.ByteBuffer;

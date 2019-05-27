@@ -1,11 +1,12 @@
-package unimelb.bitbox;
+package unimelb.bitbox.peers;
 
 import org.jetbrains.annotations.NotNull;
+import unimelb.bitbox.server.ServerMain;
 import unimelb.bitbox.messages.FileBytesRequest;
 import unimelb.bitbox.messages.FileBytesResponse;
 import unimelb.bitbox.messages.InvalidProtocol;
 import unimelb.bitbox.util.fs.FileSystemManager;
-import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.ResponseFormatException;
 
 import java.io.IOException;
@@ -58,7 +59,7 @@ public class FileReadWriteThreadPool {
         this.fileModifiedDates = new ConcurrentHashMap<>();
     }
 
-    public void addFile(PeerConnection peer, String pathName, JsonDocument fileDescriptor)
+    public void addFile(PeerConnection peer, String pathName, JSONDocument fileDescriptor)
             throws ResponseFormatException {
         long fileSize = fileDescriptor.require("fileSize");
         long modified = fileDescriptor.require("lastModified");
@@ -85,7 +86,7 @@ public class FileReadWriteThreadPool {
     /**
      * This method sends the first FILE_BYTES_REQUEST
      */
-    public void sendReadRequest(PeerConnection peer, String pathName, JsonDocument fileDescriptor, long position)
+    public void sendReadRequest(PeerConnection peer, String pathName, JSONDocument fileDescriptor, long position)
             throws ResponseFormatException {
         // Send a byte request
         peer.sendMessage(new FileBytesRequest(pathName, fileDescriptor, position));
@@ -95,9 +96,9 @@ public class FileReadWriteThreadPool {
      * This method adds and run a ReadWorker to read the bytes based on the FILE_BYTES_REQUEST message
      * received from other peers. It then encodes the content and sends a FILE_BYTES_RESPONSE message to reply.
      */
-    public void readFile(PeerConnection peer, JsonDocument document) throws ResponseFormatException {
+    public void readFile(PeerConnection peer, JSONDocument document) throws ResponseFormatException {
         // Get the min. value to determine the final length for byte read
-        JsonDocument fileDescriptor = document.require("fileDescriptor");
+        JSONDocument fileDescriptor = document.require("fileDescriptor");
 
         // Run a worker thread to read the bytes
         String pathName = document.require("pathName");
@@ -120,13 +121,13 @@ public class FileReadWriteThreadPool {
      * If any, it adds and runs a WriteWorker to write the bytes.
      * The WriteWorker will decide if the peer should send another FILE_BYTES_REQUEST.
      */
-    public void writeFile(PeerConnection peer, JsonDocument document) throws ResponseFormatException {
+    public void writeFile(PeerConnection peer, JSONDocument document) throws ResponseFormatException {
         String pathName = document.require("pathName");
         long position = document.require("position");
         boolean status = document.require("status");
         long length = document.require("length"); // Use the agreed min. length between the peers
 
-        JsonDocument fileDescriptor = document.require("fileDescriptor");
+        JSONDocument fileDescriptor = document.require("fileDescriptor");
         long fileSize = fileDescriptor.require("fileSize");
 
         // Run a worker thread to write the bytes received
@@ -149,13 +150,13 @@ public class FileReadWriteThreadPool {
      */
     abstract class Worker implements Runnable {
         PeerConnection peer;
-        JsonDocument document;
-        JsonDocument fileDescriptor;
+        JSONDocument document;
+        JSONDocument fileDescriptor;
         String pathName;
         long position;
         long fileSize;
 
-        public Worker(PeerConnection peer, JsonDocument document, long position) throws ResponseFormatException {
+        public Worker(PeerConnection peer, JSONDocument document, long position) throws ResponseFormatException {
             this.peer = peer;
             this.document = document;
             this.fileDescriptor = document.require("fileDescriptor");
@@ -173,7 +174,7 @@ public class FileReadWriteThreadPool {
 
         private long length;
 
-        public WriteWorker(PeerConnection peer, JsonDocument document, long position, long length)
+        public WriteWorker(PeerConnection peer, JSONDocument document, long position, long length)
                 throws ResponseFormatException {
             super(peer, document, position);
             this.length = length;
@@ -262,7 +263,7 @@ public class FileReadWriteThreadPool {
     class ReadWorker extends Worker {
         private long length;
 
-        public ReadWorker(PeerConnection peer, JsonDocument document, long position, long length)
+        public ReadWorker(PeerConnection peer, JSONDocument document, long position, long length)
                 throws ResponseFormatException {
             super(peer, document, position);
             this.length =  length;
@@ -277,7 +278,7 @@ public class FileReadWriteThreadPool {
             String md5;
             long fileSize;
             try {
-                final JsonDocument fileDescriptor = document.require("fileDescriptor");
+                final JSONDocument fileDescriptor = document.require("fileDescriptor");
                 md5 = fileDescriptor.require("md5");
                 fileSize = fileDescriptor.require("fileSize");
             } catch (ResponseFormatException e) {

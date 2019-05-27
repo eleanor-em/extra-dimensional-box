@@ -1,6 +1,6 @@
 package unimelb.bitbox.client.responses;
 
-import unimelb.bitbox.ServerMain;
+import unimelb.bitbox.server.ServerMain;
 import unimelb.bitbox.util.network.HostPort;
 
 /**

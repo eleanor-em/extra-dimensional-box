@@ -1,7 +1,7 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.ServerMain;
-import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.server.ServerMain;
+import unimelb.bitbox.util.network.JSONDocument;
 
 /*
  * Base class for all Messages that peers can send.
@@ -25,13 +25,13 @@ public abstract class Message {
     public static final String DIRECTORY_DELETE_REQUEST = "DIRECTORY_DELETE_REQUEST";
     public static final String DIRECTORY_DELETE_RESPONSE = "DIRECTORY_DELETE_RESPONSE";
 
-    protected JsonDocument document;
+    protected JSONDocument document;
     private String summary;
 
     public Message(String summary) {
         this.summary = summary;
 
-        document = new JsonDocument();
+        document = new JSONDocument();
     }
 
     public void setFriendlyName(String name) {
@@ -63,6 +63,6 @@ public abstract class Message {
                         ServerMain.log.warning("Sending failed " + getCommand() + ": " + message);
                     }
                 });
-        return document.toJson();
+        return document.toJson() + "\n";
     }
 }

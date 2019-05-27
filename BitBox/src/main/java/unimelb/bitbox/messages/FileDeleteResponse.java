@@ -1,11 +1,11 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.fs.FileSystemManager;
 
 public class FileDeleteResponse extends Message{
     private static final String SUCCESS = "File deleted";
-    public FileDeleteResponse(FileSystemManager fsManager, JsonDocument fileDescriptor, String pathName, boolean dryRun){
+    public FileDeleteResponse(FileSystemManager fsManager, JSONDocument fileDescriptor, String pathName, boolean dryRun){
         super("FILE_DELETE:" + pathName + ":" + fileDescriptor.toJson());
         if (dryRun) {
             return;

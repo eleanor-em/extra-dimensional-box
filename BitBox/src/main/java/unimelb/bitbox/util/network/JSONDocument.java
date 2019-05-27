@@ -8,19 +8,19 @@ import org.json.simple.parser.ParseException;
 import java.util.ArrayList;
 import java.util.Optional;
 
-public class JsonDocument {
+public class JSONDocument {
     private JSONObject obj = new JSONObject();
 
-    public JsonDocument() {}
-    public JsonDocument(JSONObject obj) {
+    public JSONDocument() {}
+    public JSONDocument(JSONObject obj) {
         this.obj = obj;
     }
-    public static JsonDocument parse(String json)
+    public static JSONDocument parse(String json)
         throws ResponseFormatException {
         try {
             JSONParser parser = new JSONParser();
             JSONObject obj = (JSONObject) parser.parse(json);
-            return new JsonDocument(obj);
+            return new JSONDocument(obj);
         } catch (ClassCastException | NullPointerException e) {
             throw new ResponseFormatException("Error parsing JSON string `" + json + "`:\n" + e.getMessage());
         } catch (ParseException e) {
@@ -38,14 +38,14 @@ public class JsonDocument {
     public void append(String key, long val) {
         obj.put(key, val);
     }
-    public void append(String key, JsonDocument val) {
+    public void append(String key, JSONDocument val) {
         obj.put(key, val);
     }
     public void append(String key, ArrayList<?> val) {
         JSONArray list = new JSONArray();
         for(Object o : val){
-            if(o instanceof JsonDocument){
-                list.add(((JsonDocument)o).obj);
+            if(o instanceof JSONDocument){
+                list.add(((JSONDocument)o).obj);
             } else {
                 list.add(o);
             }
@@ -72,7 +72,7 @@ public class JsonDocument {
             // case separately.
             Object result = obj.get(key);
             if (result instanceof JSONObject) {
-                return Optional.of((T)new JsonDocument((JSONObject)result));
+                return Optional.of((T)new JSONDocument((JSONObject)result));
             }
             // ofNullable will return `empty` if result == null, so that handles things nicely.
             return Optional.ofNullable((T)result);
@@ -90,7 +90,7 @@ public class JsonDocument {
             }
             for (Object o : (JSONArray)array) {
                 if (o instanceof JSONObject) {
-                    res.add((T)new JsonDocument((JSONObject)o));
+                    res.add((T)new JSONDocument((JSONObject)o));
                 } else {
                     res.add((T) o);
                 }

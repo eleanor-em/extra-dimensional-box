@@ -2,7 +2,7 @@ package unimelb.bitbox.client;
 
 import unimelb.bitbox.util.crypto.Crypto;
 import unimelb.bitbox.util.crypto.CryptoException;
-import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.ResponseFormatException;
 
 import javax.crypto.*;
@@ -26,8 +26,8 @@ public class AuthResponseParser {
      * @throws ResponseFormatException in case the provided message is malformed
      */
     public AuthResponseParser(String message) throws ResponseFormatException {
-        JsonDocument doc;
-        doc = JsonDocument.parse(message);
+        JSONDocument doc;
+        doc = JSONDocument.parse(message);
 
         status = doc.require("status");
         if (status) {

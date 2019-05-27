@@ -1,12 +1,12 @@
 package unimelb.bitbox.client;
 
-import unimelb.bitbox.ServerMain;
+import unimelb.bitbox.server.ServerMain;
 import unimelb.bitbox.client.responses.ClientResponse;
 import unimelb.bitbox.util.config.CfgValue;
 import unimelb.bitbox.util.crypto.Crypto;
 import unimelb.bitbox.util.crypto.CryptoException;
 import unimelb.bitbox.util.crypto.SSHPublicKey;
-import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.ResponseFormatException;
 
 import javax.crypto.SecretKey;
@@ -97,25 +97,35 @@ public class Server implements Runnable {
         }
     }
 
-    private JsonDocument handleMessage(String message, ClientData client)
+    private JSONDocument handleMessage(String message, ClientData client)
             throws ResponseFormatException {
-        JsonDocument response = new JsonDocument();
+        JSONDocument response = new JSONDocument();
+        ServerMain.log.info(client + ": received " + message);
         // Parse the message. If there is a payload key, then we need to decrypt the payload to get the actual message
-        JsonDocument document = JsonDocument.parse(message);
-        ServerMain.log.info(client + ": received " + document.toJson());
+        JSONDocument document;
+        String command;
 
-        if (document.containsKey("payload")) {
-            try {
-                document = Crypto.decryptMessage(key, document);
-            } catch (CryptoException e) {
-                response.append("command", "AUTH_RESPONSE");
-                response.append("status", false);
-                response.append("message", "failed decrypting request: " + e.getMessage());
-                return response;
+        try {
+            document = JSONDocument.parse(message);
+
+            if (document.containsKey("payload")) {
+                try {
+                    document = Crypto.decryptMessage(key, document);
+                } catch (CryptoException e) {
+                    response.append("command", "AUTH_RESPONSE");
+                    response.append("status", false);
+                    response.append("message", "failed decrypting request: " + e.getMessage());
+                    return response;
+                }
             }
-        }
 
-        String command = document.require("command");
+            command = document.require("command");
+        } catch (ResponseFormatException e) {
+            response.append("command", "AUTH_RESPONSE");
+            response.append("status", false);
+            response.append("message", "failed parsing request: " + e.getMessage());
+            return response;
+        }
 
         // Auth requests need to be handled separately because they rely on key data
         if (command.equals("AUTH_REQUEST")) {

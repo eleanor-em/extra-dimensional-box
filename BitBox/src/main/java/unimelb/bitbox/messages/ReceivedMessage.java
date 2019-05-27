@@ -1,6 +1,6 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.PeerConnection;
+import unimelb.bitbox.peers.PeerConnection;
 
 /*
  * This class represents a message that has been received but not processed.

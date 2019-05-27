@@ -1,6 +1,6 @@
 package unimelb.bitbox.util.crypto;
 
-import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.ResponseFormatException;
 
 import javax.crypto.*;
@@ -65,7 +65,7 @@ public class Crypto {
      * Decrypts a received message of the form {"payload":"CIPHERTEXT"}.
      * Returns the decrypted ciphertext.
      */
-    public static JsonDocument decryptMessage(SecretKey secretKey, JsonDocument message)
+    public static JSONDocument decryptMessage(SecretKey secretKey, JSONDocument message)
             throws CryptoException, ResponseFormatException {
         // Safely extract the payload
         String payload = message.require("payload");
@@ -80,7 +80,7 @@ public class Crypto {
         } catch (NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException | BadPaddingException | IllegalBlockSizeException e) {
             throw new CryptoException(e);
         }
-        return JsonDocument.parse(result);
+        return JSONDocument.parse(result);
     }
 
     /**
@@ -99,7 +99,7 @@ public class Crypto {
      * Encrypts a prepared message that has been encoded in JSON.
      * Returns a JSON message ready to be sent of the form {"payload":"CIPHERTEXT"}.
      */
-    public static JsonDocument encryptMessage(SecretKey secretKey, JsonDocument message)
+    public static JSONDocument encryptMessage(SecretKey secretKey, JSONDocument message)
             throws CryptoException {
         try {
             Cipher cipher = Cipher.getInstance("AES/ECB/NoPadding");
@@ -125,7 +125,7 @@ public class Crypto {
             }
             byte[] encryptedBytes = cipher.doFinal(paddedMessage.toString().getBytes());
 
-            JsonDocument encrypted = new JsonDocument();
+            JSONDocument encrypted = new JSONDocument();
             encrypted.append("payload", Base64.getEncoder().encodeToString(encryptedBytes));
             return encrypted;
         } catch (NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException | BadPaddingException | IllegalBlockSizeException e) {

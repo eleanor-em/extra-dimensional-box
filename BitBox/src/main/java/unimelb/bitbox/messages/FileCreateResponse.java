@@ -1,15 +1,15 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.ServerMain;
+import unimelb.bitbox.server.ServerMain;
 import unimelb.bitbox.util.fs.FileSystemManager;
-import unimelb.bitbox.util.network.JsonDocument;
+import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.ResponseFormatException;
 
 public class FileCreateResponse extends Message {
     private static final String SUCCESS = "file loader ready";
 
     public final boolean successful;
-    public FileCreateResponse(FileSystemManager fsManager, String pathName, JsonDocument fileDescriptor, boolean dryRun)
+    public FileCreateResponse(FileSystemManager fsManager, String pathName, JSONDocument fileDescriptor, boolean dryRun)
             throws ResponseFormatException {
         super("FILE_CREATE:" + pathName + ":" + fileDescriptor.toJson());
         if (dryRun) {
@@ -36,7 +36,7 @@ public class FileCreateResponse extends Message {
 
     // ELEANOR: Moved this method here so that we aren't creating two loaders, and so we can check the loader for
     //          errors before responding.
-    private String generateFileLoader(FileSystemManager fsManager, String pathName, JsonDocument fileDescriptor)
+    private String generateFileLoader(FileSystemManager fsManager, String pathName, JSONDocument fileDescriptor)
         throws ResponseFormatException {
         String md5 = fileDescriptor.require("md5");
         long length = fileDescriptor.require("fileSize");
@@ -70,7 +70,7 @@ public class FileCreateResponse extends Message {
     /**
      * This method checks if a file was created with the same name and content.
      */
-    private boolean fileAlreadyExists(JsonDocument fileDescriptor, String pathName, FileSystemManager fsManager)
+    private boolean fileAlreadyExists(JSONDocument fileDescriptor, String pathName, FileSystemManager fsManager)
             throws ResponseFormatException {
 
         return fsManager.fileNameExists(pathName, fileDescriptor.require("md5"));
