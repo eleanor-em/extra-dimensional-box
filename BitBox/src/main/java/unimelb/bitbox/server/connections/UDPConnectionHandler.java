@@ -28,7 +28,7 @@ public class UDPConnectionHandler extends ConnectionHandler {
         byte[] buffer = new byte[65507];
 
         setSocket(new UDPSocket(port));
-        Optional<DatagramSocket> maybeSocket = getSocketAsUDP();
+        Optional<DatagramSocket> maybeSocket = awaitUDPSocket();
         if (!maybeSocket.isPresent()) {
             return;
         }
@@ -42,7 +42,7 @@ public class UDPConnectionHandler extends ConnectionHandler {
 
                 HostPort hostPort = new HostPort(packet.getAddress().toString(), packet.getPort());
 
-                String name = server.getAnyName();
+                String name = getAnyName();
                 PeerConnection connectedPeer = getPeer(hostPort);
 
                 // Check if this is a new peer
@@ -54,7 +54,7 @@ public class UDPConnectionHandler extends ConnectionHandler {
                     } else {
                         // Send CONNECTION_REFUSED
                         Message message = new ConnectionRefused(getActivePeers());
-                        byte[] responseBuffer = message.encode().getBytes(StandardCharsets.UTF_8);
+                        byte[] responseBuffer = message.networkEncode().getBytes(StandardCharsets.UTF_8);
                         packet.setData(responseBuffer);
                         packet.setLength(responseBuffer.length);
                         udpSocket.send(packet);
@@ -76,9 +76,10 @@ public class UDPConnectionHandler extends ConnectionHandler {
         if (hasPeer(peerHostPort)) {
             return null;
         }
+        addPeerAddress(peerHostPort);
 
         AtomicReference<PeerConnection> peer = new AtomicReference<>();
-        getSocketAsUDP().ifPresent(socket -> {
+        awaitUDPSocket().ifPresent(socket -> {
             String name = getAnyName();
 
             byte[] buffer = new byte[65507];

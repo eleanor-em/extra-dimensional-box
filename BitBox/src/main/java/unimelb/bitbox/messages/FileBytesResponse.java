@@ -6,7 +6,7 @@ public class FileBytesResponse extends Message {
     public static String SUCCESS = "successful read";
 
     public FileBytesResponse(JSONDocument fileDescriptor, String pathName, long length, long position, String content, String reply, boolean dryRun) {
-        super("BYTES:" + pathName + ":" + fileDescriptor.toJson() + ":" + position);
+        super("BYTES:" + pathName + ":" + fileDescriptor + ":" + position);
         if (dryRun) {
             return;
         }

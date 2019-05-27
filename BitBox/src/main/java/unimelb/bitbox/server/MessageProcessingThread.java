@@ -195,12 +195,12 @@ class MessageProcessingThread extends Thread {
 
                     // ELEANOR: this has to be done here because we don't know the foreign port until now
                     // refuse connection if we are already connected to this address
-                    if (server.getOutgoingAddresses().contains(hostPort)) {
+                    if (server.getConnection().getOutgoingAddresses().contains(hostPort)) {
                         ServerMain.log.warning("Already connected to " + hostPort);
                         peer.close();
                     } else {
                         peer.activate(hostPort);
-                        peer.sendMessage(new HandshakeResponse(false));
+                        peer.sendMessage(new HandshakeResponse(server.getHostPort(), false));
                         // synchronise with this peer
                         server.synchroniseFiles();
                     }
@@ -208,14 +208,14 @@ class MessageProcessingThread extends Thread {
                     // EXTENSION: Just ignore unexpected handshakes.
                     //invalidProtocolResponse(peer, "unexpected HANDSHAKE_REQUEST");
                     peer.activate(hostPort);
-                    peer.sendMessage(new HandshakeResponse(false));
+                    peer.sendMessage(new HandshakeResponse(server.getHostPort(), false));
                     server.synchroniseFiles();
                 }
                 break;
 
             case Message.HANDSHAKE_RESPONSE:
                 hostPort = HostPort.fromJSON(document.require("hostPort"));
-                parsedResponse = new HandshakeResponse(true);
+                parsedResponse = new HandshakeResponse(server.getHostPort(), true);
 
                 if (peer.needsResponse()) {
                     peer.activate(hostPort);
@@ -240,9 +240,9 @@ class MessageProcessingThread extends Thread {
                 ArrayList<JSONDocument> peers = document.requireArray("peers");
                 for (JSONDocument peerHostPort : peers) {
                     String address = HostPort.fromJSON(peerHostPort).toString();
-                    server.addPeerAddress(address);
+                    server.getConnection().addPeerAddress(address);
                     ServerMain.log.info("Added peer `" + address + "`");
-                    server.retryPeers();
+                    server.getConnection().retryPeers();
                 }
                 break;
 

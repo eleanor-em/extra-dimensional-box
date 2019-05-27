@@ -22,28 +22,31 @@ public class TCPConnectionHandler extends ConnectionHandler {
 
     @Override
     void acceptConnections() throws IOException {
-        setSocket(new TCPSocket(port));
-        Optional<ServerSocket> maybeSocket = getSocketAsTCP();
+        // Need to set and then await in case there was already a socket created
+        setSocket(new TCPSocket(this.port));
+        Optional<ServerSocket> maybeSocket = awaitTCPSocket();
         if (!maybeSocket.isPresent()) {
             return;
         }
 
         ServerSocket tcpServerSocket = maybeSocket.get();
+        ServerMain.log.info("Listening on port " + this.port);
         while (!tcpServerSocket.isClosed()) {
             try {
                 Socket socket = tcpServerSocket.accept();
+                ServerMain.log.info("Accepted connection: " + socket.getInetAddress().toString() + ":" + socket.getPort());
 
                 // check we have room for more peers
                 // (only count incoming connections)
                 if (canStorePeer()) {
-                    PeerConnection peer = new PeerTCP(getAnyName(), socket, server, false);
+                    PeerConnection peer = new PeerTCP(getAnyName(), socket, this.server, false);
                     addPeer(peer);
                     ServerMain.log.info("Connected to peer " + peer);
                 } else {
                     // if not, write a CONNECTION_REFUSED message and close the connection
                     try (BufferedWriter out = new BufferedWriter(
                             new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8))) {
-                        out.write(new ConnectionRefused(getActivePeers()).encode());
+                        out.write(new ConnectionRefused(getActivePeers()).networkEncode());
                         out.flush();
                         ServerMain.log.info("Sending CONNECTION_REFUSED");
                     } catch (IOException e) {
@@ -64,12 +67,13 @@ public class TCPConnectionHandler extends ConnectionHandler {
         if (hasPeer(peerHostPort)) {
             return null;
         }
+        addPeerAddress(peerHostPort);
 
         try {
             Socket socket = new Socket(peerHostPort.hostname, peerHostPort.port);
 
             // find a name
-            String name = server.getAnyName();
+            String name = getAnyName();
             PeerConnection peer = new PeerTCP(name, socket, server, true);
             addPeer(peer);
             // success: remove this peer from the set of peers to connect to

@@ -1,6 +1,8 @@
 package unimelb.bitbox.util.fs;
 
 import unimelb.bitbox.server.ServerMain;
+import unimelb.bitbox.util.network.JSONData;
+import unimelb.bitbox.util.network.JSONDocument;
 
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -158,36 +160,6 @@ public class FileSystemManager extends Thread {
 
         public String toString() {
             return event.name() + " " + pathName;
-        }
-    }
-
-    /**
-     * Additional information about a given file.
-     */
-    public class FileDescriptor {
-        /**
-         * Timestamp of the last modification time of the file.
-         */
-        public long lastModified;
-        /**
-         * The MD5 hash of the file's content.
-         */
-        public String md5;
-        /**
-         * The size of the file in bytes.
-         */
-        public long fileSize;
-
-        /**
-         * Constructor
-         *
-         * @param lastModified the timestamp for when file was last modified
-         * @param md5          the current MD5 hash of the file's content.
-         */
-        public FileDescriptor(long lastModified, String md5, long fileSize) {
-            this.lastModified = lastModified;
-            this.md5 = md5;
-            this.fileSize = fileSize;
         }
     }
 

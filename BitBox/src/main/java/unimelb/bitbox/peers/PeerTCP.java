@@ -2,10 +2,9 @@ package unimelb.bitbox.peers;
 
 import unimelb.bitbox.server.ServerMain;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 
 public class PeerTCP extends PeerConnection {
     private Socket socket;
@@ -34,7 +33,7 @@ public class PeerTCP extends PeerConnection {
             state = PeerState.CLOSED;
 
             outConn.deactivate();
-            server.closeConnection(this);
+            server.getConnection().closeConnection(this);
         }
     }
 }
@@ -61,6 +60,28 @@ class IncomingConnectionTCP extends Thread {
                 ServerMain.log.severe("Error reading from socket: " + e.getMessage());
                 consumer.close();
             }
+        }
+    }
+}
+
+class OutgoingConnectionTCP extends OutgoingConnection {
+    private Socket socket;
+
+    OutgoingConnectionTCP(Socket socket) {
+        this.socket = socket;
+    }
+
+    @Override
+    public void run() {
+        try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8))) {
+            while (!socket.isClosed() && isActive()) {
+                OutgoingMessage message = takeMessage();
+                out.write(message.message);
+                out.flush();
+                message.onSent.run();
+            }
+        } catch (IOException | InterruptedException e) {
+            ServerMain.log.severe("Error writing to socket: " + e.getMessage());
         }
     }
 }

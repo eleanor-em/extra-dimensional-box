@@ -1,10 +1,10 @@
 package unimelb.bitbox.peers;
 
 import org.jetbrains.annotations.NotNull;
-import unimelb.bitbox.server.ServerMain;
 import unimelb.bitbox.messages.FileBytesRequest;
 import unimelb.bitbox.messages.FileBytesResponse;
 import unimelb.bitbox.messages.InvalidProtocol;
+import unimelb.bitbox.server.ServerMain;
 import unimelb.bitbox.util.fs.FileSystemManager;
 import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.ResponseFormatException;
@@ -49,11 +49,13 @@ class FileTransfer {
  * in response to messages received from other peers.
  */
 public class FileReadWriteThreadPool {
+    private final ServerMain server;
     private final FileSystemManager fsManager;
     private final ThreadPoolExecutor executor;
     private final ConcurrentHashMap<FileTransfer, Long> fileModifiedDates;
 
     public FileReadWriteThreadPool(@NotNull ServerMain server){
+        this.server = server;
         this.fsManager = server.fileSystemManager;
         this.executor = (ThreadPoolExecutor) Executors.newCachedThreadPool();
         this.fileModifiedDates = new ConcurrentHashMap<>();
@@ -89,7 +91,7 @@ public class FileReadWriteThreadPool {
     public void sendReadRequest(PeerConnection peer, String pathName, JSONDocument fileDescriptor, long position)
             throws ResponseFormatException {
         // Send a byte request
-        peer.sendMessage(new FileBytesRequest(pathName, fileDescriptor, position));
+        peer.sendMessage(new FileBytesRequest(server, pathName, fileDescriptor, position));
     }
 
     /**
@@ -106,7 +108,7 @@ public class FileReadWriteThreadPool {
         // ELEANOR: the length is the minimum of the bytes remaining and the block size
         long length = document.require("length");
         // Cap length at 8192 if UDP
-        length = ServerMain.mode.get() == ServerMain.ConnectionMode.UDP ? Math.min(8192, length) : length;
+        length = Math.min(server.getMaximumLength(), length);
         Runnable worker = new ReadWorker(peer, document, position, length);
         executor.execute(worker);
 
@@ -213,7 +215,7 @@ public class FileReadWriteThreadPool {
             // Check if more bytes are needed. If yes, send another FileBytesRequest
             try {
                 if (!fsManager.checkWriteComplete(pathName)) {
-                    peer.sendMessage(new FileBytesRequest(pathName, fileDescriptor, nextPosition));
+                    peer.sendMessage(new FileBytesRequest(server, pathName, fileDescriptor, nextPosition));
                     ServerMain.log.info(peer.getForeignName() + ": sent FILE_BYTES_REQUEST for " + pathName +
                             " at position: [" + nextPosition + "/" + fileSize + "]");
                 } else {
@@ -227,7 +229,7 @@ public class FileReadWriteThreadPool {
                 ServerMain.log.info(peer.getForeignName() + ": not enough memory to write " + pathName +
                         " at position: [" + nextPosition + "/" + fileSize + "]");
             } catch (ResponseFormatException e) {
-                ServerMain.log.warning("invalid file descriptor: " + fileDescriptor.toJson());
+                ServerMain.log.warning("invalid file descriptor: " + fileDescriptor);
             } catch (Exception e) {
                 e.printStackTrace();
                 ServerMain.log.severe(peer.getForeignName() + ": unknown error writing " +

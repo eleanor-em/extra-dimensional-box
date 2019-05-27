@@ -65,7 +65,7 @@ public class Server implements Runnable {
             while ((message = in.readLine()) != null) {
                 // Read a message, and pass it to the handler
                 try {
-                    out.write(handleMessage(message, client).toJson() + "\n");
+                    out.write(handleMessage(message, client).networkEncode());
                     out.flush();
                 } catch (ResponseFormatException e) {
                     ServerMain.log.warning(client + ": malformed message: " + e.getMessage());
@@ -167,7 +167,7 @@ public class Server implements Runnable {
             response = ClientResponse.getResponse(command, server, document);
         }
 
-        ServerMain.log.info(client + ": sending " + response.toJson());
+        ServerMain.log.info(client + ": sending " + response);
         if (client.isAuthenticated()) {
             try {
                 response = Crypto.encryptMessage(key, response);

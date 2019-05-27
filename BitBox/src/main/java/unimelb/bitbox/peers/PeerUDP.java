@@ -4,8 +4,10 @@ import unimelb.bitbox.server.ServerMain;
 import unimelb.bitbox.messages.Message;
 import unimelb.bitbox.util.config.CfgValue;
 
+import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -46,7 +48,7 @@ public class PeerUDP extends PeerConnection {
             }
             ServerMain.log.warning("Connection to peer `" + getForeignName() + "` closed.");
             state = PeerState.CLOSED;
-            server.closeConnection(this);
+            server.getConnection().closeConnection(this);
 
             outConn.deactivate();
             getRetryThreads().forEach((ignored, thread) -> thread.kill());
@@ -125,5 +127,33 @@ public class PeerUDP extends PeerConnection {
             }
             parent.close();
         }
+    }
+}
+
+class OutgoingConnectionUDP extends OutgoingConnection {
+    private DatagramSocket udpSocket;
+    private DatagramPacket packet;
+
+    OutgoingConnectionUDP(DatagramSocket socket, DatagramPacket packet) {
+        this.udpSocket = socket;
+        this.packet = packet;
+    }
+
+    @Override
+    public void run() {
+        ServerMain.log.info("Outgoing thread starting");
+        while (!udpSocket.isClosed() && isActive()) {
+            try {
+                OutgoingMessage message = takeMessage();
+                byte[] buffer = message.encoded().getBytes(StandardCharsets.UTF_8);
+                packet.setData(buffer);
+                packet.setLength(buffer.length);
+                udpSocket.send(packet);
+                message.onSent.run();
+            } catch (IOException | InterruptedException | NullPointerException e) {
+                ServerMain.log.severe("Error sending packet to UDP socket: " + e.getMessage());
+            }
+        }
+        ServerMain.log.warning("Outgoing thread exiting");
     }
 }

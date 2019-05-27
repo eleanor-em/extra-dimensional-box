@@ -32,7 +32,6 @@ public class FileWatcher extends Thread {
     @Override
     public void run() {
         try (WatchService watcher = FileSystems.getDefault().newWatchService()) {
-            System.out.println(file.toPath().toString());
             Path path = file.toPath().getParent();
             if (path == null) {
                 // Take the root path if there was no parent

@@ -11,7 +11,7 @@ public class FileCreateResponse extends Message {
     public final boolean successful;
     public FileCreateResponse(FileSystemManager fsManager, String pathName, JSONDocument fileDescriptor, boolean dryRun)
             throws ResponseFormatException {
-        super("FILE_CREATE:" + pathName + ":" + fileDescriptor.toJson());
+        super("FILE_CREATE:" + pathName + ":" + fileDescriptor);
         if (dryRun) {
             successful = false;
             return;

@@ -6,7 +6,7 @@ import unimelb.bitbox.util.fs.FileSystemManager;
 public class FileDeleteResponse extends Message{
     private static final String SUCCESS = "File deleted";
     public FileDeleteResponse(FileSystemManager fsManager, JSONDocument fileDescriptor, String pathName, boolean dryRun){
-        super("FILE_DELETE:" + pathName + ":" + fileDescriptor.toJson());
+        super("FILE_DELETE:" + pathName + ":" + fileDescriptor);
         if (dryRun) {
             return;
         }

@@ -24,7 +24,7 @@ class ConnectPeerResponse extends ClientResponse {
         String reply = SUCCESS;
 
         // ELEANOR: Server should handle incoming peer count, not this response object.
-        if (!server.clientTryPeer(hostPort)){
+        if (!server.getConnection().clientTryPeer(hostPort)){
             // failed if the target peer is offline/not available
             ServerMain.log.warning("target peer is not reachable. Failed to connect to " + hostPort);
                     reply = "connection failed";

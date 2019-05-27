@@ -106,7 +106,7 @@ public class Crypto {
             cipher.init(Cipher.ENCRYPT_MODE, secretKey);
 
             // Pad the message (if necessary)
-            StringBuilder paddedMessage = new StringBuilder(message.toJson() + "\n");
+            StringBuilder paddedMessage = new StringBuilder(message + "\n");
             // The number of bytes we need is 16 minus the remainder, so that we end up with a multiple of 16 total
             int requiredBytes = AES_KEY_BYTES - paddedMessage.length() % AES_KEY_BYTES;
             if (requiredBytes < AES_KEY_BYTES) {

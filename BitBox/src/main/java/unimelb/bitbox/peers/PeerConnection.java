@@ -127,7 +127,7 @@ public abstract class PeerConnection {
 
         if (outgoing) {
             ServerMain.log.info(getForeignName() + ": Sending handshake request");
-            sendMessageInternal(new HandshakeRequest());
+            sendMessageInternal(new HandshakeRequest(server.getHostPort()));
         }
     }
 
@@ -144,7 +144,7 @@ public abstract class PeerConnection {
     /**
      * Send a message to this peer, and then close the connection.
      */
-    public void sendMessageAndClose(Message message) {
+    public synchronized void sendMessageAndClose(Message message) {
         sendMessage(message, this::close);
         deactivate();
     }
@@ -180,9 +180,9 @@ public abstract class PeerConnection {
                 return;
             }
         }
-        message.setFriendlyName(name + "-" + ServerMain.getHostPort());
+        message.setFriendlyName(name + "-" + server.getHostPort());
         ServerMain.log.info(getForeignName() + " sent: " + message.getCommand());
-        outConn.addMessage(new OutgoingMessage(message.encode(), onSent));
+        outConn.addMessage(new OutgoingMessage(message.networkEncode(), onSent));
     }
 
     /**
@@ -227,5 +227,9 @@ class OutgoingMessage {
     public OutgoingMessage(String message, Runnable onSent) {
         this.message = message;
         this.onSent = onSent;
+    }
+
+    public String encoded() {
+        return message.trim() + "\n";
     }
 }

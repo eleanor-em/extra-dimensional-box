@@ -153,7 +153,7 @@ public class Client {
             // Send encrypted message
             try {
                 JSONDocument encryptedRequest = Crypto.encryptMessage(key, message.getDocument());
-                out.write(encryptedRequest.toJson() + "\n");
+                out.write(encryptedRequest.networkEncode());
                 out.flush();
             } catch (CryptoException e) {
                 System.out.println("While encrypting request:");
@@ -194,6 +194,6 @@ public class Client {
         JSONDocument authRequest = new JSONDocument();
         authRequest.append("command", "AUTH_REQUEST");
         authRequest.append("identity", ident);
-        return authRequest.toJson();
+        return authRequest.networkEncode();
     }
 }

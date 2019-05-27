@@ -11,7 +11,7 @@ public class FileModifyResponse extends Message {
 
     public FileModifyResponse(FileSystemManager fsManager, JSONDocument fileDescriptor, String pathName, boolean dryRun)
             throws ResponseFormatException {
-        super("MODIFY:" + pathName + ":" + fileDescriptor.toJson());
+        super("MODIFY:" + pathName + ":" + fileDescriptor);
         if (dryRun) {
             successful = false;
             return;

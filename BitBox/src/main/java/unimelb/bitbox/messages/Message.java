@@ -1,13 +1,14 @@
 package unimelb.bitbox.messages;
 
 import unimelb.bitbox.server.ServerMain;
+import unimelb.bitbox.util.network.JSONData;
 import unimelb.bitbox.util.network.JSONDocument;
 
 /*
  * Base class for all Messages that peers can send.
  * Optionally, a peer can provide its friendly name (e.g. Alice-localhost:8111) for debugging.
  */
-public abstract class Message {
+public abstract class Message implements JSONData {
     public static final String INVALID_PROTOCOL = "INVALID_PROTOCOL";
     public static final String CONNECTION_REFUSED = "CONNECTION_REFUSED";
     public static final String HANDSHAKE_REQUEST = "HANDSHAKE_REQUEST";
@@ -54,7 +55,7 @@ public abstract class Message {
         return summary;
     }
 
-    public String encode() {
+    public final JSONDocument toJSON() {
         // If this had a status code, report any errors
         document.<Boolean>get("status")
                 .ifPresent(status -> {
@@ -63,6 +64,6 @@ public abstract class Message {
                         ServerMain.log.warning("Sending failed " + getCommand() + ": " + message);
                     }
                 });
-        return document.toJson() + "\n";
+        return document;
     }
 }

@@ -8,7 +8,7 @@ import org.json.simple.parser.ParseException;
 import java.util.ArrayList;
 import java.util.Optional;
 
-public class JSONDocument {
+public class JSONDocument implements JSONData {
     private JSONObject obj = new JSONObject();
 
     public JSONDocument() {}
@@ -57,10 +57,10 @@ public class JSONDocument {
         return obj.isEmpty();
     }
 
-    public String toJson(){
-        return obj.toJSONString();
+    public JSONDocument toJSON(){
+        return this;
     }
-    public String toString() { return toJson(); }
+    public String toString() { return obj.toJSONString(); }
 
     public boolean containsKey(String key) {
         return obj.containsKey(key);
