@@ -8,11 +8,13 @@ import java.io.*;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class KnownPeerTracker {
     private static final Set<HostPort> addresses = ConcurrentHashMap.newKeySet();
     private static final String PEER_LIST_FILE = "peerlist";
-    private static WriteAddresses worker = new WriteAddresses();
+    private static ExecutorService worker = Executors.newSingleThreadExecutor();
 
     public static void load() {
         Set<HostPort> loaded = new HashSet<>();
@@ -39,7 +41,7 @@ public class KnownPeerTracker {
 
     static synchronized void addAddress(HostPort hostPort) {
         addresses.add(hostPort);
-        new Thread(worker).start();
+        worker.submit(new WriteAddresses());
     }
 
     private static class WriteAddresses implements Runnable {

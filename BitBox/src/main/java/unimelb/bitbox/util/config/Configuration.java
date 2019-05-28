@@ -29,20 +29,20 @@ public class Configuration {
     // the configuration file is stored in the root of the class path as a .properties file
     private static final String CONFIGURATION_FILE = "configuration.properties";
     private static final File file = new File(CONFIGURATION_FILE);
-    private static final FileWatcher watcher = new FileWatcher(file, Configuration::updateValues, 100);
+    private static final FileWatcher watcher = new FileWatcher(file, Configuration::updateValues, 1000);
     private static AtomicLong modified = new AtomicLong();
 
     static final List<CfgValue> watchedValues = Collections.synchronizedList(new ArrayList<>());
 
     static void updateValues() {
         long nextModified = file.lastModified();
-        log.info(modified.get() + " // " + nextModified);
         if (modified.getAndSet(nextModified) != nextModified) {
             log.info("Configuration file modified");
             synchronized (watchedValues) {
                 loadProperties();
                 watchedValues.forEach(CfgValue::get);
             }
+            log.info("Updates done");
         }
     }
 

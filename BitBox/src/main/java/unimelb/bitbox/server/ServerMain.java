@@ -33,9 +33,9 @@ public class ServerMain implements FileSystemObserver {
     private static final CfgValue<Integer> udpPort = CfgValue.createInt("udpPort");
     private static final CfgEnumValue<ConnectionMode> mode = new CfgEnumValue<>("mode", ConnectionMode.class);
     private static final CfgValue<String[]> peersToConnect = CfgValue.create("peers", val -> val.split(","));
-    private static final CfgDependent<HostPort> hostPort = new CfgDependent<>(Arrays.asList(advertisedName, tcpPort, udpPort),
-                                                                              ServerMain::calculateHostPort);
-    private static final CfgDependent<Long> blockSize = new CfgDependent<>(mode, ServerMain::calculateBlockSize);
+    private final CfgDependent<HostPort> hostPort = new CfgDependent<>(Arrays.asList(advertisedName, tcpPort, udpPort),
+                                                                              this::calculateHostPort);
+    private final CfgDependent<Long> blockSize = new CfgDependent<>(mode, this::calculateBlockSize);
 
     public long getMaximumLength() {
         if (mode.get() == ConnectionMode.TCP) {
@@ -66,7 +66,7 @@ public class ServerMain implements FileSystemObserver {
         processor.start();
     }
 
-    private static long calculateBlockSize() {
+    private long calculateBlockSize() {
         long blockSize;
         blockSize = Long.parseLong(Configuration.getConfigurationValue("blockSize"));
         if (mode.get() == ConnectionMode.UDP) {
@@ -74,7 +74,7 @@ public class ServerMain implements FileSystemObserver {
         }
         return blockSize;
     }
-    private static HostPort calculateHostPort() {
+    private HostPort calculateHostPort() {
         int serverPort;
         if (mode.get() == ConnectionMode.TCP) {
             serverPort = tcpPort.get();
@@ -112,6 +112,7 @@ public class ServerMain implements FileSystemObserver {
         // start the peer connection thread
         setConnection(mode.get());
         mode.setOnChanged(this::setConnection);
+        hostPort.setOnChanged(() -> setConnection(mode.get()));
 
         peersToConnect.setOnChanged(connection::addPeerAddressAll);
         connection.addPeerAddressAll(peersToConnect.get());

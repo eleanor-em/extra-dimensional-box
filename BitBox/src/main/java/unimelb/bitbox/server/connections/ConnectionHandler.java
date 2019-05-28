@@ -48,6 +48,16 @@ public abstract class ConnectionHandler {
 
     public void deactivate() {
         active.set(false);
+        SocketWrapper wrapper = socket.get();
+        if (wrapper != null) {
+            try {
+                wrapper.close();
+            } catch (IOException e) {
+                ServerMain.log.severe("Failed closing socket");
+                e.printStackTrace();
+            }
+        }
+
         connectThread.interrupt();
         acceptThread.interrupt();
         closeAllConnections();

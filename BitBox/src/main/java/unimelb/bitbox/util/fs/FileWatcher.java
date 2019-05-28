@@ -5,7 +5,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
+
+import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 
 public class FileWatcher extends Thread {
     private final File file;
@@ -18,14 +19,6 @@ public class FileWatcher extends Thread {
         this.timeout = timeoutMilliseconds;
     }
 
-    private static <R> Stream<R> castFilter(Object obj) {
-        try {
-            return Stream.of((R)obj);
-        } catch (ClassCastException e) {
-            return Stream.empty();
-        }
-    }
-
     @Override
     public void run() {
         try (WatchService watcher = FileSystems.getDefault().newWatchService()) {
@@ -34,16 +27,15 @@ public class FileWatcher extends Thread {
                 // Take the root path if there was no parent
                 path = Paths.get("");
             }
-            path.register(watcher, StandardWatchEventKinds.ENTRY_MODIFY);
+            path.register(watcher, ENTRY_MODIFY);
             while (true) {
                 try {
                     WatchKey key = watcher.poll(timeout, TimeUnit.MILLISECONDS);
                     if (key != null) {
                         key.pollEvents().stream()
-                                .flatMap(FileWatcher::<WatchEvent<Path>>castFilter)
-                                .filter(ev -> ev.kind() == StandardWatchEventKinds.ENTRY_MODIFY)
-                                .filter(ev -> ev.context().toString().equals(file.getName()))
-                                .findFirst().ifPresent(ignored -> action.run());
+                                .filter(ev -> ((WatchEvent<Path>)ev).context().toString().equals(file.getName()))
+                                .findAny().ifPresent(ignored -> action.run());
+                        key.reset();
                     }
                 } catch (InterruptedException ignored) {}
                 Thread.yield();

@@ -27,4 +27,8 @@ public class CfgDependent<T> {
         }
         return value;
     }
+
+    public T lastValue() {
+        return value;
+    }
 }
