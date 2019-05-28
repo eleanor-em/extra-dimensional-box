@@ -1,5 +1,6 @@
 package unimelb.bitbox.messages;
 
+import unimelb.bitbox.util.fs.FileSystemException;
 import unimelb.bitbox.util.fs.FileSystemManager;
 
 public class DirectoryDeleteResponse extends Message {
@@ -16,8 +17,13 @@ public class DirectoryDeleteResponse extends Message {
             reply = "unsafe pathname given";
         } else if (!fsManager.dirNameExists(pathName)) {
             reply = "pathname does not exist";
-        } else if (!fsManager.deleteDirectory(pathName)) {
-            reply = "there was a problem deleting the directory";
+        } else {
+            try {
+                fsManager.deleteDirectory(pathName);
+            } catch (FileSystemException e) {
+                e.printStackTrace();
+                reply = "there was a problem deleting the directory";
+            }
         }
 
         document.append("command", DIRECTORY_DELETE_RESPONSE);

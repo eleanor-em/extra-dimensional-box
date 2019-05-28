@@ -1,5 +1,6 @@
 package unimelb.bitbox.messages;
 
+import unimelb.bitbox.util.fs.FileSystemException;
 import unimelb.bitbox.util.fs.FileSystemManager;
 
 public class DirectoryCreateResponse extends Message {
@@ -16,8 +17,13 @@ public class DirectoryCreateResponse extends Message {
             reply = "unsafe pathname given";
         } else if (fsManager.dirNameExists(pathName)) {
             reply = "pathname already exists";
-        } else if (!fsManager.makeDirectory(pathName)) {
-            reply = "there was a problem creating the directory";
+        } else {
+            try {
+                fsManager.makeDirectory(pathName);
+            } catch (FileSystemException e) {
+                e.printStackTrace();
+                reply = "there was a problem creating the directory";
+            }
         }
 
         document.append("command", DIRECTORY_CREATE_RESPONSE);

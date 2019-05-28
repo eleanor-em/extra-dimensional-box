@@ -1,8 +1,9 @@
 package unimelb.bitbox.util.fs;
 
+import unimelb.bitbox.util.functional.algebraic.Result;
 import unimelb.bitbox.util.network.JSONData;
 import unimelb.bitbox.util.network.JSONDocument;
-import unimelb.bitbox.util.network.ResponseFormatException;
+import unimelb.bitbox.util.network.JSONException;
 
 /**
  * Additional information about a given file.
@@ -21,6 +22,8 @@ public class FileDescriptor implements JSONData {
      */
     public long fileSize;
 
+    public final boolean isDirectory;
+
     /**
      * Constructor
      *
@@ -31,12 +34,26 @@ public class FileDescriptor implements JSONData {
         this.lastModified = lastModified;
         this.md5 = md5;
         this.fileSize = fileSize;
+        isDirectory = false;
     }
 
-    public FileDescriptor(JSONDocument doc) throws ResponseFormatException {
-        this.lastModified = doc.require("lastModified");
-        this.md5 = doc.require("md5");
-        this.fileSize = doc.require("fileSize");
+    public static FileDescriptor directory() {
+        return new FileDescriptor();
+    }
+
+    @SuppressWarnings({"CodeBlock2Expr"})
+    public static Result<JSONException, FileDescriptor> fromJSON(JSONDocument doc) {
+        return doc.getLong("lastModified").andThen(lastModified -> {
+            return doc.getLong("fileSize").andThen(fileSize -> {
+                return doc.getString("md5").andThen(md5 -> {
+                    return Result.value(new FileDescriptor(lastModified, md5, fileSize));
+                });
+            });
+        });
+    }
+
+    private FileDescriptor() {
+        isDirectory = true;
     }
 
     @Override
@@ -46,5 +63,10 @@ public class FileDescriptor implements JSONData {
         doc.append("md5", md5);
         doc.append("fileSize", fileSize);
         return doc;
+    }
+
+    @Override
+    public String toString() {
+        return toJSON().toString();
     }
 }

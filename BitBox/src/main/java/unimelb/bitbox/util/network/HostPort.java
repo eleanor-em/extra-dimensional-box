@@ -1,6 +1,7 @@
 package unimelb.bitbox.util.network;
 
-import unimelb.bitbox.server.ServerMain;
+import unimelb.bitbox.server.PeerServer;
+import unimelb.bitbox.util.functional.algebraic.Result;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -14,17 +15,17 @@ public class HostPort {
 
     private HostPort alias;
 
-    public static HostPort fromJSON(JSONDocument doc) throws ResponseFormatException {
-        String host = doc.require("host");
-        long port = doc.require("port");
+    public static Result<JSONException, HostPort> fromJSON(JSONDocument doc) {
+        Result<JSONException, String> host = doc.get("host");
+        Result<JSONException, Integer> port = doc.getInteger("port");
 
-        return new HostPort(host, (int)port);
+        return host.andThen(hostVal -> port.map(portVal -> new HostPort(hostVal, portVal)));
     }
 
-    public static HostPort fromAddress(String address) throws HostPortParseException {
+    public static Result<HostPortParseException, HostPort> fromAddress(String address) {
         address = address.replace("/", "");
         if (!address.contains(":")) {
-            throw new HostPortParseException("malformed host-port: " + address);
+            return Result.error(new HostPortParseException("malformed host-port: " + address));
         }
 
         String[] parts = address.split(":");
@@ -33,9 +34,9 @@ public class HostPort {
         try {
             port = Integer.parseInt(parts[1]);
         } catch (NumberFormatException e) {
-            throw new HostPortParseException("malformed port: " + parts[1]);
+            return Result.error(new HostPortParseException("malformed port: " + parts[1]));
         }
-        return new HostPort(host, port, false);
+        return Result.value(new HostPort(host, port, false));
     }
 
     public static HostPort fromAlias(String host, int port) {
@@ -43,7 +44,7 @@ public class HostPort {
         try {
             hostUsed = InetAddress.getByName(hostUsed).getHostAddress();
         } catch (UnknownHostException ignored) {
-            ServerMain.log.warning("Unknown host " + hostUsed + ":" + port);
+            PeerServer.log.warning("Unknown host " + hostUsed + ":" + port);
         }
         return new HostPort(hostUsed, port, true);
     }

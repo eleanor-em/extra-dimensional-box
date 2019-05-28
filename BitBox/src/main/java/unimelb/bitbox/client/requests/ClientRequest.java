@@ -1,13 +1,13 @@
 package unimelb.bitbox.client.requests;
 
-import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.HostPort;
-import unimelb.bitbox.util.network.HostPortParseException;
+import unimelb.bitbox.util.network.JSONData;
+import unimelb.bitbox.util.network.JSONDocument;
 
 /**
  * Parent class of requests sent by the Client to a Peer.
  */
-abstract public class ClientRequest {
+abstract public class ClientRequest implements JSONData {
     private final JSONDocument document = new JSONDocument();
 
     /**
@@ -19,13 +19,15 @@ abstract public class ClientRequest {
     }
 
     protected ClientRequest(String command, String peerAddress)
-            throws HostPortParseException {
-        document.append("command", command);
+            throws ClientArgsException {
+        this(command);
 
         if (peerAddress == null) {
-            throw new IllegalArgumentException("missing command line option: -p");
+            throw new ClientArgsException("missing command line option: -p");
         }
-        HostPort hostPort = HostPort.fromAddress(peerAddress);
+        HostPort hostPort = HostPort.fromAddress(peerAddress)
+                .mapError(ClientArgsException::new)
+                .get();
         appendHostPort(hostPort);
     }
 
@@ -42,7 +44,8 @@ abstract public class ClientRequest {
      * Returns the generated JSONDocument.
      * @return the document
      */
-    public JSONDocument getDocument() {
+    @Override
+    public JSONDocument toJSON() {
         return document;
     }
 }

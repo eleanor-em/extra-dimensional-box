@@ -1,14 +1,16 @@
 package unimelb.bitbox.util.config;
 
+import unimelb.bitbox.util.concurrency.ThrowRunnable;
+import unimelb.bitbox.util.functional.algebraic.Maybe;
+
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 class ConfigException extends RuntimeException {
-    private Exception cause;
+    private Maybe<Exception> cause = Maybe.nothing();
 
     public ConfigException(String key) {
         super("Error parsing configuration value `" + key + "`: key not found");
@@ -20,21 +22,21 @@ class ConfigException extends RuntimeException {
 
     public ConfigException(String key, Exception cause) {
         super("Error parsing configuration value `" + key + "`: " + cause.getMessage());
-        this.cause = cause;
+        this.cause = Maybe.just(cause);
     }
 
     @Override
     public void printStackTrace() {
         super.printStackTrace();
-        if (cause != null) {
+        cause.consume(err -> {
             System.out.println("Caused by: ");
-            cause.printStackTrace();
-        }
+            err.printStackTrace();
+        });
     }
 }
 
 public class CfgValue<T> {
-    private String propertyName;
+    private final String propertyName;
     private Function<String, T> converter;
     private T cached;
     private String strValue;
@@ -52,38 +54,51 @@ public class CfgValue<T> {
     public static CfgValue<Integer> createInt(String propertyName) {
         return new CfgValue<>(propertyName, Integer::parseInt);
     }
+    public static CfgValue<Long> createLong(String propertyName) {
+        return new CfgValue<>(propertyName, Long::parseLong);
+    }
     public static <T> CfgValue<T> create(String propertyName, Function<String, T> converter) {
         return new CfgValue<>(propertyName, converter);
     }
 
-    protected CfgValue(String propertyName) {
+    private CfgValue(String propertyName) {
         this.propertyName = propertyName;
         if (!Configuration.contains(propertyName)) {
             throw new ConfigException(propertyName);
         }
+
         strValue = Configuration.getConfigurationValue(propertyName);
-        Configuration.watchedValues.add(this);
+
+        //noinspection unchecked
+        converter = str -> (T) str;
+        update();
     }
     protected CfgValue(String propertyName, Function<String, T> converter) {
-        this(propertyName);
+        this.propertyName = propertyName;
+        if (!Configuration.contains(propertyName)) {
+            throw new ConfigException(propertyName);
+        }
+
+        strValue = Configuration.getConfigurationValue(propertyName);
+        Configuration.addValue(this);
 
         this.converter = converter;
-        cached = converter.apply(strValue);
+        update();
+    }
+
+    private void update() {
+        strValue = Configuration.getConfigurationValue(propertyName);
+        try {
+            cached = converter.apply(strValue);
+        } catch (ClassCastException e) {
+            throw new ConfigException(propertyName, e);
+        }
     }
 
     public T get() {
         if (hasChanged()) {
             Configuration.log.info("Configuation value `" + propertyName + "` changed");
-            strValue = Configuration.getConfigurationValue(propertyName);
-            if (converter != null) {
-                cached = converter.apply(strValue);
-            } else {
-                try {
-                    cached = (T) strValue;
-                } catch (ClassCastException | IllegalArgumentException e) {
-                    throw new ConfigException(propertyName, e);
-                }
-            }
+            update();
 
             if (!updated) {
                 // If we think we're out of date, we're now definitely up to date
@@ -102,18 +117,20 @@ public class CfgValue<T> {
         return !Configuration.getConfigurationValue(propertyName).equals(strValue);
     }
 
-    public void validate() {
-        hasChanged();
-    }
-
     public void setOnChanged(Consumer<T> action) {
         actions.add(action);
     }
-    public void setOnChanged(Runnable action) {
-        setOnChanged(ignored -> action.run());
+    public void setOnChangedThrowable(ThrowRunnable action) {
+        setOnChanged(ignored -> {
+            try {
+                action.run();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
-    public static void setOnChanged(Collection<CfgValue<?>> values, Runnable action) {
-        values.forEach(val -> val.setOnChanged(action));
+    public void setOnChanged(Runnable action) {
+        setOnChangedThrowable(action::run);
     }
 }
 

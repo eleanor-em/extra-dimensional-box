@@ -1,29 +1,31 @@
 package unimelb.bitbox.util.concurrency;
 
+import unimelb.bitbox.util.functional.algebraic.Maybe;
+
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class DelayedInitialiser<T> {
     private CountDownLatch latch = new CountDownLatch(1);
-    private final AtomicReference<T> value = new AtomicReference<>();
+    private final AtomicReference<Maybe<T>> value = new AtomicReference<>();
 
     public T await() throws InterruptedException {
         latch.await();
-        return value.get();
+        return value.get().get();
     }
 
-    public T get() {
+    public Maybe<T> get() {
         return value.get();
     }
 
     public void set(T value) {
-        if (this.value.compareAndSet(null, value)) {
+        if (this.value.compareAndSet(Maybe.nothing(), Maybe.just(value))) {
             latch.countDown();
         }
     }
 
     public void reset() {
-        value.set(null);
+        value.set(Maybe.nothing());
         latch = new CountDownLatch(1);
     }
 }

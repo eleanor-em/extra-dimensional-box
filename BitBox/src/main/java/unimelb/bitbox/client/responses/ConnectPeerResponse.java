@@ -1,6 +1,6 @@
 package unimelb.bitbox.client.responses;
 
-import unimelb.bitbox.server.ServerMain;
+import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.network.HostPort;
 
 /**
@@ -17,16 +17,14 @@ import unimelb.bitbox.util.network.HostPort;
  */
 class ConnectPeerResponse extends ClientResponse {
 
-    protected ConnectPeerResponse(ServerMain server, HostPort hostPort) {
+    protected ConnectPeerResponse(PeerServer server, HostPort hostPort) {
         response.append("command", "CONNECT_PEER_RESPONSE");
 
         final String SUCCESS = "connected to peer";
         String reply = SUCCESS;
 
-        // ELEANOR: Server should handle incoming peer count, not this response object.
         if (!server.getConnection().clientTryPeer(hostPort)){
-            // failed if the target peer is offline/not available
-            ServerMain.log.warning("target peer is not reachable. Failed to connect to " + hostPort);
+            PeerServer.log.warning("target peer is not reachable. Failed to connect to " + hostPort);
                     reply = "connection failed";
         }
 

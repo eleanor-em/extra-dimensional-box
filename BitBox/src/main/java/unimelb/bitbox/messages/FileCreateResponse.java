@@ -1,16 +1,19 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.server.ServerMain;
+import unimelb.bitbox.server.PeerServer;
+import unimelb.bitbox.util.fs.FileDescriptor;
+import unimelb.bitbox.util.fs.FileSystemException;
 import unimelb.bitbox.util.fs.FileSystemManager;
-import unimelb.bitbox.util.network.JSONDocument;
-import unimelb.bitbox.util.network.ResponseFormatException;
+import unimelb.bitbox.util.network.JSONException;
+
+import java.io.IOException;
 
 public class FileCreateResponse extends Message {
     private static final String SUCCESS = "file loader ready";
 
     public final boolean successful;
-    public FileCreateResponse(FileSystemManager fsManager, String pathName, JSONDocument fileDescriptor, boolean dryRun)
-            throws ResponseFormatException {
+    public FileCreateResponse(FileSystemManager fsManager, String pathName, FileDescriptor fileDescriptor, long length, boolean dryRun)
+            throws JSONException {
         super("FILE_CREATE:" + pathName + ":" + fileDescriptor);
         if (dryRun) {
             successful = false;
@@ -18,15 +21,16 @@ public class FileCreateResponse extends Message {
         }
         String reply;
 
-        if (fileAlreadyExists(fileDescriptor, pathName, fsManager)) {
+
+        if (fsManager.fileNameExists(pathName, fileDescriptor.md5)) {
             reply = "file already exists locally";
         } else if (!fsManager.isSafePathName(pathName)) {
             reply = "unsafe pathname given: " + pathName;
         } else {
-            reply = generateFileLoader(fsManager, pathName, fileDescriptor);
+            reply = generateFileLoader(fsManager, pathName, fileDescriptor, length);
         }
 
-        successful = reply == SUCCESS;
+        successful = reply.equals(SUCCESS);
         document.append("command", FILE_CREATE_RESPONSE);
         document.append("fileDescriptor", fileDescriptor);
         document.append("pathName", pathName);
@@ -34,45 +38,29 @@ public class FileCreateResponse extends Message {
         document.append("status", successful);
     }
 
-    // ELEANOR: Moved this method here so that we aren't creating two loaders, and so we can check the loader for
-    //          errors before responding.
-    private String generateFileLoader(FileSystemManager fsManager, String pathName, JSONDocument fileDescriptor)
-        throws ResponseFormatException {
-        String md5 = fileDescriptor.require("md5");
-        long length = fileDescriptor.require("fileSize");
-        long lastModified = fileDescriptor.require("lastModified");
+    private String generateFileLoader(FileSystemManager fsManager, String pathName, FileDescriptor fileDescriptor, long length) {
         try {
-            boolean done = fsManager.createFileLoader(pathName, md5, length, lastModified);
-            if (done){
-                return SUCCESS;
-            } else {
-                // We possibly have a different version of this file.
-                if (fsManager.fileNameExists(pathName)) {
-                    if (!fsManager.modifyFileLoader(pathName, md5, lastModified, length)) {
-                        // We're currently transferring this file, or else our file is newer.
-                        ServerMain.log.warning("failed to generate file loader for " + pathName);
-                        return "error generating modify file loader: " + pathName;
-                    } else {
-                        return SUCCESS;
-                    }
-                } else {
-                    return "error generating create file loader: " + pathName;
+            fsManager.createFileLoader(pathName, fileDescriptor.md5, length, fileDescriptor.lastModified);
+        } catch (FileSystemException e) {
+            // We possibly have a different version of this file.
+            if (fsManager.fileNameExists(pathName)) {
+                try {
+                    fsManager.modifyFileLoader(pathName, fileDescriptor.md5, fileDescriptor.lastModified, length);
+                } catch (IOException ignored) {
+                    // We're currently transferring this file, or else our file is newer.
+                    PeerServer.log.warning("failed to generate file loader for " + pathName);
+                    return "error generating modify file loader: " + pathName;
                 }
+            } else {
+                e.printStackTrace();
+                return "error generating create file loader: " + pathName;
             }
         }
         catch (Exception e){
-            ServerMain.log.severe("error generating file loader for " + pathName);
+            PeerServer.log.severe("error generating file loader for " + pathName);
             e.printStackTrace();
             return "misc error: " + e.getMessage() + ": " + pathName;
         }
-    }
-
-    /**
-     * This method checks if a file was created with the same name and content.
-     */
-    private boolean fileAlreadyExists(JSONDocument fileDescriptor, String pathName, FileSystemManager fsManager)
-            throws ResponseFormatException {
-
-        return fsManager.fileNameExists(pathName, fileDescriptor.require("md5"));
+        return SUCCESS;
     }
 }

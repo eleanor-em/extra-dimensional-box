@@ -4,9 +4,10 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+import unimelb.bitbox.util.functional.algebraic.Result;
 
 import java.util.ArrayList;
-import java.util.Optional;
+import java.util.List;
 
 public class JSONDocument implements JSONData {
     private JSONObject obj = new JSONObject();
@@ -15,33 +16,36 @@ public class JSONDocument implements JSONData {
     public JSONDocument(JSONObject obj) {
         this.obj = obj;
     }
-    public static JSONDocument parse(String json)
-        throws ResponseFormatException {
+    public static Result<JSONException, JSONDocument> parse(String json) {
         try {
             JSONParser parser = new JSONParser();
             JSONObject obj = (JSONObject) parser.parse(json);
-            return new JSONDocument(obj);
+            return Result.value(new JSONDocument(obj));
         } catch (ClassCastException | NullPointerException e) {
-            throw new ResponseFormatException("Error parsing JSON string `" + json + "`:\n" + e.getMessage());
+            return Result.error(new JSONException("Error parsing JSON string `" + json + "`:\n" + e.getMessage()));
         } catch (ParseException e) {
-            throw new ResponseFormatException(json, e);
+            return Result.error(new JSONException(json, e));
         }
     }
 
     // Allow a limited subset of appends
-    public void append(String key, String val) {
+    public JSONDocument append(String key, String val) {
         obj.put(key, val);
+        return this;
     }
-    public void append(String key, boolean val) {
+    public JSONDocument append(String key, boolean val) {
         obj.put(key, val);
+        return this;
     }
-    public void append(String key, long val) {
+    public JSONDocument append(String key, long val) {
         obj.put(key, val);
+        return this;
     }
-    public void append(String key, JSONDocument val) {
-        obj.put(key, val);
+    public JSONDocument append(String key, JSONData val) {
+        obj.put(key, val.toJSON());
+        return this;
     }
-    public void append(String key, ArrayList<?> val) {
+    public JSONDocument append(String key, List<?> val) {
         JSONArray list = new JSONArray();
         for(Object o : val){
             if(o instanceof JSONDocument){
@@ -51,6 +55,31 @@ public class JSONDocument implements JSONData {
             }
         }
         obj.put(key,list);
+        return this;
+    }
+    public JSONDocument appendIfMissing(String key, String val) {
+        if (!containsKey(key)) {
+            append(key, val);
+        }
+        return this;
+    }
+    public JSONDocument appendIfMissing(String key, boolean val) {
+        if (!containsKey(key)) {
+            append(key, val);
+        }
+        return this;
+    }
+    public JSONDocument appendIfMissing(String key, JSONData val) {
+        if (!containsKey(key)) {
+            append(key, val);
+        }
+        return this;
+    }
+    public JSONDocument appendIfMissing(String key, List<?> val) {
+        if (!containsKey(key)) {
+            append(key, val);
+        }
+        return this;
     }
 
     public boolean isEmpty() {
@@ -66,46 +95,61 @@ public class JSONDocument implements JSONData {
         return obj.containsKey(key);
     }
 
-    public <T> Optional<T> get(String key) {
+    public <T> Result<JSONException, T> get(String key) {
+        if (!containsKey(key)) {
+            return Result.error(new JSONException("Field `" + key + "` missing"));
+        }
         try {
             // If it's a JSONObject, Java won't allow implicit conversion constructors, so we have to deal with that
             // case separately.
             Object result = obj.get(key);
             if (result instanceof JSONObject) {
-                return Optional.of((T)new JSONDocument((JSONObject)result));
+                return Result.value((T)new JSONDocument((JSONObject)result));
             }
-            // ofNullable will return `empty` if result == null, so that handles things nicely.
-            return Optional.ofNullable((T)result);
+            return Result.value((T)result);
         } catch (ClassCastException ignored) {
-            return Optional.empty();
+            return Result.error(new JSONException("Field `" + key + "` of wrong type"));
         }
     }
 
-    public <T> Optional<ArrayList<T>> getArray(String key) {
+    public Result<JSONException, Long> getLong(String key) {
+        return get(key);
+    }
+    public Result<JSONException, Integer> getInteger(String key) {
+        return getLong(key).map(Long::intValue);
+    }
+    public Result<JSONException, String> getString(String key) {
+        return get(key);
+    }
+    public Result<JSONException, Boolean> getBoolean(String key) {
+        return get(key);
+    }
+    public Result<JSONException, JSONDocument> getJSON(String key) {
+        return get(key);
+    }
+
+    public <T> Result<JSONException, List<T>> getArray(String key) {
+        if (!containsKey(key)) {
+            return Result.error(new JSONException("Field `" + key + "` missing"));
+        }
+        JSONArray jsonArray;
+        try {
+            jsonArray = (JSONArray) obj.get(key);
+        } catch (ClassCastException ignored) {
+            return Result.error(new JSONException("Field `" + key + "` of wrong type"));
+        }
         try {
             ArrayList<T> res = new ArrayList<>();
-            Object array = obj.get(key);
-            if (array == null) {
-                return Optional.empty();
-            }
-            for (Object o : (JSONArray)array) {
+            for (Object o : jsonArray) {
                 if (o instanceof JSONObject) {
-                    res.add((T)new JSONDocument((JSONObject)o));
+                    res.add((T) new JSONDocument((JSONObject) o));
                 } else {
                     res.add((T) o);
                 }
             }
-            return Optional.of(res);
+            return Result.value(res);
         } catch (ClassCastException ignored) {
-            return Optional.empty();
+            return Result.error(new JSONException("List field `" + key + "` contains value of wrong type"));
         }
-    }
-
-    public <T> T require(String key) throws ResponseFormatException {
-        return (this.<T>get(key)).orElseThrow(() -> new ResponseFormatException("missing field: " + key));
-    }
-
-    public <T> ArrayList<T> requireArray(String key) throws ResponseFormatException {
-        return (this.<T>getArray(key)).orElseThrow(() -> new ResponseFormatException("missing field: " + key));
     }
 }

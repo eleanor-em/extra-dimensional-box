@@ -1,15 +1,15 @@
 package unimelb.bitbox.peers;
 
-import unimelb.bitbox.server.ServerMain;
+import unimelb.bitbox.server.PeerServer;
 
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 
-public class PeerTCP extends PeerConnection {
+public class PeerTCP extends Peer {
     private Socket socket;
 
-    public PeerTCP(String name, Socket socket, ServerMain server, boolean outgoing) {
+    public PeerTCP(String name, Socket socket, PeerServer server, boolean outgoing) {
         super(name, server, outgoing, socket.getInetAddress().getHostAddress(), socket.getPort(), new OutgoingConnectionTCP(socket));
         IncomingConnectionTCP inConn = new IncomingConnectionTCP(socket, this);
         inConn.start();
@@ -22,17 +22,17 @@ public class PeerTCP extends PeerConnection {
         try {
             socket.close();
         } catch (IOException e) {
-            ServerMain.log.severe("Error closing socket: " + e.getMessage());
+            PeerServer.log.severe("Error closing socket: " + e.getMessage());
         }
     }
 }
 
 class IncomingConnectionTCP extends Thread {
     private Socket socket;
-    // the PeerConnection object that will forward our received messages
-    private PeerConnection consumer;
+    // the Peer object that will forward our received messages
+    private Peer consumer;
 
-    IncomingConnectionTCP(Socket socket, PeerConnection consumer) {
+    IncomingConnectionTCP(Socket socket, Peer consumer) {
         this.socket = socket;
         this.consumer = consumer;
     }
@@ -45,8 +45,8 @@ class IncomingConnectionTCP extends Thread {
                 consumer.receiveMessage(message);
             }
         } catch (IOException e) {
-            if (consumer.getState() != PeerState.CLOSED) {
-                ServerMain.log.severe("Error reading from socket: " + e.getMessage());
+            if (!consumer.isClosed()) {
+                PeerServer.log.severe("Error reading from socket: " + e.getMessage());
                 consumer.close();
             }
         }
@@ -70,9 +70,9 @@ class OutgoingConnectionTCP extends OutgoingConnection {
                 message.onSent.run();
             }
         } catch (IOException e) {
-            ServerMain.log.severe("Error writing to socket: " + e.getMessage());
+            PeerServer.log.severe("Error writing to socket: " + e.getMessage());
         } catch (InterruptedException e) {
-            ServerMain.log.info("thread interrupted: " + e.getMessage());
+            PeerServer.log.info("thread interrupted: " + e.getMessage());
         }
     }
 }

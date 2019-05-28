@@ -1,7 +1,8 @@
 package unimelb.bitbox.peers;
 
 import unimelb.bitbox.messages.Message;
-import unimelb.bitbox.server.ServerMain;
+import unimelb.bitbox.server.PeerServer;
+import unimelb.bitbox.util.concurrency.LazyInitialiser;
 import unimelb.bitbox.util.config.CfgValue;
 
 import java.io.IOException;
@@ -12,16 +13,10 @@ import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class PeerUDP extends PeerConnection {
-    private HashMap<String, RetryThread> retryThreads;
-    private HashMap<String, RetryThread> getRetryThreads() {
-        if (retryThreads == null) {
-            retryThreads = new HashMap<>();
-        }
-        return retryThreads;
-    }
+public class PeerUDP extends Peer {
+    private final LazyInitialiser<HashMap<String, RetryThread>> retryThreads = new LazyInitialiser<>(HashMap::new);
 
-    public PeerUDP(String name, ServerMain server, boolean outgoing, DatagramSocket socket, DatagramPacket packet) {
+    public PeerUDP(String name, PeerServer server, boolean outgoing, DatagramSocket socket, DatagramPacket packet) {
         super(name, server, outgoing, packet.getAddress().toString().split("/")[1],
               packet.getPort(), new OutgoingConnectionUDP(socket, packet));
     }
@@ -30,7 +25,7 @@ public class PeerUDP extends PeerConnection {
     // Override to not close the socket, as it's shared between all peers.
     @Override
     protected void closeInternal() {
-        getRetryThreads().forEach((ignored, thread) -> thread.kill());
+        retryThreads.get().forEach((ignored, thread) -> thread.kill());
     }
 
     private void retryMessage(Message message) {
@@ -39,20 +34,20 @@ public class PeerUDP extends PeerConnection {
 
     @Override
     protected void sendMessageInternal(Message message, Runnable onSent) {
-        if (message.isRequest() && !getRetryThreads().containsKey(message.getSummary())) {
-            ServerMain.log.info(getForeignName() + ": waiting for response: " + message.getSummary());
+        if (message.isRequest() && !retryThreads.get().containsKey(message.getSummary())) {
+            PeerServer.log.info(getForeignName() + ": waiting for response: " + message.getSummary());
             RetryThread thread = new RetryThread(this, message);
-            getRetryThreads().put(message.getSummary(), thread);
+            retryThreads.get().put(message.getSummary(), thread);
             thread.start();
         }
         super.sendMessageInternal(message, onSent);
     }
 
     @Override
-    public void notify(Message message) {
+    protected void notifyInternal(Message message) {
         if (!message.isRequest()) {
-            ServerMain.log.info(getForeignName() + ": notified response: " + message.getSummary());
-            Optional.ofNullable(getRetryThreads().get(message.getSummary()))
+            PeerServer.log.info(getForeignName() + ": notified response: " + message.getSummary());
+            Optional.ofNullable(retryThreads.get().get(message.getSummary()))
                     .ifPresent(Thread::interrupt);
         }
     }
@@ -92,7 +87,7 @@ public class PeerUDP extends PeerConnection {
                     return;
                 }
                 if (alive.get()) {
-                    ServerMain.log.info(parent.getForeignName() + ": resending " + message.getCommand() + " (" + retries + ")");
+                    PeerServer.log.info(parent.getForeignName() + ": resending " + message.getCommand() + " (" + retries + ")");
                     parent.retryMessage(message);
 
                     synchronized (this) {
@@ -101,7 +96,7 @@ public class PeerUDP extends PeerConnection {
                 }
             }
             if (alive.get()) {
-                ServerMain.log.warning(parent.getForeignName() + ": timed out: " + message.getCommand());
+                PeerServer.log.warning(parent.getForeignName() + ": timed out: " + message.getCommand());
             }
             parent.close();
         }
@@ -128,9 +123,9 @@ class OutgoingConnectionUDP extends OutgoingConnection {
                 udpSocket.send(packet);
                 message.onSent.run();
             } catch (IOException e) {
-                ServerMain.log.severe("Error sending packet to UDP socket: " + e.getMessage());
+                PeerServer.log.severe("Error sending packet to UDP socket: " + e.getMessage());
             } catch (InterruptedException e) {
-                ServerMain.log.info("thread interrupted: " + e.getMessage());
+                PeerServer.log.info("thread interrupted: " + e.getMessage());
             }
         }
     }

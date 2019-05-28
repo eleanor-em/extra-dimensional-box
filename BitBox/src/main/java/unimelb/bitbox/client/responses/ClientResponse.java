@@ -1,9 +1,10 @@
 package unimelb.bitbox.client.responses;
 
-import unimelb.bitbox.server.ServerMain;
+import unimelb.bitbox.server.PeerServer;
+import unimelb.bitbox.util.functional.algebraic.Result;
 import unimelb.bitbox.util.network.HostPort;
 import unimelb.bitbox.util.network.JSONDocument;
-import unimelb.bitbox.util.network.ResponseFormatException;
+import unimelb.bitbox.util.network.JSONException;
 
 /**
  * Parent class of responses to client requests
@@ -13,21 +14,21 @@ public abstract class ClientResponse {
 
     protected ClientResponse() {}
 
-    // ELEANOR: In my review I meant that ClientResponse should be a factory, so I've implemented that here
-    public static JSONDocument getResponse(String command, ServerMain server, JSONDocument document)
-            throws ResponseFormatException {
+    public static Result<ServerException, JSONDocument> getResponse(String command, PeerServer server, JSONDocument document) {
+        Result<JSONException, JSONDocument> result;
         switch (command) {
             case "LIST_PEERS_REQUEST":
-                return new ListPeersResponse(server).response;
+                result = Result.value(new ListPeersResponse(server).response);
+                break;
             case "CONNECT_PEER_REQUEST":
-                return new ConnectPeerResponse(server, getHostPort(document)).response;
+                result = Result.of(() -> new ConnectPeerResponse(server, HostPort.fromJSON(document).get()).response);
+                break;
             case "DISCONNECT_PEER_REQUEST":
-                return new DisconnectPeerResponse(server, getHostPort(document)).response;
+                result = Result.of(() -> new DisconnectPeerResponse(server, HostPort.fromJSON(document).get()).response);
+                break;
+            default:
+                return Result.error(new ServerException("Unrecognised command `" + command + "`"));
         }
-        throw new ResponseFormatException("Unrecognised command `" + command + "`");
-    }
-
-    private static HostPort getHostPort(JSONDocument document) throws ResponseFormatException {
-        return new HostPort(document.require("host"), (int)(long)document.<Long>require("port"));
+        return result.mapError(ServerException::new);
     }
 }

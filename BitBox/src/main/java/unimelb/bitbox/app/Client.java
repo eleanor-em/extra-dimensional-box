@@ -1,31 +1,29 @@
 package unimelb.bitbox.app;
 
 import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
-import unimelb.bitbox.client.AuthResponseParser;
-import unimelb.bitbox.client.ClientArgsException;
-import unimelb.bitbox.client.requests.ClientRequest;
+import unimelb.bitbox.client.requests.ClientArgsException;
 import unimelb.bitbox.client.requests.ClientRequestProtocol;
 import unimelb.bitbox.util.crypto.Crypto;
 import unimelb.bitbox.util.crypto.CryptoException;
+import unimelb.bitbox.util.functional.algebraic.ChainedEither;
+import unimelb.bitbox.util.functional.algebraic.Result;
 import unimelb.bitbox.util.network.HostPort;
-import unimelb.bitbox.util.network.HostPortParseException;
 import unimelb.bitbox.util.network.JSONDocument;
-import unimelb.bitbox.util.network.ResponseFormatException;
+import unimelb.bitbox.util.network.JSONException;
 
 import javax.crypto.SecretKey;
 import java.io.*;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.Security;
+import java.util.Base64;
 
 /**
  * Contains the main method for the Client.
@@ -34,10 +32,11 @@ public class Client {
     /**
      * As per the specification.
      */
-    private static final String PRIVATE_KEY_FILE = "bitboxclient_rsa";
+    public static final String PRIVATE_KEY_FILE = "bitboxclient_rsa";
 
     /**
      * Generates the command line options object as per the specification.
+     *
      * @return the created Options
      */
     private static Options generateCLIOptions() {
@@ -49,151 +48,230 @@ public class Client {
         return options;
     }
 
-    /**
-     * Loads our private key from the set file.
-     * @return the created private key object
-     * @throws IOException in case of IO error
-     */
-    private static PrivateKey getPrivateKey()
-            throws IOException {
-        Security.addProvider(new BouncyCastleProvider());
-        PEMParser pemParser = new PEMParser(new FileReader(new File(Client.PRIVATE_KEY_FILE)));
-        JcaPEMKeyConverter converter = new JcaPEMKeyConverter().setProvider("BC");
-        KeyPair kp = converter.getKeyPair((PEMKeyPair)pemParser.readObject());
-        return kp.getPrivate();
+    private static Result<ClientArgsException, String> getFromOpts(CommandLine opts, String key) {
+        if (!opts.hasOption(key)) {
+            return Result.error(new ClientArgsException("missing command line option: -" + key));
+        }
+        return Result.value(opts.getOptionValue(key));
     }
 
     public static void main(String[] args) {
-        // Parse the command line options
-        CommandLineParser parser = new DefaultParser();
-        CommandLine opts;
-        try {
-            opts = parser.parse(generateCLIOptions(), args);
-        } catch (org.apache.commons.cli.ParseException e) {
-            System.out.println("Failed to parse command line options: " + e.getMessage());
-            return;
-        }
-
-        // Extract the user identity from the options
-        String ident = opts.getOptionValue("i");
-        if (ident == null) {
-            System.out.println("missing command line option: -i");
-            return;
-        }
-
-        // Find the address we want to connect to, and create the message to be sent post-authentication
-        HostPort hostPort;
-        ClientRequest message;
-        try {
-            // Load the server address and perform error checking
-            String serverAddress = opts.getOptionValue("s");
-            if (serverAddress == null) {
-                System.out.println("missing command line option: -s");
-                return;
-            }
-            try {
-                hostPort = HostPort.fromAddress(serverAddress);
-            } catch (HostPortParseException e) {
-                throw new ClientArgsException(e.getMessage());
-            }
-            message = ClientRequestProtocol.generateMessage(opts);
-        } catch (ClientArgsException e) {
-            System.out.println("Failed to parse command line options: " + e.getMessage());
-            return;
-        }
-
-        // Load the private key
-        PrivateKey privateKey;
-        try {
-            privateKey = getPrivateKey();
-        } catch (IOException e) {
-            System.out.println("Error reading private key: " + e.getMessage());
-            return;
-        }
-
-        // Connect to the server
-        Socket socket;
-        try {
-            socket = new Socket(hostPort.hostname, hostPort.port);
-        } catch (UnknownHostException e) {
-            System.out.println("invalid hostname: " + hostPort.hostname);
-            return;
-        } catch (IOException e) {
-            System.out.println("failed creating socket: " + e.getMessage());
-            return;
-        }
-
-        // Create streams
-        try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
-             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
-            // Send authentication request
-            out.write(generateAuthRequest(ident) + "\n");
-            out.flush();
-
-            // Wait for authentication response
-            String responseText = in.readLine();
-            if (responseText == null) {
-                System.out.println("No response");
-                return;
-            }
-            AuthResponseParser response = new AuthResponseParser(responseText);
-            if (response.isError()) {
-                System.out.println("Authentication failure: " + response.getMessage());
-                return;
-            }
-            SecretKey key;
-            try {
-                key = response.decryptKey(privateKey);
-            } catch (CryptoException e) {
-                System.out.println("While decrypting secret key:");
-                e.printStackTrace();
-                return;
-            }
-
-            // Send encrypted message
-            try {
-                JSONDocument encryptedRequest = Crypto.encryptMessage(key, message.getDocument());
-                out.write(encryptedRequest.networkEncode());
+        ServerConnection.initialise(args)
+                        .match(err -> System.out.println(err.getMessage()),
+                               connection -> {
+            // Create streams
+            try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(connection.socket.getOutputStream()));
+                 BufferedReader in = new BufferedReader(new InputStreamReader(connection.socket.getInputStream()))) {
+                // Send authentication request
+                out.write(generateAuthRequest(connection.ident).networkEncode());
                 out.flush();
-            } catch (CryptoException e) {
-                System.out.println("While encrypting request:");
-                e.printStackTrace();
-                return;
-            }
 
-            // Wait for response
-            JSONDocument encryptedResponse = JSONDocument.parse(in.readLine());
-            if (encryptedResponse.isEmpty()) {
-                System.out.println("No response");
-            } else {
-                System.out.println(Crypto.decryptMessage(key, encryptedResponse));
-            }
-        } catch (IOException e) {
-            System.out.println("Error reading/writing socket: " + e.getMessage());
-        } catch (ResponseFormatException e) {
-            System.out.println("Peer sent invalid response: " + e.getMessage());
-        } catch (CryptoException e) {
-            System.out.println("While decrypting response:");
-            e.printStackTrace();
-        } finally {
-            // Make sure we close the socket!
-            try {
-                socket.close();
+                // Wait for authentication response
+                String responseText = in.readLine();
+                if (responseText == null) {
+                    System.out.println("No response");
+                    return;
+                }
+                // Parse the response
+                Result.of(() -> new AuthResponseParser(responseText))
+                        // Check response for errors, and decrypt it
+                        .andThen(response -> {
+                            if (response.isError()) {
+                                return Result.error(new ClientError("Authentication failure: " + response.getMessage()));
+                            } else {
+                                return response.decryptKey(connection.privateKey);
+                            }
+                        })
+                        .andThen(key -> Crypto.encryptMessage(key, connection.request).mapError(ClientError::new)
+                                .andThen(encryptedRequest -> Result.of(() -> {
+                                    // Send the encrypted message over the network
+                                    out.write(encryptedRequest.networkEncode());
+                                    out.flush();
+                                    return key;
+                                }).mapError(ClientError::new)))
+                        .map(key -> Result.of(in::readLine).mapError(ClientError::new)
+                                // Parse the response
+                                .andThen(encryptedResponse -> JSONDocument.parse(encryptedResponse).mapError(ClientError::new))
+                                .andThen(encryptedResponse -> {
+                                    // Make sure we actually got a response
+                                    if (encryptedResponse.isEmpty()) {
+                                        return Result.value("No response");
+                                    } else if (encryptedResponse.containsKey("status")) {
+                                        // Check if the response contained an error
+                                        return encryptedResponse.getBoolean("status")
+                                                .map(status -> {
+                                                    if (!status) {
+                                                        return "Failed response: " + encryptedResponse.getString("message");
+                                                    } else {
+                                                        return "Malformed response: " + encryptedResponse;
+                                                    }
+                                                })
+                                                .mapError(ClientError::new);
+                                    } else {
+                                        // Validation done, decrypt the message
+                                        return Crypto.decryptMessage(key, encryptedResponse)
+                                                .map(JSONDocument::toString)
+                                                .mapError(ClientError::new);
+                                    }
+                                })
+                                .consumeError(ClientError::getMessage))
+                        .collapse(System.out::println);
             } catch (IOException e) {
-                System.out.println("Error closing socket: " + e.getMessage());
+                System.out.println("Error reading/writing socket: " + e.getMessage());
+            } finally {
+                // Make sure we close the socket!
+                try {
+                    connection.socket.close();
+                } catch (IOException e) {
+                    System.out.println("Error closing socket: " + e.getMessage());
+                }
             }
-        }
+        });
     }
 
     /**
      * Generates an authentication request for the provided identity.
+     *
      * @param ident the identity to request authentication for
      * @return the JSON message to send
      */
-    private static String generateAuthRequest(String ident) {
+    private static JSONDocument generateAuthRequest(String ident) {
         JSONDocument authRequest = new JSONDocument();
         authRequest.append("command", "AUTH_REQUEST");
         authRequest.append("identity", ident);
-        return authRequest.networkEncode();
+        return authRequest;
+    }
+
+    private static class ServerConnection {
+        public final Socket socket;
+        public final String ident;
+        public final JSONDocument request;
+        public final PrivateKey privateKey;
+
+        public static Result<ClientArgsException, ServerConnection> initialise(String[] args) {
+            // Parse the command line options
+            return Result.of(() -> new DefaultParser().parse(generateCLIOptions(), args))
+                    .or(Result.error(new ClientArgsException("failed to parse command line options")))
+                    .map(ArgsData::new)
+                    // Get the identity
+                    .peek(data -> getFromOpts(data.opts, "i").ok(ident -> data.ident = ident))
+                    // Get the server name
+                    .peek(data -> getFromOpts(data.opts, "s")
+                            // Translate to HostPort
+                            .andThen(addr -> HostPort.fromAddress(addr)
+                            .mapError(ClientArgsException::new)
+                            .ok(hp -> data.hostPort = hp)))
+                    // Generate the request
+                    .peek(data -> ClientRequestProtocol.generateMessage(data.opts).ok(req -> data.request = req))
+                    // Create the socket
+                    .ok(data -> Result.of(() -> new Socket(data.hostPort.hostname, data.hostPort.port))
+                                      .mapError(e -> new ClientArgsException("failed to create socket: " + e.getMessage()))
+                                      .ok(sock -> data.socket = sock))
+                    // Create the resulting object
+                    .andThen(data -> Result.of(() -> new ServerConnection(data))
+                    .mapError(e -> new ClientArgsException("failed reading private key: " + e.getMessage())));
+        }
+
+        private ServerConnection(ArgsData data) throws IOException {
+            this.socket = data.socket;
+            this.ident = data.ident;
+            this.request = data.request;
+
+            Security.addProvider(new BouncyCastleProvider());
+            PEMParser pemParser = new PEMParser(new FileReader(new File(Client.PRIVATE_KEY_FILE)));
+            JcaPEMKeyConverter converter = new JcaPEMKeyConverter().setProvider("BC");
+            KeyPair kp = converter.getKeyPair((PEMKeyPair) pemParser.readObject());
+            privateKey = kp.getPrivate();
+        }
+
+        private static class ArgsData {
+            public final CommandLine opts;
+            public String ident;
+            public HostPort hostPort;
+            public JSONDocument request;
+            public Socket socket;
+
+            public ArgsData(CommandLine opts) {
+                this.opts = opts;
+            }
+        }
+    }
+
+    private static class AuthResponseParser {
+        private boolean status;
+        private byte[] key;
+        private String message;
+
+        /**
+         * Extract the data from the provided message.
+         * @param message the JSON data to interpret
+         * @throws ClientError in case the provided message is malformed
+         */
+        public AuthResponseParser(String message) throws ClientError {
+            JSONDocument doc;
+            try {
+                doc = JSONDocument.parse(message).get();
+
+                status = doc.getBoolean("status").get();
+                this.message = doc.getString("message").get();
+                if (status) {
+                    String keyVal = doc.getString("AES128").get();
+                    key = Base64.getDecoder().decode(keyVal);
+                }
+            } catch (JSONException e) {
+                throw new ClientError(e);
+            }
+        }
+
+        public Result<ClientError, SecretKey> decryptKey(PrivateKey privateKey) {
+            return Crypto.decryptSecretKey(key, privateKey).mapError(ClientError::new);
+        }
+
+        /**
+         * @return whether the response is in an error state
+         */
+        public boolean isError() {
+            return !status;
+        }
+
+        /**
+         * @return the message provided with the response, if there is one; otherwise, empty string
+         */
+        public String getMessage() {
+            return message;
+        }
+    }
+
+    private static class ClientError extends Exception {
+        private ChainedEither<Exception, IOException, CryptoException, Exception> exception;
+
+        public ClientError(String message) {
+            super(message);
+            exception = ChainedEither.left(new Exception(message));
+        }
+
+        public ClientError(IOException e) {
+            exception = ChainedEither.middle(e);
+        }
+
+        public ClientError(CryptoException e) {
+            exception = ChainedEither.right(e);
+        }
+
+        public ClientError(JSONException e) {
+            this(new CryptoException(e));
+        }
+
+        @Override
+        public String getMessage() {
+            return exception.resolve().getMessage();
+        }
+
+        @Override
+        public void printStackTrace() {
+            exception.match(ignored -> super.printStackTrace(),
+                    Exception::printStackTrace,
+                    Exception::printStackTrace);
+        }
     }
 }

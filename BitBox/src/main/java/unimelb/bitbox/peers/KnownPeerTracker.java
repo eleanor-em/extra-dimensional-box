@@ -1,8 +1,7 @@
 package unimelb.bitbox.peers;
 
-import unimelb.bitbox.server.ServerMain;
+import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.network.HostPort;
-import unimelb.bitbox.util.network.HostPortParseException;
 
 import java.io.*;
 import java.util.HashSet;
@@ -21,12 +20,10 @@ public class KnownPeerTracker {
         try (BufferedReader reader = new BufferedReader(new FileReader(PEER_LIST_FILE))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                try {
-                    // File contains details after a space
-                    loaded.add(HostPort.fromAddress(line.split(" ")[0]));
-                } catch (HostPortParseException e) {
-                    ServerMain.log.warning("Failed to parse stored peer `" + line + "`");
-                }
+                // File contains details after a space
+                HostPort.fromAddress(line.split(" ")[0])
+                        .match(err -> PeerServer.log.warning(err.getMessage()),
+                               loaded::add);
             }
         } catch (FileNotFoundException ignored) {
             // This is fine, the file just might not exist yet

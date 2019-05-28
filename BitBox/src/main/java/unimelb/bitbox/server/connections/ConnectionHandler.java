@@ -1,11 +1,15 @@
 package unimelb.bitbox.server.connections;
 
 import unimelb.bitbox.messages.Message;
-import unimelb.bitbox.peers.PeerConnection;
-import unimelb.bitbox.server.ServerMain;
+import unimelb.bitbox.peers.Peer;
+import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.concurrency.DelayedInitialiser;
 import unimelb.bitbox.util.config.CfgValue;
-import unimelb.bitbox.util.network.*;
+import unimelb.bitbox.util.functional.algebraic.Maybe;
+import unimelb.bitbox.util.network.HostPort;
+import unimelb.bitbox.util.network.SocketWrapper;
+import unimelb.bitbox.util.network.TCPSocket;
+import unimelb.bitbox.util.network.UDPSocket;
 
 import java.io.IOException;
 import java.net.DatagramSocket;
@@ -13,6 +17,8 @@ import java.net.ServerSocket;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -21,55 +27,50 @@ public abstract class ConnectionHandler {
     private static final int PEER_RETRY_TIME = 60;
     private static final String DEFAULT_NAME = "Anonymous";
     private static final CfgValue<Integer> maxIncomingConnections = CfgValue.createInt("maximumIncommingConnections");
-    protected final ServerMain server;
+    protected final PeerServer server;
     protected final int port;
 
     // Objects for use by this class
     private final DelayedInitialiser<SocketWrapper> socket = new DelayedInitialiser<>();
-    private final List<PeerConnection> peers = Collections.synchronizedList(new ArrayList<>());
+    private final List<Peer> peers = Collections.synchronizedList(new ArrayList<>());
     private final Set<HostPort> peerAddresses = ConcurrentHashMap.newKeySet();
     private final Queue<String> names = new ConcurrentLinkedQueue<>();
 
     // Threading
-    private Thread connectThread;
-    private Thread acceptThread;
-    private AtomicBoolean active = new AtomicBoolean(true);
+    private final AtomicBoolean active = new AtomicBoolean(true);
+    private final ExecutorService executor = Executors.newCachedThreadPool();
 
-    public ConnectionHandler(ServerMain server) {
+    public ConnectionHandler(PeerServer server) {
         this.server = server;
         port = server.getHostPort().port;
         createNames();
 
-        connectThread = new Thread(this::connectToPeers);
-        connectThread.start();
-        acceptThread = new Thread(this::acceptConnectionsPersistent);
-        acceptThread.start();
+        executor.submit(this::connectToPeers);
+        executor.submit(this::acceptConnectionsPersistent);
     }
 
     public void deactivate() {
         active.set(false);
-        SocketWrapper wrapper = socket.get();
-        if (wrapper != null) {
+        socket.get().consume(wrapper -> {
             try {
                 wrapper.close();
             } catch (IOException e) {
-                ServerMain.log.severe("Failed closing socket");
+                PeerServer.log.severe("Failed closing socket");
                 e.printStackTrace();
             }
-        }
+        });
 
-        connectThread.interrupt();
-        acceptThread.interrupt();
+        executor.shutdownNow();
         closeAllConnections();
     }
 
     public void addPeerAddress(String address) {
-        try {
-            addPeerAddress(HostPort.fromAddress(address));
-            ServerMain.log.info("Adding address " + address + " to connection list");
-        } catch (HostPortParseException e) {
-            ServerMain.log.warning("Tried to add invalid address `" + address + "`");
-        }
+        HostPort.fromAddress(address)
+                .match(ignored -> PeerServer.log.warning("Tried to add invalid address `" + address + "`"),
+                       peerHostPort -> {
+                           PeerServer.log.info("Adding address " + address + " to connection list");
+                           addPeerAddress(peerHostPort);
+                       });
     }
     public void addPeerAddress(HostPort peerHostPort) {
         peerAddresses.add(peerHostPort);
@@ -83,14 +84,14 @@ public abstract class ConnectionHandler {
 
     public synchronized void retryPeers() {
         // Remove all peers that successfully connect.
-        peerAddresses.removeIf(addr -> tryPeer(addr) != null);
+        peerAddresses.removeIf(addr -> tryPeer(addr).isJust());
     }
 
     public Collection<HostPort> getOutgoingAddresses() {
         synchronized (peers) {
             return peers.stream()
-                    .filter(PeerConnection::getOutgoing)
-                    .map(PeerConnection::getHostPort)
+                    .filter(Peer::getOutgoing)
+                    .map(Peer::getHostPort)
                     .collect(Collectors.toList());
         }
     }
@@ -98,11 +99,10 @@ public abstract class ConnectionHandler {
     // TODO: Make this wait for the actual connection to exist
     public boolean clientTryPeer(HostPort hostPort){
         if (canStorePeer()) {
-            PeerConnection peer = tryPeer(hostPort);
-            if (peer != null) {
+            return tryPeer(hostPort).map(peer -> {
                 peer.forceIncoming();
                 return true;
-            }
+            }).fromMaybe(false);
         }
         return false;
     }
@@ -111,89 +111,83 @@ public abstract class ConnectionHandler {
         getActivePeers().forEach(peer -> peer.sendMessage(message));
     }
 
+    public void closeConnection(Peer peer) {
+        if (peers.contains(peer)) {
+            synchronized (peers) {
+                peers.remove(peer);
+            }
+            peer.close();
+            PeerServer.log.info("Removing " + peer.getForeignName() + " from peer list");
 
-    public void closeConnection(PeerConnection peer) {
-        closeConnectionInternal(peer);
-        synchronized (peers) {
-            peers.remove(peer);
+            // return the plain name to the queue, if it's not the default
+            String plainName = peer.getName();
+            if (!plainName.equals(DEFAULT_NAME)) {
+                names.add(plainName);
+            }
         }
     }
     public void closeAllConnections() {
-        // TODO: Problem here is peer.close() will call closeConnection, not closeConnectionInternal.
+        // Make a copy to avoid concurrent modification
+        List<Peer> peersCopy;
         synchronized (peers) {
-            peers.forEach(this::closeConnectionInternal);
-            peers.clear();
+            peersCopy = new LinkedList<>(peers);
         }
-    }
-    private void closeConnectionInternal(PeerConnection peer) {
-        peer.close();
-        ServerMain.log.info("Removing " + peer.getForeignName() + " from peer list");
-        server.getReadWriteManager().cancelPeerFiles(peer);
-
-        // return the plain name to the queue, if it's not the default
-        String plainName = peer.getName();
-        if (!plainName.equals(DEFAULT_NAME)) {
-            names.add(plainName);
-        }
+        peersCopy.forEach(this::closeConnection);
     }
 
     protected void setSocket(SocketWrapper value) {
         socket.set(value);
     }
 
-    protected Optional<DatagramSocket> awaitUDPSocket() {
+    protected DatagramSocket awaitUDPSocket() {
         try {
             SocketWrapper value = socket.await();
-            if (value instanceof UDPSocket) {
-                return Optional.of(((UDPSocket) value).get());
-            }
-            throw new RuntimeException("Expected UDPSocket, had " + value.getClass());
+            assert value instanceof UDPSocket;
+            return ((UDPSocket) value).get();
         } catch (InterruptedException e) {
-            ServerMain.log.warning("Thread interrupted while waiting for socket: " + e.getMessage());
+            PeerServer.log.warning("Thread interrupted while waiting for socket: " + e.getMessage());
+            throw new RuntimeException(e);
         }
-        return Optional.empty();
     }
 
-    protected Optional<ServerSocket> awaitTCPSocket() {
+    protected ServerSocket awaitTCPSocket() {
         try {
             SocketWrapper value = socket.await();
-            if (value instanceof TCPSocket) {
-                return Optional.of(((TCPSocket) value).get());
-            }
-            throw new RuntimeException("Expected TCPSocket, had " + value.getClass());
+            assert value instanceof TCPSocket;
+            return ((TCPSocket) value).get();
         } catch (InterruptedException e) {
-            ServerMain.log.warning("Thread interrupted while waiting for socket: " + e.getMessage());
+            PeerServer.log.warning("Thread interrupted while waiting for socket: " + e.getMessage());
+            throw new RuntimeException(e);
         }
-        return Optional.empty();
     }
 
     protected boolean hasPeer(HostPort hostPort) {
-        return getPeer(hostPort) != null;
+        return getPeer(hostPort).isJust();
     }
 
-    public PeerConnection getPeer(HostPort hostPort) {
+    public Maybe<Peer> getPeer(HostPort hostPort) {
         synchronized (peers) {
-            for (PeerConnection peer : peers) {
+            for (Peer peer : peers) {
                 HostPort peerLocalHP = peer.getLocalHostPort();
                 HostPort peerHP = peer.getHostPort();
 
                 if (peerLocalHP.fuzzyEquals(hostPort) || peerHP.fuzzyEquals(hostPort)) {
-                    return peer;
+                    return Maybe.just(peer);
                 }
             }
         }
-        return null;
+        return Maybe.nothing();
     }
 
-    public List<PeerConnection> getActivePeers() {
+    public List<Peer> getActivePeers() {
         synchronized (peers) {
             return peers.stream()
-                    .filter(PeerConnection::isActive)
+                    .filter(Peer::isActive)
                     .collect(Collectors.toList());
         }
     }
 
-    protected void addPeer(PeerConnection peer) {
+    protected void addPeer(Peer peer) {
         peers.add(peer);
     }
 
@@ -207,21 +201,21 @@ public abstract class ConnectionHandler {
     }
 
     abstract void acceptConnections() throws IOException;
-    abstract PeerConnection tryPeer(HostPort address);
+    abstract Maybe<Peer> tryPeer(HostPort address);
 
     private void acceptConnectionsPersistent() {
         try {
             acceptConnections();
         } catch (Exception e) {
-            ServerMain.log.severe("Accepting connections failed: " + e.getMessage());
+            PeerServer.log.severe("Accepting connections failed: " + e.getMessage());
+            e.printStackTrace();
         } finally {
             if (active.get()) {
-                ServerMain.log.info("Restarting accept thread");
-                if (socket.get() != null && socket.get().isClosed()) {
+                PeerServer.log.info("Restarting accept thread");
+                if (socket.get().map(SocketWrapper::isClosed).fromMaybe(false)) {
                     socket.reset();
                 }
-                acceptThread = new Thread(this::acceptConnectionsPersistent);
-                acceptThread.start();
+                executor.submit(this::acceptConnectionsPersistent);
             }
         }
     }
@@ -235,13 +229,12 @@ public abstract class ConnectionHandler {
         } catch (InterruptedException ignored) {
             // It's expected that we might get interrupted here.
         } catch (Exception e) {
+            PeerServer.log.severe("Retrying peers failed: " + e.getMessage());
             e.printStackTrace();
-            ServerMain.log.severe("Retrying peers failed: " + e.getMessage());
         } finally {
             if (active.get()) {
-                ServerMain.log.info("Restarting peer retry thread");
-                connectThread = new Thread(this::connectToPeers);
-                connectThread.start();
+                PeerServer.log.info("Restarting peer retry thread");
+                executor.submit(this::connectToPeers);
             }
         }
     }

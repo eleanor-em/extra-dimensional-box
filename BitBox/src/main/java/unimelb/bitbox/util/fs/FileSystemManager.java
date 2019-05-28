@@ -1,8 +1,7 @@
 package unimelb.bitbox.util.fs;
 
-import unimelb.bitbox.server.ServerMain;
-import unimelb.bitbox.util.network.JSONData;
-import unimelb.bitbox.util.network.JSONDocument;
+import unimelb.bitbox.server.PeerServer;
+import unimelb.bitbox.util.functional.algebraic.Maybe;
 
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -107,24 +106,24 @@ public class FileSystemManager extends Thread {
          * The path (not including the name) of the file/directory, including
          * the share directory.
          */
-        public String path;
+        public final String path;
         /**
          * The name (not including any path) of the file/directory.
          */
-        public String name;
+        public final String name;
         /**
          * The pathname of the file/directory, <i>relative</i> to the share
          * directory.
          */
-        public String pathName;
+        public final String pathName;
         /**
          * The type of this event. See {@link EVENT}.
          */
-        public EVENT event;
+        public final EVENT event;
         /**
          * Additional information for the file/directory.
          */
-        public FileDescriptor fileDescriptor;
+        public final FileDescriptor fileDescriptor;
 
         /**
          * Constructor for file events.
@@ -138,8 +137,7 @@ public class FileSystemManager extends Thread {
             this.path = path;
             this.name = name;
             this.fileDescriptor = fileDescriptor;
-            pathName = path + FileSystems.getDefault().getSeparator() + name;
-            pathName = pathName.substring(root.length() + 1);
+            pathName = (path + FileSystems.getDefault().getSeparator() + name).substring(root.length() + 1);
             this.event = event;
         }
 
@@ -153,8 +151,8 @@ public class FileSystemManager extends Thread {
         public FileSystemEvent(String path, String name, EVENT event) {
             this.path = path;
             this.name = name;
-            pathName = path + FileSystems.getDefault().getSeparator() + name;
-            pathName = pathName.substring(root.length() + 1);
+            pathName = (path + FileSystems.getDefault().getSeparator() + name).substring(root.length() + 1);
+            this.fileDescriptor = FileDescriptor.directory();
             this.event = event;
         }
 
@@ -172,7 +170,7 @@ public class FileSystemManager extends Thread {
      * @throws IOException              Thrown if an initial scan of the share directory fails.
      */
     public FileSystemManager(String root, FileSystemObserver fileSystemObserver) throws IOException {
-        log = ServerMain.log;
+        log = PeerServer.log;
         this.fileSystemObserver = fileSystemObserver;
         this.root = root;
         watchedFiles = new HashMap<>();
@@ -246,11 +244,11 @@ public class FileSystemManager extends Thread {
      *                 to the share directory.
      * @return boolean True if directory was successfully made.
      */
-    public boolean makeDirectory(String pathName) {
+    public void makeDirectory(String pathName) throws FileSystemException {
         pathName = separatorsToSystem(pathName);
         synchronized (this) {
             File file = new File(root + FileSystems.getDefault().getSeparator() + pathName);
-            return file.mkdir();
+            FileSystemException.check(file.mkdir(), "Failed creating directory " + pathName);
         }
     }
 
@@ -262,13 +260,15 @@ public class FileSystemManager extends Thread {
      *                 to the share directory.
      * @return boolean True if the directory was successfully deleted.
      */
-    public boolean deleteDirectory(String pathName) {
+    public void deleteDirectory(String pathName) throws FileSystemException {
         pathName = separatorsToSystem(pathName);
         synchronized (this) {
             File file = new File(root + FileSystems.getDefault().getSeparator() + pathName);
             if (file.isDirectory()) {
-                return file.delete();
-            } else return false;
+                FileSystemException.check(file.delete(), "Failed deleting directory " + pathName);
+            } else {
+                throw new FileSystemException("Path " + pathName + " is not a directory");
+            }
         }
     }
 
@@ -321,18 +321,16 @@ public class FileSystemManager extends Thread {
      * @param md5          The MD5 hash of content to match against.
      * @return boolean True if the file was deleted.
      */
-    public boolean deleteFile(String pathName, long lastModified, String md5) {
+    public void deleteFile(String pathName, long lastModified, String md5) throws FileSystemException {
         pathName = separatorsToSystem(pathName);
         synchronized (this) {
             String fullPathName = root + FileSystems.getDefault().getSeparator() + pathName;
-            if (watchedFiles.containsKey(fullPathName) && (watchedFiles.get(fullPathName).lastModified <= lastModified ||
-                    watchedFiles.get(fullPathName).md5.equals(md5))) {
-                log.info("deleting " + fullPathName);
-                File file = new File(fullPathName);
-                if (file.isFile()) {
-                    return file.delete();
-                } else return false;
-            } else return false;
+            FileSystemException.check(watchedFiles.containsKey(fullPathName), "File " + pathName + " does not exist");
+            FileSystemException.check(watchedFiles.get(fullPathName).lastModified <= lastModified || watchedFiles.get(fullPathName).md5.equals(md5),
+                                      "Unexpected content for " + pathName);
+            File file = new File(fullPathName);
+            FileSystemException.check(file.delete(), "Failed deleting " + pathName);
+            log.info("deleting " + fullPathName);
         }
     }
 
@@ -353,15 +351,14 @@ public class FileSystemManager extends Thread {
      * @return boolean True if the file loader was successfully created.
      * @throws IOException              if any exceptions arose as the result of accessing the file system.
      */
-    public boolean createFileLoader(String pathName, String md5, long length, long lastModified) throws IOException {
+    public void createFileLoader(String pathName, String md5, long length, long lastModified) throws IOException {
         pathName = separatorsToSystem(pathName);
         synchronized (this) {
             String fullPathName = root + FileSystems.getDefault().getSeparator() + pathName;
-            if (watchedFiles.containsKey(fullPathName)) return false;
-            if (loadingFiles.containsKey(fullPathName)) return false;
+            FileSystemException.check(watchedFiles.containsKey(fullPathName), "File " + pathName + " does not exist");
+            FileSystemException.check(!loadingFiles.containsKey(fullPathName), "File loader for " + pathName + " already exists");
             loadingFiles.put(fullPathName, new FileLoader(fullPathName, md5, length, lastModified));
         }
-        return true;
     }
 
     /**
@@ -371,18 +368,15 @@ public class FileSystemManager extends Thread {
      * @param pathName The name of the file to which the file loader is associated (no special prefix).
      * @param src      The bytes to be written.
      * @param position The position to write the bytes.
-     * @return True if successfully written, false if there was no associated file loader for the given
-     * name.
      * @throws IOException If there was an error writing the bytes.
      */
-    public boolean writeFile(String pathName, ByteBuffer src, long position) throws IOException {
+    public void writeFile(String pathName, ByteBuffer src, long position) throws IOException {
         pathName = separatorsToSystem(pathName);
         synchronized (this) {
             String fullPathName = root + FileSystems.getDefault().getSeparator() + pathName;
-            if (!loadingFiles.containsKey(fullPathName)) return false;
+            FileSystemException.check(watchedFiles.containsKey(fullPathName), "File " + pathName + " does not exist");
             loadingFiles.get(fullPathName).writeFile(src, position);
         }
-        return true;
     }
 
     /**
@@ -395,7 +389,7 @@ public class FileSystemManager extends Thread {
      * there was no such file with that content.
      * @throws IOException              If there were any problems accessing the file system.
      */
-    public ByteBuffer readFile(String md5, long position, long length) throws IOException {
+    public Maybe<ByteBuffer> readFile(String md5, long position, long length) throws IOException {
         synchronized (this) {
             if (hashMap.containsKey(md5)) {
                 for (String attempt : hashMap.get(md5)) {
@@ -413,14 +407,14 @@ public class FileSystemManager extends Thread {
                         channel.close();
                         raf.close();
                         if (read < length) throw new IOException("did not read everything expected");
-                        return bb;
+                        return Maybe.just(bb);
                     }
                     lock.release();
                     channel.close();
                     raf.close();
                 }
             }
-            return null;
+            return Maybe.nothing();
         }
     }
 
@@ -501,23 +495,21 @@ public class FileSystemManager extends Thread {
      *                     for the loading to complete.
      * @param lastModified The existing file's timestamp must be less than this time stamp
      *                     for the loader to be successfully created.
-     * @return True if the loader was successfully created.
      * @throws IOException If there were any errors accessing the file system.
      */
-    // ELEANOR: Added fileSize parameter to fix a bug in the case where the new file is bigger than block size.
-    public boolean modifyFileLoader(String pathName, String md5, long lastModified, long newFileSize) throws IOException {
+    public void modifyFileLoader(String pathName, String md5, long lastModified, long newFileSize) throws IOException {
         pathName = separatorsToSystem(pathName);
         synchronized (this) {
             String fullPathName = root + FileSystems.getDefault().getSeparator() + pathName;
-            if (loadingFiles.containsKey(fullPathName)) return false;
-            if (watchedFiles.containsKey(fullPathName) && watchedFiles.get(fullPathName).lastModified <= lastModified) {
-                loadingFiles.put(fullPathName, new FileLoader(fullPathName, md5,
-                        // ELEANOR: Issue was that the loaded file was set to have the same length as the existing file.
-                        newFileSize,
-                        lastModified));
-            } else return false;
+            FileSystemException.check(watchedFiles.containsKey(fullPathName), "File " + pathName + " does not exist");
+            FileSystemException.check(!loadingFiles.containsKey(fullPathName), "File loader for " + pathName + " already exists");
+            FileSystemException.check(watchedFiles.get(fullPathName).lastModified <= lastModified || watchedFiles.get(fullPathName).md5.equals(md5),
+                    "Unexpected content for " + pathName);
+            loadingFiles.put(fullPathName, new FileLoader(fullPathName, md5, newFileSize, lastModified));
         }
-        return true;
+    }
+    public void modifyFileLoader(String pathName, FileDescriptor fd) throws IOException {
+        modifyFileLoader(pathName, fd.md5, fd.lastModified, fd.fileSize);
     }
 
     /**
@@ -533,9 +525,8 @@ public class FileSystemManager extends Thread {
         synchronized (this) {
             String fullPathName = root + FileSystems.getDefault().getSeparator() + pathName;
             if (loadingFiles.containsKey(fullPathName)) {
-                boolean success;
                 try {
-                    success = loadingFiles.get(fullPathName).cancel();
+                    loadingFiles.get(fullPathName).cancel();
                     loadingFiles.remove(fullPathName);
                 } catch (IOException e) {
                     FileLoader fl = loadingFiles.get(fullPathName);
@@ -543,7 +534,7 @@ public class FileSystemManager extends Thread {
                     fl.cancel();
                     throw e;
                 }
-                return success;
+                return true;
             }
         }
         return false;
@@ -604,11 +595,11 @@ public class FileSystemManager extends Thread {
             lock = channel.lock();
         }
 
-        public boolean cancel() throws IOException {
+        public void cancel() throws IOException {
             lock.release();
             channel.close();
             raf.close();
-            return file.delete();
+            FileSystemException.check(file.delete(), "Failed deleting file " + pathName);
         }
 
         public boolean checkShortcut() throws IOException {
@@ -632,11 +623,8 @@ public class FileSystemManager extends Thread {
                             };
                             InputStream is = Channels.newInputStream(channel2);
                             Files.copy(is, dest, options);
-                            if (!dest.toFile().setLastModified(lastModified)) {
-                                log.warning("Failed setting modified date of " + dest.toString());
-                            } else {
-                                success = true;
-                            }
+                            FileSystemException.check(dest.toFile().setLastModified(lastModified), "Failed setting modified date of " + dest.toString());
+                            success = true;
                             break;
                         }
                     } catch (IOException e) {
@@ -661,8 +649,8 @@ public class FileSystemManager extends Thread {
         }
 
         public void writeFile(ByteBuffer src, long position) throws IOException {
-            if (position > length) throw new IOException("trying to write bytes beyond what is expected" + file.getPath());
-            if (!file.exists()) throw new IOException("file deleted during transfer: " + file.getPath());
+            FileSystemException.check(position <= length, "trying to write bytes beyond what is expected for " + file.getPath());
+            FileSystemException.check(file.exists(), "file deleted during transfer: " + file.getPath());
             channel.write(src, position);
         }
 
@@ -673,21 +661,10 @@ public class FileSystemManager extends Thread {
                 channel.close();
                 raf.close();
                 File dest = new File(pathName);
-                if (dest.exists()) {
-                    if (!dest.delete()) {
-                        log.warning("Failed deleting existing file "+ dest.getPath());
-                        return false;
-                    }
-                }
-                if (file.renameTo(dest)) {
-                    if (dest.setLastModified(lastModified)) {
-                        return true;
-                    } else {
-                        log.warning("Failed setting modified date of " + dest.getPath());
-                    }
-                } else {
-                    log.warning("Failed renaming " + file.getPath() + " to " + dest.getPath());
-                }
+                FileSystemException.check(dest.exists(), "Destination file missing");
+                FileSystemException.check(dest.delete(),"Failed deleting existing file " + dest.getPath());
+                FileSystemException.check(file.renameTo(dest), "Failed renaming loading file to " + dest.getPath());
+                FileSystemException.check(dest.setLastModified(lastModified), "Failed setting modified date of " + dest.getPath());
             }
             return false;
         }
@@ -757,9 +734,7 @@ public class FileSystemManager extends Thread {
             } catch (InterruptedException e) {
                 log.warning(e.getMessage());
             }
-
         }
-
     }
 
     private String hashFile(File file, String name, long lastModified) throws IOException {
@@ -797,14 +772,14 @@ public class FileSystemManager extends Thread {
             throws IOException {
         return scanDirectoryTree(name, false);
     }
-        private ArrayList<FileSystemEvent> scanDirectoryTree(String name, boolean clearFiles)
-            throws IOException {
+
+    private ArrayList<FileSystemEvent> scanDirectoryTree(String name, boolean clearFiles)
+        throws IOException {
         ArrayList<FileSystemEvent> pathEvents = new ArrayList<>();
         File file = new File(name);
 
         // Don't add files that are loading
         if (name.endsWith(loadingSuffix)) {
-            // ELEANOR: allow optional deletion past failed transfers
             if (clearFiles) {
                 if (!file.delete()) {
                     log.warning("Failed deleting " + file.getPath());
@@ -921,7 +896,7 @@ public class FileSystemManager extends Thread {
     }
 
     private static String separatorsToSystem(String res) {
-        if (res == null) return null;
+        assert res != null;
         if (File.separatorChar == '\\') {
             // From Windows to Linux/Mac
             return res.replace('/', File.separatorChar);

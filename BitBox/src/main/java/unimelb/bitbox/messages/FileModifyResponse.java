@@ -1,16 +1,16 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.util.network.JSONDocument;
+import unimelb.bitbox.util.fs.FileDescriptor;
 import unimelb.bitbox.util.fs.FileSystemManager;
-import unimelb.bitbox.util.network.ResponseFormatException;
+
+import java.io.IOException;
 
 
 public class FileModifyResponse extends Message {
     private static final String SUCCESS = "file loader ready";
     public final boolean successful;
 
-    public FileModifyResponse(FileSystemManager fsManager, JSONDocument fileDescriptor, String pathName, boolean dryRun)
-            throws ResponseFormatException {
+    public FileModifyResponse(FileSystemManager fsManager, FileDescriptor fileDescriptor, String pathName, boolean dryRun) {
         super("MODIFY:" + pathName + ":" + fileDescriptor);
         if (dryRun) {
             successful = false;
@@ -21,22 +21,16 @@ public class FileModifyResponse extends Message {
 
         String reply = SUCCESS;
         try {
-            String md5 = fileDescriptor.require("md5");
-            long lastModified = fileDescriptor.require("lastModified");
-            long length = fileDescriptor.require("fileSize");
-
             if (!fsManager.isSafePathName(pathName)) {
                 reply = "unsafe pathname given";
-            } else if (fsManager.fileNameExists(pathName, md5)) {
+            } else if (fsManager.fileNameExists(pathName, fileDescriptor.md5)) {
                 reply = "file already exists with matching content";
             } else if (!fsManager.fileNameExists(pathName)) {
                 reply = "pathname does not exist";
-            } else if (!fsManager.modifyFileLoader(pathName, md5, lastModified, length)) {
-                reply = "there was a problem modifying the file";
+            } else {
+                fsManager.modifyFileLoader(pathName, fileDescriptor);
             }
-        } catch (ResponseFormatException e){
-            throw e;
-        } catch (Exception e) {
+        } catch (IOException e) {
             e.printStackTrace();
             reply = "there was a problem modifying the file";
         }

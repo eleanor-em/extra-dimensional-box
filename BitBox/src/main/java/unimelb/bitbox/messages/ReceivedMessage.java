@@ -1,6 +1,6 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.peers.PeerConnection;
+import unimelb.bitbox.peers.Peer;
 
 /*
  * This class represents a message that has been received but not processed.
@@ -9,9 +9,9 @@ import unimelb.bitbox.peers.PeerConnection;
  */
 public class ReceivedMessage {
     public final String text;
-    public final PeerConnection peer;
+    public final Peer peer;
 
-    public ReceivedMessage(String text, PeerConnection peer) {
+    public ReceivedMessage(String text, Peer peer) {
         this.text = text;
         this.peer = peer;
     }

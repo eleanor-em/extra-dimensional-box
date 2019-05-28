@@ -1,6 +1,8 @@
 package unimelb.bitbox.util.fs;
 
 
+import unimelb.bitbox.util.functional.algebraic.Maybe;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
@@ -22,22 +24,24 @@ public class FileWatcher extends Thread {
     @Override
     public void run() {
         try (WatchService watcher = FileSystems.getDefault().newWatchService()) {
-            Path path = file.toPath().getParent();
-            if (path == null) {
-                // Take the root path if there was no parent
-                path = Paths.get("");
-            }
+            // If there was no parent, take the root path
+            Path path = Maybe.of(file.toPath().getParent())
+                             .fromMaybe(Paths.get(""));
             path.register(watcher, ENTRY_MODIFY);
             while (true) {
                 try {
-                    WatchKey key = watcher.poll(timeout, TimeUnit.MILLISECONDS);
-                    if (key != null) {
-                        key.pollEvents().stream()
-                                .filter(ev -> ((WatchEvent<Path>)ev).context().toString().equals(file.getName()))
-                                .findAny().ifPresent(ignored -> action.run());
-                        key.reset();
-                    }
-                } catch (InterruptedException ignored) {}
+                    Maybe.of(watcher.poll(timeout, TimeUnit.MILLISECONDS))
+                         .consume(key -> {
+                            //noinspection unchecked: trust me, it's safe
+                            key.pollEvents().stream()
+                                    .filter(ev -> ((WatchEvent<Path>)ev).context().toString().equals(file.getName()))
+                                    .findAny().ifPresent(ignored -> action.run());
+                            key.reset();
+                    });
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                    return;
+                }
                 Thread.yield();
             }
         } catch (IOException e) {

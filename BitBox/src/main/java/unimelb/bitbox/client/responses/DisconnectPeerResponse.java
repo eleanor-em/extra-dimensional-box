@@ -1,7 +1,6 @@
 package unimelb.bitbox.client.responses;
 
-import unimelb.bitbox.peers.PeerConnection;
-import unimelb.bitbox.server.ServerMain;
+import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.network.HostPort;
 
 /**
@@ -18,23 +17,21 @@ import unimelb.bitbox.util.network.HostPort;
  */
 class DisconnectPeerResponse extends ClientResponse {
 
-    protected DisconnectPeerResponse(ServerMain server, HostPort hostPort) {
+    protected DisconnectPeerResponse(PeerServer server, HostPort hostPort) {
         response.append("command", "DISCONNECT_PEER_RESPONSE");
 
         final String SUCCESS = "disconnected from peer";
-        String reply = SUCCESS;
-
-        // ELEANOR: Better to use an if statement than exception handling for a simple branch
-        PeerConnection peer = server.getConnection().getPeer(hostPort);
-        if (peer == null) {
-            reply = "connection not active";
-        } else {
-            server.getConnection().closeConnection(peer);
-        }
+        String reply = server.getConnection().getPeer(hostPort).matchThen(
+                peer -> {
+                    server.getConnection().closeConnection(peer);
+                    return SUCCESS;
+                },
+                () -> "connection not active"
+        );
 
         response.append("host", hostPort.hostname);
         response.append("port", hostPort.port);
-        response.append("status", reply == SUCCESS);
+        response.append("status", reply.equals(SUCCESS));
         response.append("message", reply);
     }
 

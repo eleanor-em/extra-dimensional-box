@@ -1,8 +1,10 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.server.ServerMain;
+import unimelb.bitbox.server.PeerServer;
+import unimelb.bitbox.util.functional.algebraic.Result;
 import unimelb.bitbox.util.network.JSONData;
 import unimelb.bitbox.util.network.JSONDocument;
+import unimelb.bitbox.util.network.JSONException;
 
 /*
  * Base class for all Messages that peers can send.
@@ -41,29 +43,31 @@ public abstract class Message implements JSONData {
         }
     }
 
-    public String getCommand() {
-        return document.<String>get("command").orElse("N/A");
+    public Result<JSONException, String> getCommand() {
+        return document.get("command");
     }
 
     public boolean isRequest() {
-        return document.<String>get("command")
-                       .orElse("")
-                       .contains("REQUEST");
+        return getCommand().orElse("").contains("REQUEST");
     }
 
     public String getSummary() {
         return summary;
     }
 
+    public final void reportErrors() throws JSONException {
+        if (document.getBoolean("status").get()) {
+            PeerServer.log.warning("Sending failed " + getCommand() + ": " + document.get("message").get());
+        }
+    }
+
     public final JSONDocument toJSON() {
         // If this had a status code, report any errors
-        document.<Boolean>get("status")
-                .ifPresent(status -> {
-                    if (!status) {
-                        String message = document.<String>get("message").orElse("");
-                        ServerMain.log.warning("Sending failed " + getCommand() + ": " + message);
-                    }
-                });
+        try {
+            reportErrors();
+        } catch (JSONException e) {
+            PeerServer.log.warning("Malformed message: " + e.getMessage());
+        }
         return document;
     }
 }
