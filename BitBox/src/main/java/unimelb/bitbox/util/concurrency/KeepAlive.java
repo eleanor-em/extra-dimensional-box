@@ -31,10 +31,10 @@ public class KeepAlive {
         while (true) {
             try {
                 ThrowRunnable task = completionService.take().get();
-                PeerServer.log.warning("resubmitting task " + task);
+                PeerServer.logWarning("resubmitting task " + task);
                 submitThrowable(task);
             } catch (InterruptedException | ExecutionException e) {
-                PeerServer.log.warning("KeepAlive service threw exception: " + e.getMessage());
+                PeerServer.logWarning("KeepAlive service threw exception: " + e.getMessage());
                 e.printStackTrace();
             }
         }

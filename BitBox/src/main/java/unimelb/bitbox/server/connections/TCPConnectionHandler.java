@@ -17,49 +17,45 @@ import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 
 public class TCPConnectionHandler extends ConnectionHandler {
-    public TCPConnectionHandler(PeerServer server) {
-        super(server);
-    }
-
     @Override
     void acceptConnections() throws IOException {
         // Need to set and then await in case there was already a socket created
         setSocket(new TCPSocket(this.port, 100));
         ServerSocket tcpServerSocket = awaitTCPSocket();
-        PeerServer.log.info("Listening on port " + this.port);
+        PeerServer.logInfo("Listening on port " + this.port);
 
         while (!tcpServerSocket.isClosed()) {
             try {
                 Socket socket = tcpServerSocket.accept();
-                PeerServer.log.info("Accepted connection: " + socket.getInetAddress().toString() + ":" + socket.getPort());
+                PeerServer.logInfo("Accepted connection: " + socket.getInetAddress().toString() + ":" + socket.getPort());
 
                 // check we have room for more peers
                 // (only count incoming connections)
                 if (canStorePeer()) {
-                    Peer peer = new PeerTCP(getAnyName(), socket, this.server, false);
+                    Peer peer = new PeerTCP(getAnyName(), socket, false);
                     addPeer(peer);
-                    PeerServer.log.info("Connected to peer " + peer);
+                    PeerServer.logInfo("Connected to peer " + peer);
                 } else {
                     // if not, write a CONNECTION_REFUSED message and close the connection
                     try (BufferedWriter out = new BufferedWriter(
                             new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8))) {
                         out.write(new ConnectionRefused(getActivePeers()).networkEncode());
                         out.flush();
-                        PeerServer.log.info("Sending CONNECTION_REFUSED");
+                        PeerServer.logInfo("Sending CONNECTION_REFUSED");
                     } catch (IOException e) {
                         e.printStackTrace();
-                        PeerServer.log.warning("Failed writing CONNECTION_REFUSED");
+                        PeerServer.logWarning("Failed writing CONNECTION_REFUSED");
                     } finally {
                         socket.close();
                     }
                 }
             } catch (SocketTimeoutException ignored) {
             } catch (IOException e) {
-                PeerServer.log.warning("Failed connecting to peer");
+                PeerServer.logWarning("Failed connecting to peer");
                 e.printStackTrace();
             }
         }
-        PeerServer.log.info("No longer listening on port " + this.port);
+        PeerServer.logInfo("No longer listening on port " + this.port);
     }
 
     @Override
@@ -74,13 +70,13 @@ public class TCPConnectionHandler extends ConnectionHandler {
 
             // find a name
             String name = getAnyName();
-            Peer peer = new PeerTCP(name, socket, server, true);
+            Peer peer = new PeerTCP(name, socket, true);
             addPeer(peer);
             // success: remove this peer from the set of peers to connect to
-            PeerServer.log.info("Connected to peer " + name + " @ " + peerHostPort);
+            PeerServer.logInfo("Connected to peer " + name + " @ " + peerHostPort);
             return Maybe.just(peer);
         } catch (IOException e) {
-            PeerServer.log.warning("Connection to peer `" + peerHostPort + "` failed: " + e.getMessage());
+            PeerServer.logWarning("Connection to peer `" + peerHostPort + "` failed: " + e.getMessage());
             e.printStackTrace();
             return Maybe.nothing();
         }

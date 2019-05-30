@@ -1,6 +1,5 @@
 package unimelb.bitbox.peers;
 
-import org.jetbrains.annotations.NotNull;
 import unimelb.bitbox.messages.FileBytesRequest;
 import unimelb.bitbox.messages.FileBytesResponse;
 import unimelb.bitbox.server.PeerServer;
@@ -47,13 +46,11 @@ class FileTransfer {
  * in response to messages received from other peers.
  */
 public class FileReadWriteThreadPool {
-    private final PeerServer server;
     private final ThreadPoolExecutor executor;
     private final ConcurrentHashMap<FileTransfer, Long> fileModifiedDates = new ConcurrentHashMap<>();
     private final Set<Peer> storedPeers = ConcurrentHashMap.newKeySet();
 
-    public FileReadWriteThreadPool(@NotNull PeerServer server){
-        this.server = server;
+    public FileReadWriteThreadPool(){
         this.executor = (ThreadPoolExecutor) Executors.newCachedThreadPool();
     }
 
@@ -64,14 +61,14 @@ public class FileReadWriteThreadPool {
         if (Maybe.of(fileModifiedDates.get(ft))
                  .map(current -> current <= fileDescriptor.lastModified)
                  .fromMaybe(false)) {
-            PeerServer.log.info(peer.getForeignName() + ": received create/modify request, but was already transferring" +
+            PeerServer.logInfo(peer.getForeignName() + ": received create/modify request, but was already transferring" +
                     "same or newer file");
         }
 
         // start the transfer
         fileModifiedDates.put(ft, fileDescriptor.lastModified);
         sendReadRequest(peer, pathName, fileDescriptor, 0);
-        PeerServer.log.info(peer.getForeignName() + ": sent FILE_BYTES_REQUEST for " +
+        PeerServer.logInfo(peer.getForeignName() + ": sent FILE_BYTES_REQUEST for " +
                 pathName + " at position: [0/" + fileDescriptor.fileSize + "]");
     }
 
@@ -80,7 +77,7 @@ public class FileReadWriteThreadPool {
      */
     public void sendReadRequest(Peer peer, String pathName, FileDescriptor fileDescriptor, long position) {
         // Send a byte request
-        peer.sendMessage(new FileBytesRequest(server, pathName, fileDescriptor, position));
+        peer.sendMessage(new FileBytesRequest(pathName, fileDescriptor, position));
     }
 
     /**
@@ -88,11 +85,11 @@ public class FileReadWriteThreadPool {
      * received from other peers. It then encodes the content and sends a FILE_BYTES_RESPONSE message to reply.
      */
     public void readFile(Peer peer, FileDescriptor fd, String pathName, long position, long length) {
-        length = Math.min(server.getMaximumLength(), length);
+        length = Math.min(PeerServer.getMaximumLength(), length);
 
         executor.execute(new ReadWorker(peer, fd, pathName, position, length));
 
-        PeerServer.log.info(peer.getForeignName() + ": read bytes of " + pathName +
+        PeerServer.logInfo(peer.getForeignName() + ": read bytes of " + pathName +
                 " at position: [" + position + "/" + fd.fileSize + "]");
     }
 
@@ -106,7 +103,7 @@ public class FileReadWriteThreadPool {
         // Run a worker thread to write the bytes received
         Runnable worker = new WriteWorker(peer, fd, pathName, position, length, content);
         executor.execute(worker);
-        PeerServer.log.info(peer + ": write " + pathName +
+        PeerServer.logInfo(peer + ": write " + pathName +
                 " at position: [" + position + "/" + fd.fileSize + "]");
     }
     /**
@@ -151,13 +148,12 @@ public class FileReadWriteThreadPool {
             // Write bytes
             try {
                 ByteBuffer decoded = ByteBuffer.wrap(Base64.getDecoder().decode(content));
-                server.getFSManager().writeFile(pathName, decoded, position);
-                PeerServer.log.info(peer.getForeignName() + ": wrote file " + pathName +
+                PeerServer.fsManager().writeFile(pathName, decoded, position);
+                PeerServer.logInfo(peer.getForeignName() + ": wrote file " + pathName +
                         " at position: [" + position + "/" + fileDescriptor.fileSize + "]");
             }
             catch (IOException e){
-                e.printStackTrace();
-                PeerServer.log.warning(peer.getForeignName() + ": error writing bytes to " + pathName +
+                PeerServer.logWarning(peer.getForeignName() + ": error writing bytes to " + pathName +
                         " at position: [" + position + "/" + fileDescriptor.fileSize + "] :" + e.getMessage());
                 cancelFile(peer, pathName);
                 return;
@@ -166,25 +162,20 @@ public class FileReadWriteThreadPool {
 
             // Check if more bytes are needed. If yes, send another FileBytesRequest
             try {
-                if (!server.getFSManager().checkWriteComplete(pathName)) {
-                    peer.sendMessage(new FileBytesRequest(server, pathName, fileDescriptor, nextPosition));
-                    PeerServer.log.info(peer.getForeignName() + ": sent FILE_BYTES_REQUEST for " + pathName +
+                if (!PeerServer.fsManager().checkWriteComplete(pathName)) {
+                    peer.sendMessage(new FileBytesRequest(pathName, fileDescriptor, nextPosition));
+                    PeerServer.logInfo(peer.getForeignName() + ": sent FILE_BYTES_REQUEST for " + pathName +
                             " at position: [" + nextPosition + "/" + fileDescriptor.fileSize + "]");
                 } else {
                     cancelFile(peer, pathName);
-                    PeerServer.log.info(peer.getForeignName() + ": received all bytes for " + pathName +
+                    PeerServer.logInfo(peer.getForeignName() + ": received all bytes for " + pathName +
                             ". File created successfully");
                 }
             } catch (IOException e) {
-                PeerServer.log.warning(peer.getForeignName() + ": error closing file loader for " + pathName);
+                PeerServer.logWarning(peer.getForeignName() + ": error closing file loader for " + pathName);
             } catch (OutOfMemoryError e){
-                PeerServer.log.info(peer.getForeignName() + ": not enough memory to write " + pathName +
+                PeerServer.logInfo(peer.getForeignName() + ": not enough memory to write " + pathName +
                         " at position: [" + nextPosition + "/" + fileDescriptor.fileSize + "]");
-            } catch (Exception e) {
-                PeerServer.log.severe(peer.getForeignName() + ": unknown error writing " +
-                        pathName + " at position: [" + nextPosition + "/" + fileDescriptor.fileSize + "]: "
-                        + e.getClass().getName() + ": " + e.getMessage());
-                e.printStackTrace();
             }
         }
     }
@@ -202,12 +193,12 @@ public class FileReadWriteThreadPool {
         // Clear any file transfers associated with this peer
         toRemove.forEach(ft -> {
             try {
-                if (!server.getFSManager().cancelFileLoader(ft.pathName)) {
+                if (!PeerServer.fsManager().cancelFileLoader(ft.pathName)) {
                     throw new IOException(ft.pathName);
                 }
-                PeerServer.log.info(ft.peer.getForeignName() + ":Cancelling transfer of " + ft.pathName);
+                PeerServer.logInfo(ft.peer.getForeignName() + ":Cancelling transfer of " + ft.pathName);
             } catch (IOException e) {
-                PeerServer.log.warning(ft.peer.getForeignName() + ": failed cancelling file loader: "+ e.getMessage());
+                PeerServer.logWarning(ft.peer.getForeignName() + ": failed cancelling file loader: "+ e.getMessage());
             }
         });
         synchronized (storedPeers) {
@@ -226,22 +217,17 @@ public class FileReadWriteThreadPool {
             AtomicReference<String> content = new AtomicReference<>("");
             AtomicReference<String> reply = new AtomicReference<>(FileBytesResponse.SUCCESS);
             try {
-                server.getFSManager().readFile(fileDescriptor.md5, position, length)
+                PeerServer.fsManager().readFile(fileDescriptor.md5, position, length)
                       .match(byteBuffer -> content.set(Base64.getEncoder().encodeToString(byteBuffer.array())),
                              () -> reply.set("no matching file found: " + fileDescriptor.md5 + ", " + position + ", " + length));
             } catch (OutOfMemoryError e) {
                 reply.set("length requested too large");
-                PeerServer.log.warning(peer.getForeignName() + ": error writing bytes of file " + pathName + " at [" +
+                PeerServer.logWarning(peer.getForeignName() + ": error writing bytes of file " + pathName + " at [" +
                         position + "/" + fileDescriptor.fileSize + "]. The file size is too big: " + e.getMessage());
             } catch (IOException e) {
                 reply.set("unsuccessful read");
-                PeerServer.log.warning(peer + ": failed reading bytes of file " + pathName + " at [" +
+                PeerServer.logWarning(peer + ": failed reading bytes of file " + pathName + " at [" +
                         position + "/" + fileDescriptor.fileSize + "]: " + e.getMessage());
-            } catch (Exception e) {
-                reply.set("unrecognised error: " + e.getClass().getName() + ": " + e.getMessage());
-                PeerServer.log.severe(peer + ": failed reading bytes of file " + pathName + " at [" +
-                        position + "/" + fileDescriptor.fileSize + "]: " + reply);
-                e.printStackTrace();
             }
 
             peer.sendMessage(new FileBytesResponse(fileDescriptor, pathName, length, position, content.get(), reply.get(), false));

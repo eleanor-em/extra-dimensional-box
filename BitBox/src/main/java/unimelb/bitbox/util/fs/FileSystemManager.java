@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.logging.Logger;
 
 /**
  * A file system manager, that recursively monitors a given share directory,
@@ -28,7 +27,7 @@ import java.util.logging.Logger;
  * The file system manager also provides an API
  * for safely making modifications to the files and directories in the share directory:
  * <li>{@link #cancelFileLoader(String)}</li>
- * <li>{@link #createFileLoader(String, String, long, long)}</li>
+ * <li>{@link #createFileLoader(String, FileDescriptor)}</li>
  * <li>{@link #checkShortcut(String)}</li>
  * <li>{@link #checkWriteComplete(String)}</li>
  * <li>{@link #deleteDirectory(String)}</li>
@@ -48,8 +47,6 @@ import java.util.logging.Logger;
  * @author Eleanor McMurtry (improvements to error reporting, fix modify loader, remove old failed transfers)
  */
 public class FileSystemManager extends Thread {
-    private static Logger log;
-
     /**
      * The special suffix on file names for loading files. Any files in the
      * share directory with this suffix will never generate file system events,
@@ -170,7 +167,6 @@ public class FileSystemManager extends Thread {
      * @throws IOException              Thrown if an initial scan of the share directory fails.
      */
     public FileSystemManager(String root, FileSystemObserver fileSystemObserver) throws IOException {
-        log = PeerServer.log;
         this.fileSystemObserver = fileSystemObserver;
         this.root = root;
         watchedFiles = new HashMap<>();
@@ -179,13 +175,13 @@ public class FileSystemManager extends Thread {
         hashMap = new HashMap<>();
         File file = new File(root);
         if (!file.exists() || !file.isDirectory()) {
-            log.severe("incorrect root given: " + root);
+            PeerServer.logSevere("incorrect root given: " + root);
             return;
         }
         canonicalRoot = file.getCanonicalPath();
-        log.info("monitoring " + canonicalRoot);
+        PeerServer.logInfo("monitoring " + canonicalRoot);
         initialScanDirectoryTree(root);
-        log.info("starting file system monitor thread");
+        PeerServer.logInfo("starting file system monitor thread");
         start();
     }
 
@@ -242,7 +238,6 @@ public class FileSystemManager extends Thread {
      *
      * @param pathName The name of the directory to make, relative
      *                 to the share directory.
-     * @return boolean True if directory was successfully made.
      */
     public void makeDirectory(String pathName) throws FileSystemException {
         pathName = separatorsToSystem(pathName);
@@ -258,7 +253,6 @@ public class FileSystemManager extends Thread {
      *
      * @param pathName The name of the directory to delete, relative
      *                 to the share directory.
-     * @return boolean True if the directory was successfully deleted.
      */
     public void deleteDirectory(String pathName) throws FileSystemException {
         pathName = separatorsToSystem(pathName);
@@ -319,7 +313,6 @@ public class FileSystemManager extends Thread {
      *                     the share directory.
      * @param lastModified The timestamp to check against.
      * @param md5          The MD5 hash of content to match against.
-     * @return boolean True if the file was deleted.
      */
     public void deleteFile(String pathName, long lastModified, String md5) throws FileSystemException {
         pathName = separatorsToSystem(pathName);
@@ -330,7 +323,7 @@ public class FileSystemManager extends Thread {
                                       "Unexpected content for " + pathName);
             File file = new File(fullPathName);
             FileSystemException.check(file.delete(), "Failed deleting " + pathName);
-            log.info("deleting " + fullPathName);
+            PeerServer.logInfo("deleting " + fullPathName);
         }
     }
 
@@ -344,20 +337,16 @@ public class FileSystemManager extends Thread {
      *
      * @param pathName     The name of the file to create, when loading is complete, relative to
      *                     the share directory.
-     * @param md5          The MD5 hash of the content that the file contents <i>must</i> match
-     *                     for file loading to be considered complete.
-     * @param length       The expected length of the file when completed.
-     * @param lastModified The last modified timestamp to use for the file.
-     * @return boolean True if the file loader was successfully created.
+     * @param fd           The file descriptor of the file to create.
      * @throws IOException              if any exceptions arose as the result of accessing the file system.
      */
-    public void createFileLoader(String pathName, String md5, long length, long lastModified) throws IOException {
+    public void createFileLoader(String pathName, FileDescriptor fd) throws IOException {
         pathName = separatorsToSystem(pathName);
         synchronized (this) {
             String fullPathName = root + FileSystems.getDefault().getSeparator() + pathName;
-            FileSystemException.check(watchedFiles.containsKey(fullPathName), "File " + pathName + " does not exist");
+            FileSystemException.check(!watchedFiles.containsKey(fullPathName), "File " + pathName + " already exists");
             FileSystemException.check(!loadingFiles.containsKey(fullPathName), "File loader for " + pathName + " already exists");
-            loadingFiles.put(fullPathName, new FileLoader(fullPathName, md5, length, lastModified));
+            loadingFiles.put(fullPathName, new FileLoader(fullPathName, fd.md5, fd.fileSize, fd.lastModified));
         }
     }
 
@@ -394,7 +383,7 @@ public class FileSystemManager extends Thread {
             if (hashMap.containsKey(md5)) {
                 for (String attempt : hashMap.get(md5)) {
                     File file = new File(attempt);
-                    log.info("reading file " + file);
+                    PeerServer.logInfo("reading file " + file);
                     RandomAccessFile raf = new RandomAccessFile(file, "rw");
                     FileChannel channel = raf.getChannel();
                     FileLock lock = channel.lock();
@@ -488,7 +477,7 @@ public class FileSystemManager extends Thread {
     /**
      * Called to create a file loader in the case when a file name already exists. The existing
      * file must have a last modified timestamp that is less than or equal to the supplied one. See
-     * {@link #createFileLoader(String, String, long, long)} for more details about the file loader.
+     * {@link #createFileLoader(String, FileDescriptor)} for more details about the file loader.
      *
      * @param pathName     The name of the file to modify.
      * @param md5          The MD5 hash of the content that the loaded file <i>must</i> have in order
@@ -588,7 +577,7 @@ public class FileSystemManager extends Thread {
             this.lastModified = lastModified;
             file = new File(pathName + loadingSuffix);
             if (file.exists()) throw new IOException("file loader already in progress: " + pathName);
-            log.info("creating file " + file.getPath());
+            PeerServer.logInfo("creating file " + file.getPath());
             if (!file.createNewFile()) throw new IOException("failed to create file: "+ pathName);
             raf = new RandomAccessFile(file, "rw");
             channel = raf.getChannel();
@@ -641,7 +630,7 @@ public class FileSystemManager extends Thread {
                 channel.close();
                 raf.close();
                 if (!file.delete()) {
-                    log.warning("Failed deleting file " + file.getPath());
+                    PeerServer.logWarning("Failed deleting file " + file.getPath());
                     success = false;
                 }
             }
@@ -690,10 +679,10 @@ public class FileSystemManager extends Thread {
                     pathEvents.addAll(scanDirectoryTree(root));
                 }
             } catch (IOException e1) {
-                log.severe(e1.getMessage());
+                PeerServer.logSevere(e1.getMessage());
             }
             for (FileSystemEvent pathEvent : pathEvents) {
-                log.info(pathEvent.toString());
+                PeerServer.logInfo(pathEvent.toString());
                 fileSystemObserver.processFileSystemEvent(pathEvent);
             }
 
@@ -725,20 +714,20 @@ public class FileSystemManager extends Thread {
                     arg1.path.length() - arg0.path.length());
 
             for (FileSystemEvent pathEvent : pathEvents) {
-                log.info(pathEvent.toString());
+                PeerServer.logInfo(pathEvent.toString());
                 fileSystemObserver.processFileSystemEvent(pathEvent);
             }
 
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
-                log.warning(e.getMessage());
+                PeerServer.logWarning(e.getMessage());
             }
         }
     }
 
     private String hashFile(File file, String name, long lastModified) throws IOException {
-        log.info("hashing file " + name);
+        PeerServer.logInfo("hashing file " + name);
         if (lastModified != 0 && lastModified == file.lastModified()) {
             return watchedFiles.get(name).md5;
         }
@@ -752,7 +741,7 @@ public class FileSystemManager extends Thread {
     }
 
     private String hashFile(String name, RandomAccessFile raf) throws IOException {
-        log.info("hashing file " + name);
+        PeerServer.logInfo("hashing file " + name);
         try {
             MessageDigest md5Digest = MessageDigest.getInstance("MD5");
             return getFileChecksum(md5Digest, raf);
@@ -782,9 +771,9 @@ public class FileSystemManager extends Thread {
         if (name.endsWith(loadingSuffix)) {
             if (clearFiles) {
                 if (!file.delete()) {
-                    log.warning("Failed deleting " + file.getPath());
+                    PeerServer.logWarning("Failed deleting " + file.getPath());
                 } else {
-                    log.info("Deleting old transfer " + file.getPath());
+                    PeerServer.logInfo("Deleting old transfer " + file.getPath());
                 }
                 watchedFiles.remove(file.getPath());
             }
@@ -834,7 +823,7 @@ public class FileSystemManager extends Thread {
     }
 
     private void modifyFile(String name, String md5, long lastModified, long fileSize) {
-        log.info("modified file " + name);
+        PeerServer.logInfo("modified file " + name);
         removeHash(name);
         watchedFiles.get(name).md5 = md5;
         watchedFiles.get(name).lastModified = lastModified;
@@ -843,24 +832,24 @@ public class FileSystemManager extends Thread {
     }
 
     private void dropFile(String name) {
-        log.info("dropping file " + name);
+        PeerServer.logInfo("dropping file " + name);
         removeHash(name);
         watchedFiles.remove(name);
     }
 
     private void addFile(String name, FileDescriptor fileDescriptor) {
-        log.info("adding file " + name);
+        PeerServer.logInfo("adding file " + name);
         addHash(fileDescriptor.md5, name);
         watchedFiles.put(name, fileDescriptor);
     }
 
     private void dropDir(String name) {
-        log.info("dropping directory " + name);
+        PeerServer.logInfo("dropping directory " + name);
         watchedDirectories.remove(name);
     }
 
     private void addDir(String name) {
-        log.info("adding new directory " + name);
+        PeerServer.logInfo("adding new directory " + name);
         watchedDirectories.add(name);
     }
 

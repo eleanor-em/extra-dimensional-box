@@ -9,8 +9,8 @@ import java.nio.charset.StandardCharsets;
 public class PeerTCP extends Peer {
     private Socket socket;
 
-    public PeerTCP(String name, Socket socket, PeerServer server, boolean outgoing) {
-        super(name, server, outgoing, socket.getInetAddress().getHostAddress(), socket.getPort(), new OutgoingConnectionTCP(socket));
+    public PeerTCP(String name, Socket socket, boolean outgoing) {
+        super(name, outgoing, socket.getInetAddress().getHostAddress(), socket.getPort(), new OutgoingConnectionTCP(socket));
         IncomingConnectionTCP inConn = new IncomingConnectionTCP(socket, this);
         inConn.start();
 
@@ -22,7 +22,7 @@ public class PeerTCP extends Peer {
         try {
             socket.close();
         } catch (IOException e) {
-            PeerServer.log.severe("Error closing socket: " + e.getMessage());
+            PeerServer.logSevere("Error closing socket: " + e.getMessage());
         }
     }
 }
@@ -46,7 +46,7 @@ class IncomingConnectionTCP extends Thread {
             }
         } catch (IOException e) {
             if (!consumer.isClosed()) {
-                PeerServer.log.severe("Error reading from socket: " + e.getMessage());
+                PeerServer.logSevere("Error reading from socket: " + e.getMessage());
                 consumer.close();
             }
         }
@@ -70,9 +70,9 @@ class OutgoingConnectionTCP extends OutgoingConnection {
                 message.onSent.run();
             }
         } catch (IOException e) {
-            PeerServer.log.severe("Error writing to socket: " + e.getMessage());
+            PeerServer.logSevere("Error writing to socket: " + e.getMessage());
         } catch (InterruptedException e) {
-            PeerServer.log.info("thread interrupted: " + e.getMessage());
+            PeerServer.logInfo("thread interrupted: " + e.getMessage());
         }
     }
 }

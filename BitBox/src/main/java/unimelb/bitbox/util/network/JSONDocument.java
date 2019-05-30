@@ -89,7 +89,6 @@ public class JSONDocument implements JSONData {
     public JSONDocument toJSON(){
         return this;
     }
-    public String toString() { return obj.toJSONString(); }
 
     public boolean containsKey(String key) {
         return obj.containsKey(key);
@@ -151,5 +150,19 @@ public class JSONDocument implements JSONData {
         } catch (ClassCastException ignored) {
             return Result.error(new JSONException("List field `" + key + "` contains value of wrong type"));
         }
+    }
+
+
+    @Override
+    public String toString() { return obj.toJSONString(); }
+
+    @Override
+    public boolean equals(Object rhs) {
+        return rhs instanceof JSONDocument && (rhs.toString().equals(toString()));
+    }
+
+    @Override
+    public int hashCode() {
+        return toString().hashCode();
     }
 }

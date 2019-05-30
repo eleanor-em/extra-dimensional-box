@@ -17,20 +17,20 @@ import unimelb.bitbox.util.network.HostPort;
  */
 class ConnectPeerResponse extends ClientResponse {
 
-    protected ConnectPeerResponse(PeerServer server, HostPort hostPort) {
+    protected ConnectPeerResponse(HostPort hostPort) {
         response.append("command", "CONNECT_PEER_RESPONSE");
 
         final String SUCCESS = "connected to peer";
         String reply = SUCCESS;
 
-        if (!server.getConnection().clientTryPeer(hostPort)){
-            PeerServer.log.warning("target peer is not reachable. Failed to connect to " + hostPort);
-                    reply = "connection failed";
+        if (!PeerServer.getConnection().clientTryPeer(hostPort)){
+            PeerServer.logWarning("target peer is not reachable. Failed to connect to " + hostPort);
+            reply = "connection failed";
         }
 
         response.append("host", hostPort.hostname);
         response.append("port", hostPort.port);
-        response.append("status", reply == SUCCESS);
+        response.append("status", reply.equals(SUCCESS));
         response.append("message", reply);
     }
 

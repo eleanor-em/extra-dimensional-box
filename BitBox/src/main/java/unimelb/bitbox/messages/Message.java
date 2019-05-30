@@ -55,19 +55,34 @@ public abstract class Message implements JSONData {
         return summary;
     }
 
-    public final void reportErrors() throws JSONException {
-        if (document.getBoolean("status").get()) {
-            PeerServer.log.warning("Sending failed " + getCommand() + ": " + document.get("message").get());
-        }
+    public final void reportErrors() {
+        document.getBoolean("status")
+                .ok(status -> {
+                    if (status) {
+                        Result.of(() -> PeerServer.logWarning("Sending failed " + getCommand() + ": " + document.get("message")))
+                                .err(e -> PeerServer.logWarning("Malformed message: " + e.getMessage()));
+                    }
+                });
     }
 
     public final JSONDocument toJSON() {
         // If this had a status code, report any errors
-        try {
-            reportErrors();
-        } catch (JSONException e) {
-            PeerServer.log.warning("Malformed message: " + e.getMessage());
-        }
+        reportErrors();
         return document;
+    }
+
+    @Override
+    public boolean equals(Object rhs) {
+        return rhs instanceof Message && ((Message) rhs).document.equals(document);
+    }
+
+    @Override
+    public String toString() {
+        return toJSON().toString();
+    }
+
+    @Override
+    public int hashCode() {
+        return toString().hashCode();
     }
 }

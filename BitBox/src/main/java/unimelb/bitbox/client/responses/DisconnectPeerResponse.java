@@ -17,13 +17,13 @@ import unimelb.bitbox.util.network.HostPort;
  */
 class DisconnectPeerResponse extends ClientResponse {
 
-    protected DisconnectPeerResponse(PeerServer server, HostPort hostPort) {
+    protected DisconnectPeerResponse(HostPort hostPort) {
         response.append("command", "DISCONNECT_PEER_RESPONSE");
 
         final String SUCCESS = "disconnected from peer";
-        String reply = server.getConnection().getPeer(hostPort).matchThen(
+        String reply = PeerServer.getConnection().getPeer(hostPort).matchThen(
                 peer -> {
-                    server.getConnection().closeConnection(peer);
+                    PeerServer.getConnection().closeConnection(peer);
                     return SUCCESS;
                 },
                 () -> "connection not active"

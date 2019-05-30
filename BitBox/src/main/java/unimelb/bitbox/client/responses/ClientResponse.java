@@ -1,10 +1,8 @@
 package unimelb.bitbox.client.responses;
 
-import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.functional.algebraic.Result;
 import unimelb.bitbox.util.network.HostPort;
 import unimelb.bitbox.util.network.JSONDocument;
-import unimelb.bitbox.util.network.JSONException;
 
 /**
  * Parent class of responses to client requests
@@ -14,21 +12,20 @@ public abstract class ClientResponse {
 
     protected ClientResponse() {}
 
-    public static Result<ServerException, JSONDocument> getResponse(String command, PeerServer server, JSONDocument document) {
-        Result<JSONException, JSONDocument> result;
+    public static Result<ServerException, JSONDocument> getResponse(String command, JSONDocument document) {
         switch (command) {
             case "LIST_PEERS_REQUEST":
-                result = Result.value(new ListPeersResponse(server).response);
-                break;
+                return Result.value(new ListPeersResponse().response);
             case "CONNECT_PEER_REQUEST":
-                result = Result.of(() -> new ConnectPeerResponse(server, HostPort.fromJSON(document).get()).response);
-                break;
+                return HostPort.fromJSON(document)
+                               .map(addr -> new ConnectPeerResponse(addr).response)
+                               .mapError(ServerException::new);
             case "DISCONNECT_PEER_REQUEST":
-                result = Result.of(() -> new DisconnectPeerResponse(server, HostPort.fromJSON(document).get()).response);
-                break;
+                return HostPort.fromJSON(document)
+                               .map(addr -> new DisconnectPeerResponse(addr).response)
+                               .mapError(ServerException::new);
             default:
                 return Result.error(new ServerException("Unrecognised command `" + command + "`"));
         }
-        return result.mapError(ServerException::new);
     }
 }

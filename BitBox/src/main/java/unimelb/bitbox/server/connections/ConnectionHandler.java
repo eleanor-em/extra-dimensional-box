@@ -27,7 +27,6 @@ public abstract class ConnectionHandler {
     private static final int PEER_RETRY_TIME = 60;
     private static final String DEFAULT_NAME = "Anonymous";
     private static final CfgValue<Integer> maxIncomingConnections = CfgValue.createInt("maximumIncommingConnections");
-    protected final PeerServer server;
     protected final int port;
 
     // Objects for use by this class
@@ -40,9 +39,8 @@ public abstract class ConnectionHandler {
     private final AtomicBoolean active = new AtomicBoolean(true);
     private final ExecutorService executor = Executors.newCachedThreadPool();
 
-    public ConnectionHandler(PeerServer server) {
-        this.server = server;
-        port = server.getHostPort().port;
+    public ConnectionHandler() {
+        port = PeerServer.getHostPort().port;
         createNames();
 
         executor.submit(this::connectToPeers);
@@ -55,7 +53,7 @@ public abstract class ConnectionHandler {
             try {
                 wrapper.close();
             } catch (IOException e) {
-                PeerServer.log.severe("Failed closing socket");
+                PeerServer.logSevere("Failed closing socket");
                 e.printStackTrace();
             }
         });
@@ -66,9 +64,9 @@ public abstract class ConnectionHandler {
 
     public void addPeerAddress(String address) {
         HostPort.fromAddress(address)
-                .match(ignored -> PeerServer.log.warning("Tried to add invalid address `" + address + "`"),
+                .match(ignored -> PeerServer.logWarning("Tried to add invalid address `" + address + "`"),
                        peerHostPort -> {
-                           PeerServer.log.info("Adding address " + address + " to connection list");
+                           PeerServer.logInfo("Adding address " + address + " to connection list");
                            addPeerAddress(peerHostPort);
                        });
     }
@@ -117,7 +115,7 @@ public abstract class ConnectionHandler {
                 peers.remove(peer);
             }
             peer.close();
-            PeerServer.log.info("Removing " + peer.getForeignName() + " from peer list");
+            PeerServer.logInfo("Removing " + peer.getForeignName() + " from peer list");
 
             // return the plain name to the queue, if it's not the default
             String plainName = peer.getName();
@@ -145,7 +143,7 @@ public abstract class ConnectionHandler {
             assert value instanceof UDPSocket;
             return ((UDPSocket) value).get();
         } catch (InterruptedException e) {
-            PeerServer.log.warning("Thread interrupted while waiting for socket: " + e.getMessage());
+            PeerServer.logWarning("Thread interrupted while waiting for socket: " + e.getMessage());
             throw new RuntimeException(e);
         }
     }
@@ -156,7 +154,7 @@ public abstract class ConnectionHandler {
             assert value instanceof TCPSocket;
             return ((TCPSocket) value).get();
         } catch (InterruptedException e) {
-            PeerServer.log.warning("Thread interrupted while waiting for socket: " + e.getMessage());
+            PeerServer.logWarning("Thread interrupted while waiting for socket: " + e.getMessage());
             throw new RuntimeException(e);
         }
     }
@@ -207,11 +205,11 @@ public abstract class ConnectionHandler {
         try {
             acceptConnections();
         } catch (Exception e) {
-            PeerServer.log.severe("Accepting connections failed: " + e.getMessage());
+            PeerServer.logSevere("Accepting connections failed: " + e.getMessage());
             e.printStackTrace();
         } finally {
             if (active.get()) {
-                PeerServer.log.info("Restarting accept thread");
+                PeerServer.logInfo("Restarting accept thread");
                 if (socket.get().map(SocketWrapper::isClosed).fromMaybe(false)) {
                     socket.reset();
                 }
@@ -229,11 +227,11 @@ public abstract class ConnectionHandler {
         } catch (InterruptedException ignored) {
             // It's expected that we might get interrupted here.
         } catch (Exception e) {
-            PeerServer.log.severe("Retrying peers failed: " + e.getMessage());
+            PeerServer.logSevere("Retrying peers failed: " + e.getMessage());
             e.printStackTrace();
         } finally {
             if (active.get()) {
-                PeerServer.log.info("Restarting peer retry thread");
+                PeerServer.logInfo("Restarting peer retry thread");
                 executor.submit(this::connectToPeers);
             }
         }

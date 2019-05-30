@@ -412,6 +412,11 @@ public class Result<E extends Exception, V> implements ThrowingSupplier<V, E>
         return this;
     }
 
+    public Result<E, V> err(Consumer<? super E> op) {
+        match(op, Combinators::noop);
+        return this;
+    }
+
 
     /**
      * Apply the given function to the contained value and discard the Result's value,

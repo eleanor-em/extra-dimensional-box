@@ -9,6 +9,7 @@ public class LazyInitialiser<T> {
 
     public T get() {
         cached.compareAndSet(null, supplier.get());
+        assert cached.get() != null;
         return cached.get();
     }
 

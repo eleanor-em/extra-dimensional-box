@@ -11,20 +11,20 @@ abstract public class ClientRequest implements JSONData {
     private final JSONDocument document = new JSONDocument();
 
     /**
-     * Constructor. Intended for use only by subclasses.
-     * @param command the command to send
+     * Construct a request that has only a command
      */
     protected ClientRequest(String command) {
         document.append("command", command);
     }
 
+    /**
+     * Construct a request that has a command and a target peer.
+     * @throws ClientArgsException if the address is malformed
+     */
     protected ClientRequest(String command, String peerAddress)
             throws ClientArgsException {
         this(command);
 
-        if (peerAddress == null) {
-            throw new ClientArgsException("missing command line option: -p");
-        }
         HostPort hostPort = HostPort.fromAddress(peerAddress)
                 .mapError(ClientArgsException::new)
                 .get();

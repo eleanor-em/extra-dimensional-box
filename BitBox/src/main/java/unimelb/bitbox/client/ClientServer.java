@@ -11,7 +11,6 @@ import unimelb.bitbox.util.functional.algebraic.Result;
 import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.JSONException;
 
-import javax.crypto.SecretKey;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -20,18 +19,23 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.Function;
 
+/**
+ * A Runnable object that serves Client connections.
+ */
 public class ClientServer implements Runnable {
+    // Config values
     private static final CfgValue<Integer> clientPort = CfgValue.createInt("clientPort");
     private static final CfgValue<String> authorizedKeys = CfgValue.create("authorized_keys");
 
+    // Data used by the class
     private final Set<SSHPublicKey> keys = new HashSet<>();
-    private final PeerServer server;
     private final ExecutorService pool = Executors.newCachedThreadPool();
 
-    public ClientServer(PeerServer server) {
-        this.server = server;
+    /**
+     * Constructs a server instance, binding it to the given controller object.
+     */
+    public ClientServer() {
         authorizedKeys.setOnChanged(this::loadKeys);
         loadKeys();
     }
@@ -42,17 +46,20 @@ public class ClientServer implements Runnable {
         try (ServerSocket serverSocket = new ServerSocket(clientPort.get())) {
             while (!serverSocket.isClosed()) {
                 Socket socket = serverSocket.accept();
-                pool.submit(() -> handleClient(new ClientData(socket)));
+                pool.submit(() -> handleClient(new ClientConnection(socket)));
             }
         } catch (IOException e) {
-            PeerServer.log.severe("Error with server socket:");
+            PeerServer.logSevere("Error with server socket:");
             e.printStackTrace();
         }
     }
 
-    private void handleClient(ClientData client) {
+    /**
+     * A Runnbale operation that performs a full client interaction.
+     */
+    private void handleClient(ClientConnection client) {
         Socket socket = client.getSocket();
-        PeerServer.log.info(client + ": received connection");
+        PeerServer.logInfo(client + ": received connection");
 
         // Open the read/write streams and process messages until the socket closes
         try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
@@ -64,25 +71,31 @@ public class ClientServer implements Runnable {
                 // Check the status of the response and report the error if it failed
                 if (!response.getBoolean("status").orElse(false)) {
                     String error = response.getString("message").orElse("<no message>");
-                    PeerServer.log.warning(client + ": unsuccessful message sent: " + error);
+                    PeerServer.logWarning(client + ": unsuccessful message sent: " + error);
                 }
                 // Write the message
                 try {
                     out.write(response.networkEncode());
                     out.flush();
                 } catch (IOException e) {
-                    PeerServer.log.warning(client + ": error while responding: " + e.getMessage());
+                    PeerServer.logWarning(client + ": error while responding: " + e.getMessage());
                 }
             }
         } catch (IOException e) {
-            PeerServer.log.warning(client + ": error with I/O streams: " + e.getMessage());
+            PeerServer.logWarning(client + ": error with I/O streams: " + e.getMessage());
         }
 
-        PeerServer.log.info(client + ": disconnected");
+        if (!client.isAuthenticated()) {
+            KnownClientTracker.addClient(client);
+        }
+        PeerServer.logInfo(client + ": disconnected");
     }
 
-    private JSONDocument handleMessage(String message, ClientData client) {
-        PeerServer.log.info(client + ": received " + message);
+    /**
+     * Given a message and the client it was received from, generate an appropriate response.
+     */
+    private JSONDocument handleMessage(String message, ClientConnection client) {
+        PeerServer.logInfo(client + ": received " + message);
         // Parse the message
         JSONDocument document;
         try {
@@ -102,7 +115,7 @@ public class ClientServer implements Runnable {
                        if (command.equals("AUTH_REQUEST")) {
                            return generateAuthResponse(document, client);
                        } else {
-                           return ClientResponse.getResponse(command, server, doc);
+                           return ClientResponse.getResponse(command, doc);
                        }
                    }));
 
@@ -116,11 +129,17 @@ public class ClientServer implements Runnable {
         return response.consumeError(ClientServer::generateFailResponse);
     }
 
+    /**
+     * Given an exception, generate a failure response.
+     */
     private static JSONDocument generateFailResponse(Exception error) {
         return generateFailResponse(error.getMessage());
     }
 
-    private static JSONDocument generateFailResponse(String message) {
+    /**
+     * Generates a failure response with the given message.
+     */
+    static JSONDocument generateFailResponse(String message) {
         JSONDocument response = new JSONDocument();
         response.append("command", "AUTH_RESPONSE");
         response.append("status", false);
@@ -128,8 +147,11 @@ public class ClientServer implements Runnable {
         return response;
     }
 
-    private Result<ServerException, JSONDocument> generateAuthResponse(JSONDocument document, ClientData client) {
-        return document.getString("identity")
+    /**
+     * Generate an authentication response from the given request and client, or an error if the process fails.
+     */
+    private Result<ServerException, JSONDocument> generateAuthResponse(JSONDocument request, ClientConnection client) {
+        return request.getString("identity")
                 .map(ident -> {
                     client.setIdent(ident);
 
@@ -148,6 +170,7 @@ public class ClientServer implements Runnable {
                     return matchedKey.map(publicKey -> Crypto.generateSecretKey()
                                     .andThen(key -> {
                                         client.authenticate(key);
+                                        KnownClientTracker.addClient(client);
                                         return Crypto.encryptSecretKey(key, publicKey.getKey());
                                     })
                                     .matchThen(err -> {
@@ -170,6 +193,9 @@ public class ClientServer implements Runnable {
                 }).mapError(ServerException::new);
     }
 
+    /**
+     * Load the list of public keys from the config file.
+     */
     private void loadKeys() {
         synchronized (keys) {
             // Load the public keys
@@ -178,84 +204,10 @@ public class ClientServer implements Runnable {
                 try {
                     keys.add(new SSHPublicKey(keyString.trim()));
                 } catch (InvalidKeyException e) {
-                    PeerServer.log.warning("invalid keystring " + keyString + ": " + e.getMessage());
+                    PeerServer.logWarning("invalid keystring " + keyString + ": " + e.getMessage());
                 }
             }
         }
     }
-
-    private class ClientData {
-        private Socket socket;
-        private boolean authenticated;
-        private boolean sentKey = false;
-        private String ident;
-        private SecretKey key;
-
-        private boolean anonymous = true;
-
-        public ClientData(Socket socket) {
-            this.socket = socket;
-            ident = socket.getInetAddress().toString() + ":" + socket.getPort();
-        }
-
-        public Socket getSocket() {
-            return socket;
-        }
-
-        public void setIdent(String ident) {
-            if (anonymous) {
-                this.ident = ident;
-                anonymous = false;
-            }
-        }
-
-        public void authenticate(SecretKey key) {
-            if (!anonymous) {
-                authenticated = true;
-                assert key != null;
-                this.key = key;
-            }
-        }
-
-        public <E extends Exception> Result<E, JSONDocument> bindKey(Function<SecretKey, Result<E, JSONDocument>> op) {
-            if (authenticated) {
-                return op.apply(key);
-            }
-            return Result.value(ClientServer.generateFailResponse("client not authenticated"));
-        }
-        public JSONDocument mapKey(Function<SecretKey, JSONDocument> op) {
-            if (authenticated) {
-                return op.apply(key);
-            }
-            return ClientServer.generateFailResponse("client not authenticated");
-        }
-
-        public boolean sentKey() {
-            boolean ret = sentKey;
-            sentKey = true;
-            return ret;
-        }
-
-        public String getIdent() {
-            return ident;
-        }
-
-        @Override
-        public String toString() {
-            if (!authenticated) {
-                return ident + " (unauthenticated)";
-            }
-            return ident;
-        }
-
-        @Override
-        public boolean equals(Object rhs) {
-            return rhs instanceof ClientData && rhs.toString().equals(toString());
-        }
-
-        @Override
-        public int hashCode() {
-            return toString().hashCode();
-        }
-    }
 }
+

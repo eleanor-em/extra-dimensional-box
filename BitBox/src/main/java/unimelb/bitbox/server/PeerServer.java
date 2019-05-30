@@ -2,7 +2,6 @@ package unimelb.bitbox.server;
 
 import unimelb.bitbox.client.ClientServer;
 import unimelb.bitbox.messages.*;
-import unimelb.bitbox.peers.KnownPeerTracker;
 import unimelb.bitbox.server.connections.ConnectionHandler;
 import unimelb.bitbox.server.connections.TCPConnectionHandler;
 import unimelb.bitbox.server.connections.UDPConnectionHandler;
@@ -33,73 +32,59 @@ public class PeerServer implements FileSystemObserver {
     private final CfgDependent<Long> blockSize = new CfgDependent<>(mode, this::calculateBlockSize);
 
     // Objects used by the class
-    public static final Logger log = Logger.getLogger(PeerServer.class.getName());
-    private final MessageProcessor processor = new MessageProcessor(this);
-    private FileSystemManager fileSystemManager;
+    private final Logger log = Logger.getLogger(PeerServer.class.getName());
+    private final FileSystemManager fileSystemManager;
+    private final MessageProcessor processor = new MessageProcessor();
     private ConnectionHandler connection;
 
-    // Getters for data needed by other classes
-    public FileSystemManager getFSManager() {
-        return fileSystemManager;
+    public static FileSystemManager fsManager() {
+        return get().fileSystemManager;
     }
-    public long getMaximumLength() {
-        if (mode.get() == ConnectionMode.TCP) {
-            return blockSize.get();
+
+    public static void logInfo(String message) {
+        get().log.info(message);
+    }
+    public static void logWarning(String message) {
+        get().log.warning(message);
+    }
+    public static void logSevere(String message) {
+        get().log.severe(message);
+    }
+
+    // Getters for data needed by other classes
+    public static long getMaximumLength() {
+        if (get().mode.get() == ConnectionMode.TCP) {
+            return get().blockSize.get();
         } else {
-            return udpBlockSize.get();
+            return get().udpBlockSize.get();
         }
     }
-    public HostPort getHostPort() {
-        return hostPort.get();
+    public static HostPort getHostPort() {
+        return get().hostPort.get();
     }
-    public ConnectionHandler getConnection() {
-        return connection;
+    public static ConnectionHandler getConnection() {
+        return get().connection;
     }
 
-    public PeerServer() throws NumberFormatException, IOException {
-        // initialise things
-        KnownPeerTracker.load();
-        CfgValue<String> path = CfgValue.create("path");
+    private static PeerServer INSTANCE;
 
-        fileSystemManager = new FileSystemManager(path.get(), this);
-        path.setOnChangedThrowable(() -> {
-            fileSystemManager.interrupt();
-            fileSystemManager = new FileSystemManager(path.get(), this);
-        });
+    public static void initialise() throws IOException {
+        if (INSTANCE != null) {
+            throw new RuntimeException("PeerServer initialised twice");
+        }
+        INSTANCE = new PeerServer();
+    }
 
-		// create the processor thread
-        KeepAlive.submit(processor);
-		log.info("Processor thread started");
+    private static PeerServer get() {
+        if (INSTANCE == null) {
+            throw new RuntimeException("No peer server exists");
+        }
+        return INSTANCE;
+    }
 
-        // start the peer connection thread
-        setConnection(mode.get());
-        mode.setOnChanged(newMode -> {
-            connection.deactivate();
-            setConnection(newMode);
-        });
-        hostPort.setOnChanged(() -> {
-            connection.deactivate();
-            setConnection(mode.get());
-        });
-
-        // Connect to the peers in the config file
-        CfgValue<String[]> peersToConnect = CfgValue.create("peers", val -> val.split(","));
-        peersToConnect.setOnChanged(connection::addPeerAddressAll);
-        connection.addPeerAddressAll(peersToConnect.get());
-        connection.retryPeers();
-
-		// create the server thread for the client
-		KeepAlive.submit(new ClientServer(this));
-		log.info("Server thread started");
-
-		// create the synchroniser thread
-		KeepAlive.submit(this::regularlySynchronise);
-		log.info("Synchroniser thread started");
-	}
-
-	// Message handling
-    public void enqueueMessage(ReceivedMessage message) {
-        processor.add(message);
+    // Message handling
+    public static void enqueueMessage(ReceivedMessage message) {
+        get().processor.add(message);
     }
 
     // Event handling
@@ -125,10 +110,50 @@ public class PeerServer implements FileSystemObserver {
         }
     }
 
-    public void synchroniseFiles() {
-        fileSystemManager.generateSyncEvents()
-                         .forEach(this::processFileSystemEvent);
+    public static void synchroniseFiles() {
+        fsManager().generateSyncEvents()
+                   .forEach(get()::processFileSystemEvent);
     }
+
+    public static int getPeerCount() {
+        return get().connection.getActivePeers().size();
+    }
+
+    private PeerServer() throws NumberFormatException, IOException {
+        // initialise things
+        CfgValue<String> path = CfgValue.create("path");
+        path.setOnChanged(() -> log.warning("Path was changed in config, but will not be updated until restart"));
+        fileSystemManager = new FileSystemManager(path.get(), this);
+
+		// create the processor thread
+        KeepAlive.submit(processor);
+		log.info("Processor thread started");
+
+        // start the peer connection thread
+        setConnection(mode.get());
+        mode.setOnChanged(newMode -> {
+            connection.deactivate();
+            setConnection(newMode);
+        });
+        hostPort.setOnChanged(() -> {
+            connection.deactivate();
+            setConnection(mode.get());
+        });
+
+        // Connect to the peers in the config file
+        CfgValue<String[]> peersToConnect = CfgValue.create("peers", val -> val.split(","));
+        peersToConnect.setOnChanged(connection::addPeerAddressAll);
+        connection.addPeerAddressAll(peersToConnect.get());
+        connection.retryPeers();
+
+		// create the server thread for the client
+		KeepAlive.submit(new ClientServer());
+		log.info("Server thread started");
+
+		// create the synchroniser thread
+		KeepAlive.submit(this::regularlySynchronise);
+		log.info("Synchroniser thread started");
+	}
 
     private void regularlySynchronise() {
         CfgValue<Integer> syncInterval = CfgValue.createInt("syncInterval");
@@ -170,9 +195,9 @@ public class PeerServer implements FileSystemObserver {
 
     private void setConnection(ConnectionMode mode) {
         if (mode == ConnectionMode.TCP) {
-            connection = new TCPConnectionHandler(this);
+            connection = new TCPConnectionHandler();
         } else {
-            connection = new UDPConnectionHandler(this);
+            connection = new UDPConnectionHandler();
         }
     }
 }

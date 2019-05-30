@@ -21,13 +21,11 @@ import java.util.concurrent.LinkedBlockingQueue;
  * The ServerThread collects messages from the various PeerConnections, and then does something with them.
  */
 public class MessageProcessor implements Runnable  {
-    private final PeerServer server;
     private final FileReadWriteThreadPool rwManager;
     private final BlockingQueue<ReceivedMessage> messages = new LinkedBlockingQueue<>();
 
-    public MessageProcessor(PeerServer server) {
-        this.server = server;
-        this.rwManager = new FileReadWriteThreadPool(server);
+    public MessageProcessor() {
+        this.rwManager = new FileReadWriteThreadPool();
     }
 
     public void add(ReceivedMessage message) {
@@ -40,7 +38,7 @@ public class MessageProcessor implements Runnable  {
             try {
                 processMessage(messages.take());
             } catch (InterruptedException e) {
-                PeerServer.log.warning("receiving thread interrupted");
+                PeerServer.logWarning("receiving thread interrupted");
                 e.printStackTrace();
             }
         }
@@ -56,7 +54,7 @@ public class MessageProcessor implements Runnable  {
 		try {
 			document = JSONDocument.parse(text).get();
 		} catch (JSONException e) {
-			PeerServer.log.warning(e.getMessage());
+			PeerServer.logWarning(e.getMessage());
 			invalidProtocolResponse(message.peer, "message must be valid JSON data: " + e.getMessage());
 			return;
 		}
@@ -67,12 +65,12 @@ public class MessageProcessor implements Runnable  {
             Result<JSONException, String> friendlyName = document.get("friendlyName");
 
             // if we got a friendly name, log it
-            String logMessage = message.peer.getForeignName() + " received: " + command
+            String logMessage = message.peer.getForeignName() + " received: " + command.get()
                     + friendlyName.map(name -> " (via " + name + ")").orElse("");
-            PeerServer.log.info(logMessage);
+            PeerServer.logInfo(logMessage);
             respondToMessage(message.peer, command.get(), document);
         } catch (JSONException e) {
-            PeerServer.log.warning(e.getMessage());
+            PeerServer.logWarning(e.getMessage());
             invalidProtocolResponse(message.peer, e.getMessage());
         }
     }
@@ -87,7 +85,8 @@ public class MessageProcessor implements Runnable  {
 
         // Look up some data for later: these are used for multiple cases
         Result<JSONException, String> pathName = document.get("pathName");
-        Result<JSONException, FileDescriptor> fileDescriptor = FileDescriptor.fromJSON(document);
+        Result<JSONException, FileDescriptor> fileDescriptor = document.getJSON("fileDescriptor")
+                                                                       .andThen(FileDescriptor::fromJSON);
         Result<JSONException, Long> position = document.get("position");
         Result<JSONException, Long> length = document.get("length");
         Result<JSONException, HostPort> hostPort = document.getJSON("hostPort")
@@ -98,28 +97,28 @@ public class MessageProcessor implements Runnable  {
              * File and directory requests
              */
             case Message.FILE_CREATE_REQUEST:
-                FileCreateResponse createResponse = new FileCreateResponse(server.getFSManager(), pathName.get(), fileDescriptor.get(), length.get(), false);
+                FileCreateResponse createResponse = new FileCreateResponse(pathName.get(), fileDescriptor.get());
                 peer.sendMessage(createResponse);
-                if (createResponse.successful) {
+                if (createResponse.isSuccessful()) {
                     // Check if this file is already elsewhere on disk
                     boolean checkShortcut = true;
                     try {
-                        checkShortcut = !server.getFSManager().checkShortcut(pathName.get());
+                        checkShortcut = !PeerServer.fsManager().checkShortcut(pathName.get());
                     } catch (IOException e) {
-                        PeerServer.log.severe(peer.getForeignName() + ": error checking shortcut for " + pathName);
+                        PeerServer.logSevere(peer.getForeignName() + ": error checking shortcut for " + pathName);
                     }
 
                     if (checkShortcut) {
-                        PeerServer.log.info(peer.getForeignName() + ": file " + pathName +
+                        PeerServer.logInfo(peer.getForeignName() + ": file " + pathName +
                                 " not available locally. Send a FILE_BYTES_REQUEST");
                         rwManager.addFile(peer, pathName.get(), fileDescriptor.get());
                     }
                 }
                 break;
             case Message.FILE_MODIFY_REQUEST:
-                FileModifyResponse modifyResponse = new FileModifyResponse(server.getFSManager(), fileDescriptor.get(), pathName.get(), false);
+                FileModifyResponse modifyResponse = new FileModifyResponse(fileDescriptor.get(), pathName.get());
                 peer.sendMessage(modifyResponse);
-                if (modifyResponse.successful) {
+                if (modifyResponse.isSuccessful()) {
                     rwManager.addFile(peer, pathName.get(), fileDescriptor.get());
                 }
                 break;
@@ -127,34 +126,34 @@ public class MessageProcessor implements Runnable  {
                 rwManager.readFile(peer, fileDescriptor.get(), pathName.get(), position.get(), length.get());
                 break;
             case Message.FILE_DELETE_REQUEST:
-                peer.sendMessage(new FileDeleteResponse(server.getFSManager(), fileDescriptor.get(), pathName.get(), false));
+                peer.sendMessage(new FileDeleteResponse(fileDescriptor.get(), pathName.get()));
                 break;
 
             case Message.DIRECTORY_CREATE_REQUEST:
-                peer.sendMessage(new DirectoryCreateResponse(server.getFSManager(), pathName.get(), false));
+                peer.sendMessage(new DirectoryCreateResponse(pathName.get()));
                 break;
 
             case Message.DIRECTORY_DELETE_REQUEST:
-                peer.sendMessage(new DirectoryDeleteResponse(server.getFSManager(), pathName.get(), false));
+                peer.sendMessage(new DirectoryDeleteResponse(pathName.get()));
                 break;
 
             /*
              * File and directory responses
              */
             case Message.FILE_CREATE_RESPONSE:
-                parsedResponse = Maybe.just(new FileCreateResponse(server.getFSManager(), pathName.get(), fileDescriptor.get(), length.get(),true));
+                parsedResponse = Maybe.just(new FileCreateResponse(pathName.get(), fileDescriptor.get()));
                 break;
             case Message.FILE_DELETE_RESPONSE:
-                parsedResponse = Maybe.just(new FileDeleteResponse(server.getFSManager(), fileDescriptor.get(), pathName.get(), true));
+                parsedResponse = Maybe.just(new FileDeleteResponse(fileDescriptor.get(), pathName.get()));
                 break;
             case Message.FILE_MODIFY_RESPONSE:
-                parsedResponse = Maybe.just(new FileModifyResponse(server.getFSManager(), fileDescriptor.get(), pathName.get(), true));
+                parsedResponse = Maybe.just(new FileModifyResponse(fileDescriptor.get(), pathName.get()));
                 break;
             case Message.DIRECTORY_CREATE_RESPONSE:
-                parsedResponse = Maybe.just(new DirectoryCreateResponse(server.getFSManager(), pathName.get(), true));
+                parsedResponse = Maybe.just(new DirectoryCreateResponse(pathName.get()));
                 break;
             case Message.DIRECTORY_DELETE_RESPONSE:
-                parsedResponse = Maybe.just(new DirectoryDeleteResponse(server.getFSManager(), pathName.get(), true));
+                parsedResponse = Maybe.just(new DirectoryDeleteResponse(pathName.get()));
                 break;
 
             case Message.FILE_BYTES_RESPONSE:
@@ -163,14 +162,14 @@ public class MessageProcessor implements Runnable  {
                                                        pathName.get(),
                                                        length.get(),
                                                        position.get(),
-                                                       content, "", true);
+                                                       content, FileBytesResponse.SUCCESS, true);
                 parsedResponse = Maybe.just(bytesResponse);
                 if (bytesResponse.successful) {
                     rwManager.writeFile(peer, fileDescriptor.get(), pathName.get(), position.get(), length.get(), content);
                 } else {
                     rwManager.sendReadRequest(peer, pathName.get(), fileDescriptor.get(), position.get());
-                    PeerServer.log.warning("unsuccessful response: " + document.get("message"));
-                    PeerServer.log.info("Retrying byte request for " + pathName);
+                    PeerServer.logWarning("PeerServer.fsManager() response: " + document.get("message").get());
+                    PeerServer.logInfo("Retrying byte request for " + pathName);
                     // Let's try to read the bytes again!
                 }
                 break;
@@ -179,10 +178,10 @@ public class MessageProcessor implements Runnable  {
              * Handshake request and responses
              */
             case Message.HANDSHAKE_REQUEST:
-                PeerServer.log.info("Received connection request from " + hostPort.get());
+                PeerServer.logInfo("Received connection request from " + hostPort.get());
 
-                if (server.getConnection().getOutgoingAddresses().contains(hostPort.get())) {
-                    PeerServer.log.warning("Already connected to " + hostPort.get());
+                if (PeerServer.getConnection().getOutgoingAddresses().contains(hostPort.get())) {
+                    PeerServer.logWarning("Already connected to " + hostPort.get());
                     peer.close();
                 } else {
                     // we need to pass the host and port we received, as the socketContainer's data may not be accurate
@@ -190,21 +189,13 @@ public class MessageProcessor implements Runnable  {
 
                     // this has to be done here because we don't know the foreign port until now
                     peer.activate(hostPort.get());
-                    peer.sendMessage(new HandshakeResponse(server.getHostPort(), false));
-                    // synchronise with this peer
-                    if (peer.needsRequest()) {
-                        server.synchroniseFiles();
-                    }
+                    peer.sendMessage(new HandshakeResponse());
                 }
                 break;
 
             case Message.HANDSHAKE_RESPONSE:
-                parsedResponse = Maybe.just(new HandshakeResponse(server.getHostPort(), true));
-
+                parsedResponse = Maybe.just(new HandshakeResponse());
                 peer.activate(hostPort.get());
-                if (peer.needsResponse()) {
-                    server.synchroniseFiles();
-                }
                 break;
 
             case Message.CONNECTION_REFUSED:
@@ -212,16 +203,18 @@ public class MessageProcessor implements Runnable  {
                     // why did they send this to us..?
                     invalidProtocolResponse(peer, "unexpected CONNECTION_REFUSED");
                 }
-                PeerServer.log.warning("Connection refused: " + document.get("message").get());
+                PeerServer.logWarning("Connection refused: " + document.get("message").get());
                 peer.close();
 
                 // now try to connect to the provided peer list
                 Result<JSONException, List<JSONDocument>> peers = document.getArray("peers");
                 for (JSONDocument peerHostPort : peers.get()) {
-                    String address = HostPort.fromJSON(peerHostPort).toString();
-                    server.getConnection().addPeerAddress(address);
-                    PeerServer.log.info("Added peer `" + address + "`");
-                    server.getConnection().retryPeers();
+                    HostPort.fromJSON(peerHostPort)
+                            .ok(address -> {
+                                PeerServer.getConnection().addPeerAddress(address);
+                                PeerServer.logInfo("Added peer `" + address + "`");
+                            });
+                    PeerServer.getConnection().retryPeers();
                 }
                 break;
 
@@ -230,7 +223,7 @@ public class MessageProcessor implements Runnable  {
              */
             case Message.INVALID_PROTOCOL:
                 // crap.
-                PeerServer.log.severe("Invalid protocol response from "
+                PeerServer.logSevere("Invalid protocol response from "
                         + peer.getForeignName() + ": " + document.getString("message").get());
                 peer.close();
                 break;
@@ -242,9 +235,7 @@ public class MessageProcessor implements Runnable  {
         parsedResponse.consume(response -> {
                 // If it's a response other than HANDSHAKE_RESPONSE, make sure it has a status and message field
                 if (!response.isRequest() && !command.equals(Message.HANDSHAKE_RESPONSE)) {
-                    try {
-                        response.reportErrors();
-                    } catch (JSONException ignored) {}
+                    response.reportErrors();
                 }
                 peer.notify(response);
         });

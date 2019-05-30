@@ -2,65 +2,62 @@ package unimelb.bitbox.messages;
 
 import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.fs.FileDescriptor;
-import unimelb.bitbox.util.fs.FileSystemException;
-import unimelb.bitbox.util.fs.FileSystemManager;
-import unimelb.bitbox.util.network.JSONException;
 
 import java.io.IOException;
 
-public class FileCreateResponse extends Message {
+public class FileCreateResponse extends Response {
     private static final String SUCCESS = "file loader ready";
+    private String pathName;
+    private FileDescriptor fileDescriptor;
 
-    public final boolean successful;
-    public FileCreateResponse(FileSystemManager fsManager, String pathName, FileDescriptor fileDescriptor, long length, boolean dryRun)
-            throws JSONException {
+    private boolean successful = false;
+    public boolean isSuccessful() {
+        return successful;
+    }
+
+    public FileCreateResponse(String pathName, FileDescriptor fileDescriptor) {
         super("FILE_CREATE:" + pathName + ":" + fileDescriptor);
-        if (dryRun) {
-            successful = false;
-            return;
-        }
-        String reply;
+        this.pathName = pathName;
+        this.fileDescriptor = fileDescriptor;
 
-
-        if (fsManager.fileNameExists(pathName, fileDescriptor.md5)) {
-            reply = "file already exists locally";
-        } else if (!fsManager.isSafePathName(pathName)) {
-            reply = "unsafe pathname given: " + pathName;
-        } else {
-            reply = generateFileLoader(fsManager, pathName, fileDescriptor, length);
-        }
-
-        successful = reply.equals(SUCCESS);
         document.append("command", FILE_CREATE_RESPONSE);
         document.append("fileDescriptor", fileDescriptor);
         document.append("pathName", pathName);
-        document.append("message", reply);
-        document.append("status", successful);
     }
 
-    private String generateFileLoader(FileSystemManager fsManager, String pathName, FileDescriptor fileDescriptor, long length) {
+    private String generateFileLoader() {
         try {
-            fsManager.createFileLoader(pathName, fileDescriptor.md5, length, fileDescriptor.lastModified);
-        } catch (FileSystemException e) {
+            PeerServer.fsManager().createFileLoader(pathName, fileDescriptor);
+        } catch (IOException e) {
             // We possibly have a different version of this file.
-            if (fsManager.fileNameExists(pathName)) {
+            if (PeerServer.fsManager().fileNameExists(pathName)) {
                 try {
-                    fsManager.modifyFileLoader(pathName, fileDescriptor.md5, fileDescriptor.lastModified, length);
+                    PeerServer.fsManager().modifyFileLoader(pathName, fileDescriptor);
                 } catch (IOException ignored) {
                     // We're currently transferring this file, or else our file is newer.
-                    PeerServer.log.warning("failed to generate file loader for " + pathName);
+                    PeerServer.logWarning("failed to generate file loader for " + pathName);
                     return "error generating modify file loader: " + pathName;
                 }
             } else {
-                e.printStackTrace();
                 return "error generating create file loader: " + pathName;
             }
         }
-        catch (Exception e){
-            PeerServer.log.severe("error generating file loader for " + pathName);
-            e.printStackTrace();
-            return "misc error: " + e.getMessage() + ": " + pathName;
-        }
         return SUCCESS;
+    }
+
+    @Override
+    void onSent() {
+        String reply;
+        if (PeerServer.fsManager().fileNameExists(pathName, fileDescriptor.md5)) {
+            reply = "file already exists locally";
+        } else if (!PeerServer.fsManager().isSafePathName(pathName)) {
+            reply = "unsafe pathname given: " + pathName;
+        } else {
+            reply = generateFileLoader();
+        }
+
+        successful = reply.equals(SUCCESS);
+        document.append("message", reply);
+        document.append("status", successful);
     }
 }

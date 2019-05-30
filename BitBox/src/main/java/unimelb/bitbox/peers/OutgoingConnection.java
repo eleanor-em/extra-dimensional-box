@@ -16,7 +16,7 @@ abstract class OutgoingConnection extends Thread {
         return !isInterrupted() && active.get();
     }
 
-    protected void addMessage(OutgoingMessage message) {
+    protected final void addMessage(OutgoingMessage message) {
         messages.add(message);
     }
     protected OutgoingMessage takeMessage() throws InterruptedException {

@@ -1,36 +1,42 @@
 package unimelb.bitbox.messages;
 
+import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.fs.FileDescriptor;
-import unimelb.bitbox.util.fs.FileSystemManager;
 
 import java.io.IOException;
 
-public class FileDeleteResponse extends Message{
+public class FileDeleteResponse extends Response {
     private static final String SUCCESS = "File deleted";
-    public FileDeleteResponse(FileSystemManager fsManager, FileDescriptor fileDescriptor, String pathName, boolean dryRun){
+    private String pathName;
+    private FileDescriptor fileDescriptor;
+    
+    public FileDeleteResponse(FileDescriptor fileDescriptor, String pathName){
         super("FILE_DELETE:" + pathName + ":" + fileDescriptor);
-        if (dryRun) {
-            return;
-        }
-        String reply = SUCCESS;
-        try {
-            // Try cancelling the file loader first
-            if (!fsManager.cancelFileLoader(pathName)) {
-                if (!fsManager.isSafePathName(pathName)) {
-                    reply = "unsafe pathname given";
-                } else if (!fsManager.fileNameExists(pathName)) {
-                    reply = "pathname does not exist";
-                }
-                fsManager.deleteFile(pathName, fileDescriptor.lastModified, fileDescriptor.md5);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-            reply = "there was a problem deleting the file: " + e.getMessage();
-        }
+        this.pathName = pathName;
+        this.fileDescriptor = fileDescriptor;
+
         document.append("command", FILE_DELETE_RESPONSE);
         document.append("fileDescriptor", fileDescriptor);
         document.append("pathName", pathName);
+    }
+
+    @Override
+    void onSent() {
+        String reply = SUCCESS;
+        try {
+            // Try cancelling the file loader first
+            if (!PeerServer.fsManager().cancelFileLoader(pathName)) {
+                if (!PeerServer.fsManager().isSafePathName(pathName)) {
+                    reply = "unsafe pathname given";
+                } else if (!PeerServer.fsManager().fileNameExists(pathName)) {
+                    reply = "pathname does not exist";
+                }
+                PeerServer.fsManager().deleteFile(pathName, fileDescriptor.lastModified, fileDescriptor.md5);
+            }
+        } catch (IOException e) {
+            reply = "there was a problem deleting the file: " + e.getMessage();
+        }
         document.append("message", reply);
-        document.append("status", reply == SUCCESS);
+        document.append("status", reply.equals(SUCCESS));
     }
 }

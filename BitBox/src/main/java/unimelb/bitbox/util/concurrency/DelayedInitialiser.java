@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class DelayedInitialiser<T> {
     private CountDownLatch latch = new CountDownLatch(1);
-    private final AtomicReference<Maybe<T>> value = new AtomicReference<>();
+    private final AtomicReference<Maybe<T>> value = new AtomicReference<>(Maybe.nothing());
 
     public T await() throws InterruptedException {
         latch.await();

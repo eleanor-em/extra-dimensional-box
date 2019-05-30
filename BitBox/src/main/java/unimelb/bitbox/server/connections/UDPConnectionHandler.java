@@ -15,13 +15,8 @@ import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class UDPConnectionHandler extends ConnectionHandler {
-    public UDPConnectionHandler(PeerServer server) {
-        super(server);
-    }
-
     @Override
     void acceptConnections() throws IOException {
         // Maximum packet size is 65507 bytes
@@ -30,7 +25,7 @@ public class UDPConnectionHandler extends ConnectionHandler {
         setSocket(new UDPSocket(port, 100));
         DatagramSocket udpSocket = awaitUDPSocket();
 
-        PeerServer.log.info("Listening on port " + this.port);
+        PeerServer.logInfo("Listening on port " + this.port);
         while (!udpSocket.isClosed()) {
             try {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -45,7 +40,7 @@ public class UDPConnectionHandler extends ConnectionHandler {
                         () -> {
                             if (canStorePeer()) {
                                 // Create the peer if we have room for another
-                                Peer peer = new PeerUDP(name, server, false, udpSocket, packet);
+                                Peer peer = new PeerUDP(name, false, udpSocket, packet);
                                 addPeer(peer);
                                 return Maybe.just(peer);
                             }
@@ -67,11 +62,11 @@ public class UDPConnectionHandler extends ConnectionHandler {
                 }
             } catch (SocketTimeoutException ignored) {
             } catch (IOException e) {
-                PeerServer.log.severe("Failed receiving from peer: " + e.getMessage());
+                PeerServer.logSevere("Failed receiving from peer: " + e.getMessage());
                 e.printStackTrace();
             }
         }
-        PeerServer.log.info("No longer listening on port " + this.port);
+        PeerServer.logInfo("No longer listening on port " + this.port);
     }
 
     @Override
@@ -81,22 +76,13 @@ public class UDPConnectionHandler extends ConnectionHandler {
         }
         addPeerAddress(peerHostPort);
 
-        // Have to use AtomicReference because Java isn't smart enough to realise Peer is final
-        AtomicReference<Peer> peer = new AtomicReference<>();
-
 
         String name = getAnyName();
 
         byte[] buffer = new byte[65507];
-        //send handshake request
-        DatagramPacket packet = new DatagramPacket(buffer,
-                buffer.length,
-                new InetSocketAddress(peerHostPort.hostname, peerHostPort.port));
-        Peer newPeer = new PeerUDP(name, server, true, awaitUDPSocket(), packet);
-        addPeer(newPeer);
-        PeerServer.log.info("Attempting to send handshake to " + newPeer + ", waiting for response;");
-
-        peer.set(newPeer);
-        return Maybe.just(peer.get());
+        DatagramPacket packet = new DatagramPacket(buffer, buffer.length, new InetSocketAddress(peerHostPort.hostname, peerHostPort.port));
+        Peer peer = new PeerUDP(name, true, awaitUDPSocket(), packet);
+        addPeer(peer);
+        return Maybe.just(peer);
     }
 }

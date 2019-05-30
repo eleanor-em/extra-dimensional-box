@@ -1,14 +1,14 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.util.network.HostPort;
+import unimelb.bitbox.server.PeerServer;
 
-public class HandshakeResponse extends Message {
-    public HandshakeResponse(HostPort hostPort, boolean dryRun) {
+public class HandshakeResponse extends Response {
+    public HandshakeResponse() {
         super("HANDSHAKE");
-        if (dryRun) {
-            return;
-        }
         document.append("command", HANDSHAKE_RESPONSE);
-        document.append("hostPort", hostPort.toJSON());
+        document.append("hostPort", PeerServer.getHostPort().toJSON());
     }
+
+    @Override
+    void onSent() {}
 }
