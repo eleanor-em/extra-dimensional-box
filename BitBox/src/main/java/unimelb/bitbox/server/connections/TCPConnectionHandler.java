@@ -1,6 +1,7 @@
 package unimelb.bitbox.server.connections;
 
 import unimelb.bitbox.messages.ConnectionRefused;
+import unimelb.bitbox.messages.HandshakeRequest;
 import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.peers.PeerTCP;
 import unimelb.bitbox.server.PeerServer;
@@ -72,6 +73,11 @@ public class TCPConnectionHandler extends ConnectionHandler {
             String name = getAnyName();
             Peer peer = new PeerTCP(name, socket, true);
             addPeer(peer);
+
+            // send a handshake to the peer
+            PeerServer.logInfo(peer.getForeignName() + ": Sending handshake request");
+            peer.sendMessage(new HandshakeRequest());
+
             // success: remove this peer from the set of peers to connect to
             PeerServer.logInfo("Connected to peer " + name + " @ " + peerHostPort);
             return Maybe.just(peer);

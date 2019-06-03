@@ -1,5 +1,6 @@
 package unimelb.bitbox.messages;
 
+import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.fs.FileSystemException;
 
@@ -7,8 +8,8 @@ public class DirectoryDeleteResponse extends Response {
     private static final String SUCCESS = "directory deleted";
     private final String pathName;
 
-    public DirectoryDeleteResponse(String pathName) {
-        super("DIRECTORY_DELETE:" + pathName);
+    public DirectoryDeleteResponse(String pathName, Peer peer) {
+        super("DIRECTORY_DELETE:" + pathName, peer);
         this.pathName = pathName;
 
         document.append("command", DIRECTORY_DELETE_RESPONSE);

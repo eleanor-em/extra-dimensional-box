@@ -1,6 +1,5 @@
 package unimelb.bitbox.peers;
 
-import unimelb.bitbox.messages.HandshakeRequest;
 import unimelb.bitbox.messages.Message;
 import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.concurrency.KeepAlive;
@@ -20,12 +19,8 @@ public class PeerUDP extends Peer {
     private RetryService.RetryServer retryServer = new RetryService.RetryServer(this);
 
     public PeerUDP(String name, boolean outgoing, DatagramSocket socket, DatagramPacket packet) {
-        super(name, outgoing, packet.getAddress().toString().split("/")[1],
-                packet.getPort(), new OutgoingConnectionUDP(socket, packet));
-        // If we're outgoing, we sent a handshake request, so add it to the retry service
-        if (outgoing) {
-            retryServer.submit(new HandshakeRequest(PeerServer.getHostPort()));
-        }
+        super(name, outgoing, packet.getAddress().toString().split("/")[1], packet.getPort(),
+              new OutgoingConnectionUDP(socket, packet));
     }
 
     @Override
@@ -93,6 +88,7 @@ class RetryService {
             RetryService.cancelPeer(peer);
         }
     }
+
     private static class RequestData {
         public final PeerUDP peer;
         public final String digest;
@@ -118,6 +114,7 @@ class RetryService {
             return false;
         }
     }
+
     private static class RetryInstance {
         private static final CfgValue<Integer> retryCount = CfgValue.createInt("udpRetries");
         private static final CfgValue<Integer> retryTime = CfgValue.createInt("udpTimeout");
@@ -157,6 +154,10 @@ class RetryService {
     private static final BlockingQueue<RetryInstance> retries = new LinkedBlockingQueue<>();
     private static final Set<RequestData> trackedRequests = ConcurrentHashMap.newKeySet();
 
+    static {
+        KeepAlive.submit(RetryService::run);
+    }
+
     private static void submit(PeerUDP peer, Message request) {
         RequestData req = new RequestData(peer, request);
         if (trackedRequests.add(req)) {
@@ -178,10 +179,6 @@ class RetryService {
                 trackedRequests.remove(req);
             }
         }
-    }
-
-    static {
-        KeepAlive.submit(RetryService::run);
     }
 
     private static void run() {

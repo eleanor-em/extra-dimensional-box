@@ -1,13 +1,13 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.util.network.HostPort;
+import unimelb.bitbox.server.PeerServer;
 
 public class HandshakeRequest extends Message {
 
-    public HandshakeRequest(HostPort hostPort) {
+    public HandshakeRequest() {
         super("HANDSHAKE");
         document.append("command", HANDSHAKE_REQUEST);
 
-        document.append("hostPort", hostPort.toJSON());
+        document.append("hostPort", PeerServer.getHostPort().toJSON());
     }
 }

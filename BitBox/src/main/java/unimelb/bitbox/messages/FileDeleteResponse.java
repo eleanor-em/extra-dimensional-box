@@ -1,5 +1,6 @@
 package unimelb.bitbox.messages;
 
+import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.fs.FileDescriptor;
 
@@ -10,8 +11,8 @@ public class FileDeleteResponse extends Response {
     private String pathName;
     private FileDescriptor fileDescriptor;
     
-    public FileDeleteResponse(FileDescriptor fileDescriptor, String pathName){
-        super("FILE_DELETE:" + pathName + ":" + fileDescriptor);
+    public FileDeleteResponse(String pathName, FileDescriptor fileDescriptor, Peer peer){
+        super("FILE_DELETE:" + pathName + ":" + fileDescriptor, peer);
         this.pathName = pathName;
         this.fileDescriptor = fileDescriptor;
 

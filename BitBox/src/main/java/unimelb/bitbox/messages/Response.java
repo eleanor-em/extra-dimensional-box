@@ -1,8 +1,14 @@
 package unimelb.bitbox.messages;
 
+import unimelb.bitbox.peers.Peer;
+
 public abstract class Response extends Message {
-    public Response(String summary) {
+    final Peer peer;
+
+    public Response(String summary, Peer peer) {
         super(summary);
+
+        this.peer = peer;
     }
 
     abstract void onSent();

@@ -2,10 +2,10 @@ package unimelb.bitbox.server;
 
 import unimelb.bitbox.client.ClientServer;
 import unimelb.bitbox.messages.*;
+import unimelb.bitbox.peers.FileReadWriteThreadPool;
 import unimelb.bitbox.server.connections.ConnectionHandler;
 import unimelb.bitbox.server.connections.TCPConnectionHandler;
 import unimelb.bitbox.server.connections.UDPConnectionHandler;
-import unimelb.bitbox.server.response.MessageProcessor;
 import unimelb.bitbox.util.concurrency.KeepAlive;
 import unimelb.bitbox.util.config.CfgDependent;
 import unimelb.bitbox.util.config.CfgEnumValue;
@@ -22,6 +22,12 @@ import java.util.Arrays;
 import java.util.logging.Logger;
 
 public class PeerServer implements FileSystemObserver {
+    // Enum data
+    enum ConnectionMode {
+        TCP,
+        UDP
+    }
+
     // Configuration values
     private final CfgValue<Long> udpBlockSize = CfgValue.createLong("udpBlockSize");
     private final CfgValue<String> advertisedName = CfgValue.create("advertisedName");
@@ -35,11 +41,13 @@ public class PeerServer implements FileSystemObserver {
     private final Logger log = Logger.getLogger(PeerServer.class.getName());
     private final FileSystemManager fileSystemManager;
     private final MessageProcessor processor = new MessageProcessor();
+    private final FileReadWriteThreadPool rwManager = new FileReadWriteThreadPool();
     private ConnectionHandler connection;
 
     public static FileSystemManager fsManager() {
         return get().fileSystemManager;
     }
+    public static FileReadWriteThreadPool rwManager() { return get().rwManager; }
 
     public static void logInfo(String message) {
         get().log.info(message);
@@ -165,12 +173,6 @@ public class PeerServer implements FileSystemObserver {
             }
             synchroniseFiles();
         }
-    }
-
-    // Enum data
-    enum ConnectionMode {
-        TCP,
-        UDP
     }
 
     // Updates for config value changes

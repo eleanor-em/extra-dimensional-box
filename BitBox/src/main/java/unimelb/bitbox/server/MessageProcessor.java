@@ -1,10 +1,8 @@
-package unimelb.bitbox.server.response;
+package unimelb.bitbox.server;
 
 import org.jetbrains.annotations.NotNull;
 import unimelb.bitbox.messages.*;
-import unimelb.bitbox.peers.FileReadWriteThreadPool;
 import unimelb.bitbox.peers.Peer;
-import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.fs.FileDescriptor;
 import unimelb.bitbox.util.functional.algebraic.Maybe;
 import unimelb.bitbox.util.functional.algebraic.Result;
@@ -12,21 +10,15 @@ import unimelb.bitbox.util.network.HostPort;
 import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.JSONException;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
- * The ServerThread collects messages from the various PeerConnections, and then does something with them.
+ * The message processor collects messages from the various PeerConnections, and then responds appropriately.
  */
 public class MessageProcessor implements Runnable  {
-    private final FileReadWriteThreadPool rwManager;
     private final BlockingQueue<ReceivedMessage> messages = new LinkedBlockingQueue<>();
-
-    public MessageProcessor() {
-        this.rwManager = new FileReadWriteThreadPool();
-    }
 
     public void add(ReceivedMessage message) {
         messages.add(message);
@@ -97,81 +89,52 @@ public class MessageProcessor implements Runnable  {
              * File and directory requests
              */
             case Message.FILE_CREATE_REQUEST:
-                FileCreateResponse createResponse = new FileCreateResponse(pathName.get(), fileDescriptor.get());
+                FileCreateResponse createResponse = new FileCreateResponse(pathName.get(), fileDescriptor.get(), peer);
                 peer.sendMessage(createResponse);
-                if (createResponse.isSuccessful()) {
-                    // Check if this file is already elsewhere on disk
-                    boolean checkShortcut = true;
-                    try {
-                        checkShortcut = !PeerServer.fsManager().checkShortcut(pathName.get());
-                    } catch (IOException e) {
-                        PeerServer.logSevere(peer.getForeignName() + ": error checking shortcut for " + pathName);
-                    }
-
-                    if (checkShortcut) {
-                        PeerServer.logInfo(peer.getForeignName() + ": file " + pathName +
-                                " not available locally. Send a FILE_BYTES_REQUEST");
-                        rwManager.addFile(peer, pathName.get(), fileDescriptor.get());
-                    }
-                }
                 break;
             case Message.FILE_MODIFY_REQUEST:
-                FileModifyResponse modifyResponse = new FileModifyResponse(fileDescriptor.get(), pathName.get());
+                FileModifyResponse modifyResponse = new FileModifyResponse(pathName.get(), fileDescriptor.get(), peer);
                 peer.sendMessage(modifyResponse);
-                if (modifyResponse.isSuccessful()) {
-                    rwManager.addFile(peer, pathName.get(), fileDescriptor.get());
-                }
                 break;
             case Message.FILE_BYTES_REQUEST:
-                rwManager.readFile(peer, fileDescriptor.get(), pathName.get(), position.get(), length.get());
+                PeerServer.rwManager().readFile(peer, pathName.get(), fileDescriptor.get(), position.get(), length.get());
                 break;
             case Message.FILE_DELETE_REQUEST:
-                peer.sendMessage(new FileDeleteResponse(fileDescriptor.get(), pathName.get()));
+                peer.sendMessage(new FileDeleteResponse(pathName.get(), fileDescriptor.get(), peer));
                 break;
 
             case Message.DIRECTORY_CREATE_REQUEST:
-                peer.sendMessage(new DirectoryCreateResponse(pathName.get()));
+                peer.sendMessage(new DirectoryCreateResponse(pathName.get(), peer));
                 break;
 
             case Message.DIRECTORY_DELETE_REQUEST:
-                peer.sendMessage(new DirectoryDeleteResponse(pathName.get()));
+                peer.sendMessage(new DirectoryDeleteResponse(pathName.get(), peer));
                 break;
 
             /*
              * File and directory responses
              */
             case Message.FILE_CREATE_RESPONSE:
-                parsedResponse = Maybe.just(new FileCreateResponse(pathName.get(), fileDescriptor.get()));
+                parsedResponse = Maybe.just(new FileCreateResponse(pathName.get(), fileDescriptor.get(), peer));
                 break;
             case Message.FILE_DELETE_RESPONSE:
-                parsedResponse = Maybe.just(new FileDeleteResponse(fileDescriptor.get(), pathName.get()));
+                parsedResponse = Maybe.just(new FileDeleteResponse(pathName.get(), fileDescriptor.get(), peer));
                 break;
             case Message.FILE_MODIFY_RESPONSE:
-                parsedResponse = Maybe.just(new FileModifyResponse(fileDescriptor.get(), pathName.get()));
+                parsedResponse = Maybe.just(new FileModifyResponse(pathName.get(), fileDescriptor.get(), peer));
                 break;
             case Message.DIRECTORY_CREATE_RESPONSE:
-                parsedResponse = Maybe.just(new DirectoryCreateResponse(pathName.get()));
+                parsedResponse = Maybe.just(new DirectoryCreateResponse(pathName.get(), peer));
                 break;
             case Message.DIRECTORY_DELETE_RESPONSE:
-                parsedResponse = Maybe.just(new DirectoryDeleteResponse(pathName.get()));
+                parsedResponse = Maybe.just(new DirectoryDeleteResponse(pathName.get(), peer));
                 break;
 
             case Message.FILE_BYTES_RESPONSE:
                 String content = document.getString("content").get();
-                FileBytesResponse bytesResponse = new FileBytesResponse(fileDescriptor.get(),
-                                                       pathName.get(),
-                                                       length.get(),
-                                                       position.get(),
-                                                       content, FileBytesResponse.SUCCESS, true);
+                FileBytesResponse bytesResponse = new FileBytesResponse(pathName.get(), fileDescriptor.get(), length.get(),
+                                                                        position.get(), content, FileBytesResponse.SUCCESS, peer);
                 parsedResponse = Maybe.just(bytesResponse);
-                if (bytesResponse.successful) {
-                    rwManager.writeFile(peer, fileDescriptor.get(), pathName.get(), position.get(), length.get(), content);
-                } else {
-                    rwManager.sendReadRequest(peer, pathName.get(), fileDescriptor.get(), position.get());
-                    PeerServer.logWarning("PeerServer.fsManager() response: " + document.get("message").get());
-                    PeerServer.logInfo("Retrying byte request for " + pathName);
-                    // Let's try to read the bytes again!
-                }
                 break;
 
             /*
@@ -188,14 +151,12 @@ public class MessageProcessor implements Runnable  {
                     // (since this socket was an accepted connection)
 
                     // this has to be done here because we don't know the foreign port until now
-                    peer.activate(hostPort.get());
-                    peer.sendMessage(new HandshakeResponse());
+                    peer.sendMessage(new HandshakeResponse(peer, hostPort.get()));
                 }
                 break;
 
             case Message.HANDSHAKE_RESPONSE:
-                parsedResponse = Maybe.just(new HandshakeResponse());
-                peer.activate(hostPort.get());
+                parsedResponse = Maybe.just(new HandshakeResponse(peer, hostPort.get()));
                 break;
 
             case Message.CONNECTION_REFUSED:

@@ -1,5 +1,6 @@
 package unimelb.bitbox.messages;
 
+import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.fs.FileDescriptor;
 
@@ -15,8 +16,8 @@ public class FileCreateResponse extends Response {
         return successful;
     }
 
-    public FileCreateResponse(String pathName, FileDescriptor fileDescriptor) {
-        super("FILE_CREATE:" + pathName + ":" + fileDescriptor);
+    public FileCreateResponse(String pathName, FileDescriptor fileDescriptor, Peer peer) {
+        super("FILE_CREATE:" + pathName + ":" + fileDescriptor, peer);
         this.pathName = pathName;
         this.fileDescriptor = fileDescriptor;
 
@@ -59,5 +60,21 @@ public class FileCreateResponse extends Response {
         successful = reply.equals(SUCCESS);
         document.append("message", reply);
         document.append("status", successful);
+
+        if (successful) {
+            // Check if this file is already elsewhere on disk
+            boolean checkShortcut = true;
+            try {
+                checkShortcut = !PeerServer.fsManager().checkShortcut(pathName);
+            } catch (IOException e) {
+                PeerServer.logSevere(peer.getForeignName() + ": error checking shortcut for " + pathName);
+            }
+
+            if (checkShortcut) {
+                PeerServer.logInfo(peer.getForeignName() + ": file " + pathName +
+                        " not available locally. Send a FILE_BYTES_REQUEST");
+                PeerServer.rwManager().addFile(peer, pathName, fileDescriptor);
+            }
+        }
     }
 }

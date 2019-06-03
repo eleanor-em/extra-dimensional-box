@@ -1,6 +1,7 @@
 package unimelb.bitbox.server.connections;
 
 import unimelb.bitbox.messages.ConnectionRefused;
+import unimelb.bitbox.messages.HandshakeRequest;
 import unimelb.bitbox.messages.Message;
 import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.peers.PeerUDP;
@@ -82,6 +83,10 @@ public class UDPConnectionHandler extends ConnectionHandler {
         byte[] buffer = new byte[65507];
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length, new InetSocketAddress(peerHostPort.hostname, peerHostPort.port));
         Peer peer = new PeerUDP(name, true, awaitUDPSocket(), packet);
+
+        PeerServer.logInfo(peer.getForeignName() + ": Sending handshake request");
+        peer.sendMessage(new HandshakeRequest());
+
         addPeer(peer);
         return Maybe.just(peer);
     }

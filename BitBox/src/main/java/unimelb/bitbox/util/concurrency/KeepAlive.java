@@ -7,20 +7,17 @@ import java.util.concurrent.*;
 // TODO: Allow a reference to the thread to cancel it early
 public class KeepAlive {
     private static final ExecutorService executor = Executors.newCachedThreadPool();
-    private static final CompletionService<ThrowRunnable> completionService = new ExecutorCompletionService<>(executor);
+    private static final CompletionService<Runnable> completionService = new ExecutorCompletionService<>(executor);
 
     static {
         executor.submit(KeepAlive::watch);
     }
 
-    public static void submitThrowable(ThrowRunnable task) {
+    public static void submit(Runnable task) {
         executor.submit(() -> runAndReturnSelf(task));
     }
-    public static void submit(Runnable task) {
-        submitThrowable(task::run);
-    }
 
-    private static ThrowRunnable runAndReturnSelf(ThrowRunnable task) throws Exception {
+    private static Runnable runAndReturnSelf(Runnable task) {
         task.run();
         return task;
     }
@@ -30,9 +27,9 @@ public class KeepAlive {
     private static void watch() {
         while (true) {
             try {
-                ThrowRunnable task = completionService.take().get();
+                Runnable task = completionService.take().get();
                 PeerServer.logWarning("resubmitting task " + task);
-                submitThrowable(task);
+                submit(task);
             } catch (InterruptedException | ExecutionException e) {
                 PeerServer.logWarning("KeepAlive service threw exception: " + e.getMessage());
                 e.printStackTrace();

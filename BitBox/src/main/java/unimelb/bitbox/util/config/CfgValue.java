@@ -1,6 +1,5 @@
 package unimelb.bitbox.util.config;
 
-import unimelb.bitbox.util.concurrency.ThrowRunnable;
 import unimelb.bitbox.util.functional.algebraic.Maybe;
 
 import java.util.ArrayList;
@@ -120,17 +119,11 @@ public class CfgValue<T> {
     public void setOnChanged(Consumer<T> action) {
         actions.add(action);
     }
-    public void setOnChangedThrowable(ThrowRunnable action) {
-        setOnChanged(ignored -> {
-            try {
-                action.run();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        });
+    public void setOnChangedThrowable(Runnable action) {
+        setOnChanged(ignored -> action.run());
     }
     public void setOnChanged(Runnable action) {
-        setOnChangedThrowable(action::run);
+        setOnChangedThrowable(action);
     }
 }
 

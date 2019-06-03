@@ -4,22 +4,18 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-abstract class OutgoingConnection extends Thread {
-    private AtomicBoolean active = new AtomicBoolean(true);
+abstract class OutgoingConnection implements Runnable {
+    private final AtomicBoolean active = new AtomicBoolean(true);
     private final BlockingQueue<OutgoingMessage> messages = new LinkedBlockingQueue<>();
-    void deactivate() {
-        active.set(false);
-        interrupt();
+
+    final boolean isActive() {
+        return active.get();
     }
 
-    boolean isActive() {
-        return !isInterrupted() && active.get();
-    }
-
-    protected final void addMessage(OutgoingMessage message) {
+    final void addMessage(OutgoingMessage message) {
         messages.add(message);
     }
-    protected OutgoingMessage takeMessage() throws InterruptedException {
+    final OutgoingMessage takeMessage() throws InterruptedException {
         return messages.take();
     }
 }

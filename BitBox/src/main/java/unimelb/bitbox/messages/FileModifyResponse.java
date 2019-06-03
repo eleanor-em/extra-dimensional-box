@@ -1,5 +1,6 @@
 package unimelb.bitbox.messages;
 
+import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.fs.FileDescriptor;
 
@@ -16,8 +17,8 @@ public class FileModifyResponse extends Response {
         return successful;
     }
 
-    public FileModifyResponse(FileDescriptor fileDescriptor, String pathName) {
-        super("MODIFY:" + pathName + ":" + fileDescriptor);
+    public FileModifyResponse(String pathName, FileDescriptor fileDescriptor, Peer peer) {
+        super("MODIFY:" + pathName + ":" + fileDescriptor, peer);
         this.pathName = pathName;
         this.fileDescriptor = fileDescriptor;
 
@@ -46,5 +47,8 @@ public class FileModifyResponse extends Response {
         successful = reply.equals(SUCCESS);
         document.append("message", reply);
         document.append("status", successful);
+        if (successful) {
+            PeerServer.rwManager().addFile(peer, pathName, fileDescriptor);
+        }
     }
 }

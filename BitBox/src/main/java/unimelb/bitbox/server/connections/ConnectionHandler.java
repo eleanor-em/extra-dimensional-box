@@ -15,10 +15,7 @@ import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.ServerSocket;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -31,7 +28,11 @@ public abstract class ConnectionHandler {
 
     // Objects for use by this class
     private final DelayedInitialiser<SocketWrapper> socket = new DelayedInitialiser<>();
-    private final List<Peer> peers = Collections.synchronizedList(new ArrayList<>());
+
+    // Adding and removing peers is uncommon compared to iterating over peers.
+    // Use CopyOnWrite for synchronization efficiency
+    private final List<Peer> peers = new CopyOnWriteArrayList<>();
+
     private final Set<HostPort> peerAddresses = ConcurrentHashMap.newKeySet();
     private final Queue<String> names = new ConcurrentLinkedQueue<>();
 
@@ -111,9 +112,7 @@ public abstract class ConnectionHandler {
 
     public void closeConnection(Peer peer) {
         if (peers.contains(peer)) {
-            synchronized (peers) {
-                peers.remove(peer);
-            }
+            peers.remove(peer);
             peer.close();
             PeerServer.logInfo("Removing " + peer.getForeignName() + " from peer list");
 
@@ -125,12 +124,7 @@ public abstract class ConnectionHandler {
         }
     }
     public void closeAllConnections() {
-        // Make a copy to avoid concurrent modification
-        List<Peer> peersCopy;
-        synchronized (peers) {
-            peersCopy = new LinkedList<>(peers);
-        }
-        peersCopy.forEach(this::closeConnection);
+        peers.forEach(this::closeConnection);
     }
 
     protected void setSocket(SocketWrapper value) {
@@ -160,29 +154,20 @@ public abstract class ConnectionHandler {
     }
 
     protected boolean hasPeer(HostPort hostPort) {
-        return getPeer(hostPort).isJust();
+        return peers.stream()
+                    .anyMatch(peer -> peer.matches(hostPort));
     }
 
     public Maybe<Peer> getPeer(HostPort hostPort) {
-        synchronized (peers) {
-            for (Peer peer : peers) {
-                HostPort peerLocalHP = peer.getLocalHostPort();
-                HostPort peerHP = peer.getHostPort();
-
-                if (peerLocalHP.fuzzyEquals(hostPort) || peerHP.fuzzyEquals(hostPort)) {
-                    return Maybe.just(peer);
-                }
-            }
-        }
-        return Maybe.nothing();
+        return Maybe.of(peers.stream()
+                    .filter(peer -> peer.matches(hostPort))
+                    .findFirst());
     }
 
     public List<Peer> getActivePeers() {
-        synchronized (peers) {
-            return peers.stream()
-                    .filter(Peer::isActive)
-                    .collect(Collectors.toList());
-        }
+        return peers.stream()
+                .filter(Peer::isActive)
+                .collect(Collectors.toList());
     }
 
     protected void addPeer(Peer peer) {

@@ -9,9 +9,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Tracks the clients that we have received connections from
+ * Tracks the clients that we have received connections from.
  */
-public class KnownClientTracker {
+class KnownClientTracker {
     private static final List<String> clients = Collections.synchronizedList(new ArrayList<>());
     private static final String CLIENT_LIST_FILE = "clientlist";
 

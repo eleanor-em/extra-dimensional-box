@@ -11,9 +11,7 @@ public class PeerTCP extends Peer {
 
     public PeerTCP(String name, Socket socket, boolean outgoing) {
         super(name, outgoing, socket.getInetAddress().getHostAddress(), socket.getPort(), new OutgoingConnectionTCP(socket));
-        IncomingConnectionTCP inConn = new IncomingConnectionTCP(socket, this);
-        inConn.start();
-
+        this.submit(this::receiveMessages);
         this.socket = socket;
     }
 
@@ -25,29 +23,17 @@ public class PeerTCP extends Peer {
             PeerServer.logSevere("Error closing socket: " + e.getMessage());
         }
     }
-}
 
-class IncomingConnectionTCP extends Thread {
-    private Socket socket;
-    // the Peer object that will forward our received messages
-    private Peer consumer;
-
-    IncomingConnectionTCP(Socket socket, Peer consumer) {
-        this.socket = socket;
-        this.consumer = consumer;
-    }
-
-    @Override
-    public void run() {
+    private void receiveMessages() {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
             String message;
             while ((message = in.readLine()) != null) {
-                consumer.receiveMessage(message);
+                PeerTCP.this.receiveMessage(message);
             }
         } catch (IOException e) {
-            if (!consumer.isClosed()) {
+            if (!PeerTCP.this.isClosed()) {
                 PeerServer.logSevere("Error reading from socket: " + e.getMessage());
-                consumer.close();
+                PeerTCP.this.close();
             }
         }
     }

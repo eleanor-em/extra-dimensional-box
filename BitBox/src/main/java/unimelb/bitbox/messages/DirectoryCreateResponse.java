@@ -1,5 +1,6 @@
 package unimelb.bitbox.messages;
 
+import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.fs.FileSystemException;
 
@@ -7,8 +8,8 @@ public class DirectoryCreateResponse extends Response {
     private static final String SUCCESS = "directory created";
     private final String pathName;
 
-    public DirectoryCreateResponse(String pathName) {
-        super("DIRECTORY_CREATE:" + pathName);
+    public DirectoryCreateResponse(String pathName, Peer peer) {
+        super("DIRECTORY_CREATE:" + pathName, peer);
 
         this.pathName = pathName;
         document.append("command", DIRECTORY_CREATE_RESPONSE);

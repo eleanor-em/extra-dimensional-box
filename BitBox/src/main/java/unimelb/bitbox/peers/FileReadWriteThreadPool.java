@@ -84,7 +84,7 @@ public class FileReadWriteThreadPool {
      * This method adds and run a ReadWorker to read the bytes based on the FILE_BYTES_REQUEST message
      * received from other peers. It then encodes the content and sends a FILE_BYTES_RESPONSE message to reply.
      */
-    public void readFile(Peer peer, FileDescriptor fd, String pathName, long position, long length) {
+    public void readFile(Peer peer, String pathName, FileDescriptor fd, long position, long length) {
         length = Math.min(PeerServer.getMaximumLength(), length);
 
         executor.execute(new ReadWorker(peer, fd, pathName, position, length));
@@ -230,7 +230,7 @@ public class FileReadWriteThreadPool {
                         position + "/" + fileDescriptor.fileSize + "]: " + e.getMessage());
             }
 
-            peer.sendMessage(new FileBytesResponse(fileDescriptor, pathName, length, position, content.get(), reply.get(), false));
+            peer.sendMessage(new FileBytesResponse(pathName, fileDescriptor, length, position, content.get(), reply.get(), peer));
         }
     }
 }
