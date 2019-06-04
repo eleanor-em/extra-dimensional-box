@@ -122,6 +122,15 @@ public class MessageProcessor implements Runnable  {
 
             case FILE_BYTES_RESPONSE:
                 final String content = document.getString("content").get();
+
+                if (document.getBoolean("status").get()) {
+                    PeerServer.rwManager().writeFile(peer, fileDescriptor.get(), pathName.get(), position.get(), length.get(), content);
+                } else {
+                    // Let's try to read the bytes again!
+                    PeerServer.logInfo("Retrying byte request for " + pathName);
+                    PeerServer.rwManager().sendReadRequest(peer, pathName.get(), fileDescriptor.get(), position.get());
+                }
+
                 parsedResponse = Maybe.just(new FileBytesResponse(pathName.get(), fileDescriptor.get(), length.get(),
                                                                   position.get(), peer));
                 break;

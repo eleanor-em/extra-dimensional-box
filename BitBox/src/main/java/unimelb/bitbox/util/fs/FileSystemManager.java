@@ -351,6 +351,17 @@ public class FileSystemManager extends Thread {
         }
     }
 
+    public void createIfNotLoading(String pathName, FileDescriptor fd) throws IOException {
+        pathName = separatorsToSystem(pathName);
+        synchronized (this) {
+            String fullPathName = root + FileSystems.getDefault().getSeparator() + pathName;
+            FileManagerException.check(!watchedFiles.containsKey(fullPathName), "File " + pathName + " already exists");
+            if (!loadingFiles.containsKey(fullPathName)) {
+                loadingFiles.put(fullPathName, new FileLoader(fullPathName, fd.md5, fd.fileSize, fd.lastModified));
+            }
+        }
+    }
+
     /**
      * Requests the file loader for the associated file name to write the supplied byte buffer
      * at the supplied position in the loader file.
@@ -364,7 +375,7 @@ public class FileSystemManager extends Thread {
         pathName = separatorsToSystem(pathName);
         synchronized (this) {
             String fullPathName = root + FileSystems.getDefault().getSeparator() + pathName;
-            FileManagerException.check(watchedFiles.containsKey(fullPathName), "File " + pathName + " does not exist");
+            FileManagerException.check(loadingFiles.containsKey(fullPathName), "File " + pathName + " does not exist");
             loadingFiles.get(fullPathName).writeFile(src, position);
         }
     }

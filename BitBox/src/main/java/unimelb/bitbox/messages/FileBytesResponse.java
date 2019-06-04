@@ -48,13 +48,5 @@ public class FileBytesResponse extends Response {
         document.append("content", content.get());
         document.append("message", reply);
         document.append("status", successful);
-
-        if (successful) {
-            PeerServer.rwManager().writeFile(peer, fileDescriptor, pathName, position, length, content.get());
-        } else {
-            // Let's try to read the bytes again!
-            PeerServer.logInfo("Retrying byte request for " + pathName);
-            PeerServer.rwManager().sendReadRequest(peer, pathName, fileDescriptor, position);
-        }
     }
 }

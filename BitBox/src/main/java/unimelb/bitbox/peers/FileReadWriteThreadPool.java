@@ -147,6 +147,7 @@ public class FileReadWriteThreadPool {
             // Write bytes
             try {
                 ByteBuffer decoded = ByteBuffer.wrap(Base64.getDecoder().decode(content));
+                PeerServer.fsManager().createIfNotLoading(pathName, fileDescriptor);
                 PeerServer.fsManager().writeFile(pathName, decoded, position);
                 PeerServer.logInfo(peer.getForeignName() + ": wrote file " + pathName +
                         " at position: [" + position + "/" + fileDescriptor.fileSize + "]");
@@ -162,8 +163,8 @@ public class FileReadWriteThreadPool {
             // Check if more bytes are needed. If yes, send another FileBytesRequest
             PeerServer.fsManager().checkWriteComplete(pathName)
                       .ok(res -> {
-                          if (res) {
-                              peer.sendMessage(new FileBytesRequest(pathName, fileDescriptor, nextPosition));
+                          if (!res) {
+                              sendReadRequest(peer, pathName, fileDescriptor, nextPosition);
                               PeerServer.logInfo(peer.getForeignName() + ": sent FILE_BYTES_REQUEST for " + pathName +
                                       " at position: [" + nextPosition + "/" + fileDescriptor.fileSize + "]");
                           } else {

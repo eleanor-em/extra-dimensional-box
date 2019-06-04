@@ -66,7 +66,7 @@ public class FileCreateResponse extends Response {
             PeerServer.fsManager().checkShortcut(pathName)
                       .match(err -> PeerServer.logSevere(peer.getForeignName() + ": error checking shortcut for " + pathName),
                           res -> {
-                          if (res) {
+                          if (!res) {
                               PeerServer.logInfo(peer.getForeignName() + ": file " + pathName +
                                       " not available locally. Send a FILE_BYTES_REQUEST");
                               PeerServer.rwManager().addFile(peer, pathName, fileDescriptor);
