@@ -44,7 +44,7 @@ public class HostPort {
         try {
             hostUsed = InetAddress.getByName(hostUsed).getHostAddress();
         } catch (UnknownHostException ignored) {
-            PeerServer.logWarning("Unknown host " + hostUsed + ":" + port);
+            PeerServer.log().warning("Unknown host " + hostUsed + ":" + port);
         }
         return new HostPort(hostUsed, port, true);
     }

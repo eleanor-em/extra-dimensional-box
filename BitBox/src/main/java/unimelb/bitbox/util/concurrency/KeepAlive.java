@@ -26,7 +26,7 @@ public class KeepAlive {
         try {
             task.run();
         } catch (Exception e) {
-            PeerServer.logWarning("KeepAlive service threw exception");
+            PeerServer.log().warning("KeepAlive service threw exception");
             e.printStackTrace();
         }
         return task;
@@ -38,7 +38,7 @@ public class KeepAlive {
                 Runnable task = completionService.take().get();
 
                 if (!cancelledTasks.remove(task)) {
-                    PeerServer.logWarning("resubmitting task " + task);
+                    PeerServer.log().warning("resubmitting task " + task);
                     Maybe.of(watchers.get(task))
                          .match(watcher -> watcher.future = submitInternal(task),
                                 () -> submitInternal(task));
@@ -46,7 +46,7 @@ public class KeepAlive {
                     watchers.remove(task);
                 }
             } catch (InterruptedException | ExecutionException e) {
-                PeerServer.logWarning("KeepAlive service threw exception: " + e.getMessage());
+                PeerServer.log().warning("KeepAlive service threw exception: " + e.getMessage());
                 e.printStackTrace();
             }
         }

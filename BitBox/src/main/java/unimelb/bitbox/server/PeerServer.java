@@ -49,14 +49,8 @@ public class PeerServer implements FileSystemObserver {
     }
     public static FileReadWriteThreadPool rwManager() { return get().rwManager; }
 
-    public static void logInfo(String message) {
-        get().log.info(message);
-    }
-    public static void logWarning(String message) {
-        get().log.warning(message);
-    }
-    public static void logSevere(String message) {
-        get().log.severe(message);
+    public static Logger log() {
+        return get().log;
     }
 
     // Getters for data needed by other classes
@@ -72,22 +66,6 @@ public class PeerServer implements FileSystemObserver {
     }
     public static ConnectionHandler getConnection() {
         return get().connection;
-    }
-
-    private static PeerServer INSTANCE;
-
-    public static void initialise() throws IOException {
-        if (INSTANCE != null) {
-            throw new RuntimeException("PeerServer initialised twice");
-        }
-        new PeerServer();
-    }
-
-    private static PeerServer get() {
-        if (INSTANCE == null) {
-            throw new RuntimeException("No peer server exists");
-        }
-        return INSTANCE;
     }
 
     // Message handling
@@ -120,11 +98,27 @@ public class PeerServer implements FileSystemObserver {
 
     public static void synchroniseFiles() {
         fsManager().generateSyncEvents()
-                   .forEach(get()::processFileSystemEvent);
+                .forEach(get()::processFileSystemEvent);
     }
 
     public static int getPeerCount() {
         return get().connection.getActivePeers().size();
+    }
+
+    private static PeerServer INSTANCE;
+
+    public static void initialise() throws IOException {
+        if (INSTANCE != null) {
+            throw new RuntimeException("PeerServer initialised twice");
+        }
+        new PeerServer();
+    }
+
+    private static PeerServer get() {
+        if (INSTANCE == null) {
+            throw new RuntimeException("No peer server exists");
+        }
+        return INSTANCE;
     }
 
     private PeerServer() throws NumberFormatException, IOException {

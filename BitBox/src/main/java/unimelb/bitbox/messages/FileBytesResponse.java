@@ -35,7 +35,7 @@ public class FileBytesResponse extends Response {
         AtomicReference<String> content = new AtomicReference<>();
         String reply = PeerServer.fsManager().readFile(fileDescriptor.md5, position, length)
                               .matchThen(error -> {
-                                          PeerServer.logWarning(peer + ": failed reading bytes of file " + pathName +
+                                          PeerServer.log().warning(peer + ": failed reading bytes of file " + pathName +
                                                                 " at [" + position + "/" + fileDescriptor.fileSize + "]: "
                                                                 + error.getMessage());
                                           return "failed to read bytes: " + error.getMessage();

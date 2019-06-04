@@ -49,7 +49,7 @@ public class ClientServer implements Runnable {
                 pool.submit(() -> handleClient(new ClientConnection(socket)));
             }
         } catch (IOException e) {
-            PeerServer.logSevere("Error with server socket:");
+            PeerServer.log().severe("Error with server socket:");
             e.printStackTrace();
         }
     }
@@ -59,7 +59,7 @@ public class ClientServer implements Runnable {
      */
     private void handleClient(ClientConnection client) {
         Socket socket = client.getSocket();
-        PeerServer.logInfo(client + ": received connection");
+        PeerServer.log().info(client + ": received connection");
 
         // Open the read/write streams and process messages until the socket closes
         try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
@@ -71,31 +71,31 @@ public class ClientServer implements Runnable {
                 // Check the status of the response and report the error if it failed
                 if (!response.getBoolean("status").orElse(false)) {
                     String error = response.getString("message").orElse("<no message>");
-                    PeerServer.logWarning(client + ": unsuccessful message sent: " + error);
+                    PeerServer.log().warning(client + ": unsuccessful message sent: " + error);
                 }
                 // Write the message
                 try {
                     out.write(response.networkEncode());
                     out.flush();
                 } catch (IOException e) {
-                    PeerServer.logWarning(client + ": error while responding: " + e.getMessage());
+                    PeerServer.log().warning(client + ": error while responding: " + e.getMessage());
                 }
             }
         } catch (IOException e) {
-            PeerServer.logWarning(client + ": error with I/O streams: " + e.getMessage());
+            PeerServer.log().warning(client + ": error with I/O streams: " + e.getMessage());
         }
 
         if (!client.isAuthenticated()) {
             KnownClientTracker.addClient(client);
         }
-        PeerServer.logInfo(client + ": disconnected");
+        PeerServer.log().info(client + ": disconnected");
     }
 
     /**
      * Given a message and the client it was received from, generate an appropriate response.
      */
     private JSONDocument handleMessage(String message, ClientConnection client) {
-        PeerServer.logInfo(client + ": received " + message);
+        PeerServer.log().info(client + ": received " + message);
         // Parse the message
         JSONDocument document;
         try {
@@ -204,7 +204,7 @@ public class ClientServer implements Runnable {
                 try {
                     keys.add(new SSHPublicKey(keyString.trim()));
                 } catch (InvalidKeyException e) {
-                    PeerServer.logWarning("invalid keystring " + keyString + ": " + e.getMessage());
+                    PeerServer.log().warning("invalid keystring " + keyString + ": " + e.getMessage());
                 }
             }
         }

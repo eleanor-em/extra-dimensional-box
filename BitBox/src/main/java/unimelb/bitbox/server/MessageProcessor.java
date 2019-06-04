@@ -30,7 +30,7 @@ public class MessageProcessor implements Runnable  {
             try {
                 processMessage(messages.take());
             } catch (InterruptedException e) {
-                PeerServer.logWarning("receiving thread interrupted");
+                PeerServer.log().warning("receiving thread interrupted");
                 e.printStackTrace();
             }
         }
@@ -50,11 +50,11 @@ public class MessageProcessor implements Runnable  {
             // if we got a friendly name, log it
             String logMessage = message.peer.getForeignName() + " received: " + command.get()
                     + friendlyName.map(name -> " (via " + name + ")").orElse("");
-            PeerServer.logInfo(logMessage);
+            PeerServer.log().info(logMessage);
 
             respondToMessage(message.peer, MessageType.fromString(command.get()).get(), doc);
         } catch (JSONException e) {
-            PeerServer.logWarning(e.getMessage());
+            PeerServer.log().warning(e.getMessage());
             invalidProtocolResponse(message.peer, e.getMessage());
         }
     }
@@ -127,7 +127,7 @@ public class MessageProcessor implements Runnable  {
                     PeerServer.rwManager().writeFile(peer, fileDescriptor.get(), pathName.get(), position.get(), length.get(), content);
                 } else {
                     // Let's try to read the bytes again!
-                    PeerServer.logInfo("Retrying byte request for " + pathName);
+                    PeerServer.log().info("Retrying byte request for " + pathName);
                     PeerServer.rwManager().sendReadRequest(peer, pathName.get(), fileDescriptor.get(), position.get());
                 }
 
@@ -139,10 +139,10 @@ public class MessageProcessor implements Runnable  {
              * Handshake request and responses
              */
             case HANDSHAKE_REQUEST:
-                PeerServer.logInfo("Received connection request from " + hostPort.get());
+                PeerServer.log().info("Received connection request from " + hostPort.get());
 
                 if (PeerServer.getConnection().getOutgoingAddresses().contains(hostPort.get())) {
-                    PeerServer.logWarning("Already connected to " + hostPort.get());
+                    PeerServer.log().warning("Already connected to " + hostPort.get());
                     peer.close();
                 } else {
                     peer.sendMessage(new HandshakeResponse(peer, hostPort.get()));
@@ -158,7 +158,7 @@ public class MessageProcessor implements Runnable  {
                     // why did they send this to us..?
                     invalidProtocolResponse(peer, "unexpected CONNECTION_REFUSED");
                 }
-                PeerServer.logWarning("Connection refused: " + document.get("message").get());
+                PeerServer.log().warning("Connection refused: " + document.get("message").get());
                 peer.close();
 
                 // now try to connect to the provided peer list
@@ -167,7 +167,7 @@ public class MessageProcessor implements Runnable  {
                     HostPort.fromJSON(peerHostPort)
                             .ok(address -> {
                                 PeerServer.getConnection().addPeerAddress(address);
-                                PeerServer.logInfo("Added peer `" + address + "`");
+                                PeerServer.log().info("Added peer `" + address + "`");
                             });
                     PeerServer.getConnection().retryPeers();
                 }
@@ -175,7 +175,7 @@ public class MessageProcessor implements Runnable  {
 
             case INVALID_PROTOCOL:
                 // crap.
-                PeerServer.logSevere("Invalid protocol response from "
+                PeerServer.log().severe("Invalid protocol response from "
                         + peer.getForeignName() + ": " + document.getString("message").get());
                 peer.close();
                 break;

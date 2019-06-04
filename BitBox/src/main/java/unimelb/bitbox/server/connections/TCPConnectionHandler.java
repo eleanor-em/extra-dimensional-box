@@ -23,40 +23,40 @@ public class TCPConnectionHandler extends ConnectionHandler {
         // Need to set and then await in case there was already a socket created
         setSocket(new TCPSocket(this.port, 100));
         ServerSocket tcpServerSocket = awaitTCPSocket();
-        PeerServer.logInfo("Listening on port " + this.port);
+        PeerServer.log().info("Listening on port " + this.port);
 
         while (!tcpServerSocket.isClosed()) {
             try {
                 Socket socket = tcpServerSocket.accept();
-                PeerServer.logInfo("Accepted connection: " + socket.getInetAddress().toString() + ":" + socket.getPort());
+                PeerServer.log().info("Accepted connection: " + socket.getInetAddress().toString() + ":" + socket.getPort());
 
                 // check we have room for more peers
                 // (only count incoming connections)
                 if (canStorePeer()) {
                     Peer peer = new PeerTCP(getAnyName(), socket, false);
                     addPeer(peer);
-                    PeerServer.logInfo("Connected to peer " + peer);
+                    PeerServer.log().info("Connected to peer " + peer);
                 } else {
                     // if not, write a CONNECTION_REFUSED message and close the connection
                     try (BufferedWriter out = new BufferedWriter(
                             new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8))) {
                         out.write(new ConnectionRefused(getActivePeers()).networkEncode());
                         out.flush();
-                        PeerServer.logInfo("Sending CONNECTION_REFUSED");
+                        PeerServer.log().info("Sending CONNECTION_REFUSED");
                     } catch (IOException e) {
                         e.printStackTrace();
-                        PeerServer.logWarning("Failed writing CONNECTION_REFUSED");
+                        PeerServer.log().warning("Failed writing CONNECTION_REFUSED");
                     } finally {
                         socket.close();
                     }
                 }
             } catch (SocketTimeoutException ignored) {
             } catch (IOException e) {
-                PeerServer.logWarning("Failed connecting to peer");
+                PeerServer.log().warning("Failed connecting to peer");
                 e.printStackTrace();
             }
         }
-        PeerServer.logInfo("No longer listening on port " + this.port);
+        PeerServer.log().info("No longer listening on port " + this.port);
     }
 
     @Override
@@ -75,14 +75,14 @@ public class TCPConnectionHandler extends ConnectionHandler {
             addPeer(peer);
 
             // send a handshake to the peer
-            PeerServer.logInfo(peer.getForeignName() + ": Sending handshake request");
+            PeerServer.log().info(peer.getForeignName() + ": Sending handshake request");
             peer.sendMessage(new HandshakeRequest());
 
             // success: remove this peer from the set of peers to connect to
-            PeerServer.logInfo("Connected to peer " + name + " @ " + peerHostPort);
+            PeerServer.log().info("Connected to peer " + name + " @ " + peerHostPort);
             return Maybe.just(peer);
         } catch (IOException e) {
-            PeerServer.logWarning("Connection to peer `" + peerHostPort + "` failed: " + e.getMessage());
+            PeerServer.log().warning("Connection to peer `" + peerHostPort + "` failed: " + e.getMessage());
             e.printStackTrace();
             return Maybe.nothing();
         }

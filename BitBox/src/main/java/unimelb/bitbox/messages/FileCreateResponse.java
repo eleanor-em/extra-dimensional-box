@@ -36,7 +36,7 @@ public class FileCreateResponse extends Response {
                     PeerServer.fsManager().modifyFileLoader(pathName, fileDescriptor);
                 } catch (IOException ignored) {
                     // We're currently transferring this file, or else our file is newer.
-                    PeerServer.logWarning("failed to generate file loader for " + pathName);
+                    PeerServer.log().warning("failed to generate file loader for " + pathName);
                     return "error generating modify file loader: " + pathName;
                 }
             } else {
@@ -64,10 +64,10 @@ public class FileCreateResponse extends Response {
         if (successful) {
             // Check if this file is already elsewhere on disk
             PeerServer.fsManager().checkShortcut(pathName)
-                      .match(err -> PeerServer.logSevere(peer.getForeignName() + ": error checking shortcut for " + pathName),
+                      .match(err -> PeerServer.log().severe(peer.getForeignName() + ": error checking shortcut for " + pathName),
                           res -> {
                           if (!res) {
-                              PeerServer.logInfo(peer.getForeignName() + ": file " + pathName +
+                              PeerServer.log().info(peer.getForeignName() + ": file " + pathName +
                                       " not available locally. Send a FILE_BYTES_REQUEST");
                               PeerServer.rwManager().addFile(peer, pathName, fileDescriptor);
                           }

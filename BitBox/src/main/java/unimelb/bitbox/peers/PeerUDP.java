@@ -30,13 +30,13 @@ public class PeerUDP extends Peer {
 
     @Override
     protected void requestSent(Message request) {
-        PeerServer.logInfo(getForeignName() + ": waiting for response: " + request.getSummary());
+        PeerServer.log().info(getForeignName() + ": waiting for response: " + request.getSummary());
         retryServer.submit(request);
     }
 
     @Override
     protected void responseReceived(Message response) {
-        PeerServer.logInfo(getForeignName() + ": notified response: " + response.getSummary());
+        PeerServer.log().info(getForeignName() + ": notified response: " + response.getSummary());
         retryServer.notify(response);
     }
 }
@@ -61,9 +61,9 @@ class OutgoingConnectionUDP extends OutgoingConnection {
                 udpSocket.send(packet);
                 message.onSent.run();
             } catch (IOException e) {
-                PeerServer.logSevere("Error sending packet to UDP socket: " + e.getMessage());
+                PeerServer.log().severe("Error sending packet to UDP socket: " + e.getMessage());
             } catch (InterruptedException e) {
-                PeerServer.logInfo("thread interrupted: " + e.getMessage());
+                PeerServer.log().info("thread interrupted: " + e.getMessage());
             }
         }
     }
@@ -131,11 +131,11 @@ class RetryService {
             data.peer.sendMessage(data.request);
             submissionTime = System.nanoTime();
             if (retries >= retryCount.get()) {
-                PeerServer.logWarning("peer " + data.peer + " timed out");
+                PeerServer.log().warning("peer " + data.peer + " timed out");
                 data.peer.close();
                 return false;
             } else {
-                PeerServer.logInfo(data.peer + ": retrying " + data.request.getCommand() + "(" + retries + ")");
+                PeerServer.log().info(data.peer + ": retrying " + data.request.getCommand() + "(" + retries + ")");
                 ++retries;
                 return true;
             }
@@ -198,7 +198,7 @@ class RetryService {
                     }
                 }
             } catch (InterruptedException ignored) {
-                PeerServer.logWarning("Retry service interrupted");
+                PeerServer.log().warning("Retry service interrupted");
             }
         }
     }

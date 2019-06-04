@@ -79,7 +79,7 @@ public abstract class Peer {
             KnownPeerTracker.notifyPeerCount(PeerServer.getPeerCount());
 
             // Trigger synchronisation
-            PeerServer.logInfo("Activating " + getForeignName());
+            PeerServer.log().info("Activating " + getForeignName());
             PeerServer.synchroniseFiles();
         }
     }
@@ -122,7 +122,7 @@ public abstract class Peer {
      * @param port      the port of the peer
      */
     Peer(String name, boolean outgoing, String host, int port, OutgoingConnection outConn) {
-        PeerServer.logInfo("Peer created: " + name + " @ " + host + ":" + port);
+        PeerServer.log().info("Peer created: " + name + " @ " + host + ":" + port);
         this.name = name;
         wasOutgoing = outgoing;
 
@@ -143,7 +143,7 @@ public abstract class Peer {
         }
         state.set(PeerState.CLOSED);
 
-        PeerServer.logWarning("Connection to peer `" + getForeignName() + "` closed.");
+        PeerServer.log().warning("Connection to peer `" + getForeignName() + "` closed.");
         PeerServer.getConnection().closeConnection(this);
         synchronized (onClose) {
             onClose.forEach(Runnable::run);
@@ -184,7 +184,7 @@ public abstract class Peer {
         }
 
         message.setFriendlyName(name + "-" + PeerServer.getHostPort());
-        PeerServer.logInfo(getForeignName() + " sent: " + message.getCommand());
+        PeerServer.log().info(getForeignName() + " sent: " + message.getCommand());
         outConn.addMessage(new OutgoingMessage(message.networkEncode(), onSent));
     }
 

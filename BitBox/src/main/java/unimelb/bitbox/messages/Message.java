@@ -43,8 +43,8 @@ public abstract class Message implements IJSONData {
         document.getBoolean("status")
                 .ok(status -> {
                     if (!status) {
-                        Result.of(() -> PeerServer.logWarning("Sending failed " + getCommand() + ": " + document.get("message")))
-                                .err(e -> PeerServer.logWarning("Malformed message: " + e.getMessage()));
+                        Result.of(() -> PeerServer.log().warning("Sending failed " + getCommand() + ": " + document.get("message")))
+                                .err(e -> PeerServer.log().warning("Malformed message: " + e.getMessage()));
                     }
                 });
     }

@@ -54,7 +54,7 @@ public abstract class ConnectionHandler {
             try {
                 wrapper.close();
             } catch (IOException e) {
-                PeerServer.logSevere("Failed closing socket");
+                PeerServer.log().severe("Failed closing socket");
                 e.printStackTrace();
             }
         });
@@ -65,9 +65,9 @@ public abstract class ConnectionHandler {
 
     public void addPeerAddress(String address) {
         HostPort.fromAddress(address)
-                .match(ignored -> PeerServer.logWarning("Tried to add invalid address `" + address + "`"),
+                .match(ignored -> PeerServer.log().warning("Tried to add invalid address `" + address + "`"),
                        peerHostPort -> {
-                           PeerServer.logInfo("Adding address " + address + " to connection list");
+                           PeerServer.log().info("Adding address " + address + " to connection list");
                            addPeerAddress(peerHostPort);
                        });
     }
@@ -114,7 +114,7 @@ public abstract class ConnectionHandler {
         if (peers.contains(peer)) {
             peers.remove(peer);
             peer.close();
-            PeerServer.logInfo("Removing " + peer.getForeignName() + " from peer list");
+            PeerServer.log().info("Removing " + peer.getForeignName() + " from peer list");
 
             // return the plain name to the queue, if it's not the default
             String plainName = peer.getName();
@@ -137,7 +137,7 @@ public abstract class ConnectionHandler {
             assert value instanceof UDPSocket;
             return ((UDPSocket) value).get();
         } catch (InterruptedException e) {
-            PeerServer.logWarning("Thread interrupted while waiting for socket: " + e.getMessage());
+            PeerServer.log().warning("Thread interrupted while waiting for socket: " + e.getMessage());
             throw new RuntimeException(e);
         }
     }
@@ -148,7 +148,7 @@ public abstract class ConnectionHandler {
             assert value instanceof TCPSocket;
             return ((TCPSocket) value).get();
         } catch (InterruptedException e) {
-            PeerServer.logWarning("Thread interrupted while waiting for socket: " + e.getMessage());
+            PeerServer.log().warning("Thread interrupted while waiting for socket: " + e.getMessage());
             throw new RuntimeException(e);
         }
     }
@@ -190,11 +190,11 @@ public abstract class ConnectionHandler {
         try {
             acceptConnections();
         } catch (Exception e) {
-            PeerServer.logSevere("Accepting connections failed: " + e.getMessage());
+            PeerServer.log().severe("Accepting connections failed: " + e.getMessage());
             e.printStackTrace();
         } finally {
             if (active.get()) {
-                PeerServer.logInfo("Restarting accept thread");
+                PeerServer.log().info("Restarting accept thread");
                 if (socket.get().map(ISocket::isClosed).fromMaybe(false)) {
                     socket.reset();
                 }
@@ -212,11 +212,11 @@ public abstract class ConnectionHandler {
         } catch (InterruptedException ignored) {
             // It's expected that we might get interrupted here.
         } catch (Exception e) {
-            PeerServer.logSevere("Retrying peers failed: " + e.getMessage());
+            PeerServer.log().severe("Retrying peers failed: " + e.getMessage());
             e.printStackTrace();
         } finally {
             if (active.get()) {
-                PeerServer.logInfo("Restarting peer retry thread");
+                PeerServer.log().info("Restarting peer retry thread");
                 executor.submit(this::connectToPeers);
             }
         }

@@ -26,7 +26,7 @@ public class UDPConnectionHandler extends ConnectionHandler {
         setSocket(new UDPSocket(port, 100));
         DatagramSocket udpSocket = awaitUDPSocket();
 
-        PeerServer.logInfo("Listening on port " + this.port);
+        PeerServer.log().info("Listening on port " + this.port);
         while (!udpSocket.isClosed()) {
             try {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -63,11 +63,11 @@ public class UDPConnectionHandler extends ConnectionHandler {
                 }
             } catch (SocketTimeoutException ignored) {
             } catch (IOException e) {
-                PeerServer.logSevere("Failed receiving from peer: " + e.getMessage());
+                PeerServer.log().severe("Failed receiving from peer: " + e.getMessage());
                 e.printStackTrace();
             }
         }
-        PeerServer.logInfo("No longer listening on port " + this.port);
+        PeerServer.log().info("No longer listening on port " + this.port);
     }
 
     @Override
@@ -84,7 +84,7 @@ public class UDPConnectionHandler extends ConnectionHandler {
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length, new InetSocketAddress(peerHostPort.hostname, peerHostPort.port));
         Peer peer = new PeerUDP(name, true, awaitUDPSocket(), packet);
 
-        PeerServer.logInfo(peer.getForeignName() + ": Sending handshake request");
+        PeerServer.log().info(peer.getForeignName() + ": Sending handshake request");
         peer.sendMessage(new HandshakeRequest());
 
         addPeer(peer);

@@ -60,13 +60,13 @@ public class FileReadWriteThreadPool {
         if (Maybe.of(fileModifiedDates.get(ft))
                  .map(current -> current <= fileDescriptor.lastModified)
                  .fromMaybe(false)) {
-            PeerServer.logInfo(peer.getForeignName() + ": received create/modify request, but was already transferring" +
+            PeerServer.log().info(peer.getForeignName() + ": received create/modify request, but was already transferring" +
                     "same or newer file");
         } else {
             // start the transfer
             fileModifiedDates.put(ft, fileDescriptor.lastModified);
             sendReadRequest(peer, pathName, fileDescriptor, 0);
-            PeerServer.logInfo(peer.getForeignName() + ": sent FILE_BYTES_REQUEST for " +
+            PeerServer.log().info(peer.getForeignName() + ": sent FILE_BYTES_REQUEST for " +
                     pathName + " at position: [0/" + fileDescriptor.fileSize + "]");
         }
     }
@@ -88,7 +88,7 @@ public class FileReadWriteThreadPool {
 
         executor.execute(new ReadWorker(peer, fd, pathName, position, length));
 
-        PeerServer.logInfo(peer.getForeignName() + ": read bytes of " + pathName +
+        PeerServer.log().info(peer.getForeignName() + ": read bytes of " + pathName +
                 " at position: [" + position + "/" + fd.fileSize + "]");
     }
 
@@ -102,7 +102,7 @@ public class FileReadWriteThreadPool {
         // Run a worker thread to write the bytes received
         Runnable worker = new WriteWorker(peer, fd, pathName, position, length, content);
         executor.execute(worker);
-        PeerServer.logInfo(peer + ": write " + pathName +
+        PeerServer.log().info(peer + ": write " + pathName +
                 " at position: [" + position + "/" + fd.fileSize + "]");
     }
     /**
@@ -149,11 +149,11 @@ public class FileReadWriteThreadPool {
                 ByteBuffer decoded = ByteBuffer.wrap(Base64.getDecoder().decode(content));
                 PeerServer.fsManager().createIfNotLoading(pathName, fileDescriptor);
                 PeerServer.fsManager().writeFile(pathName, decoded, position);
-                PeerServer.logInfo(peer.getForeignName() + ": wrote file " + pathName +
+                PeerServer.log().info(peer.getForeignName() + ": wrote file " + pathName +
                         " at position: [" + position + "/" + fileDescriptor.fileSize + "]");
             }
             catch (IOException e){
-                PeerServer.logWarning(peer.getForeignName() + ": error writing bytes to " + pathName +
+                PeerServer.log().warning(peer.getForeignName() + ": error writing bytes to " + pathName +
                         " at position: [" + position + "/" + fileDescriptor.fileSize + "] :" + e.getMessage());
                 cancelFile(peer, pathName);
                 return;
@@ -165,15 +165,15 @@ public class FileReadWriteThreadPool {
                       .ok(res -> {
                           if (!res) {
                               sendReadRequest(peer, pathName, fileDescriptor, nextPosition);
-                              PeerServer.logInfo(peer.getForeignName() + ": sent FILE_BYTES_REQUEST for " + pathName +
+                              PeerServer.log().info(peer.getForeignName() + ": sent FILE_BYTES_REQUEST for " + pathName +
                                       " at position: [" + nextPosition + "/" + fileDescriptor.fileSize + "]");
                           } else {
                               cancelFile(peer, pathName);
-                              PeerServer.logInfo(peer.getForeignName() + ": received all bytes for " + pathName +
+                              PeerServer.log().info(peer.getForeignName() + ": received all bytes for " + pathName +
                                       ". File created successfully");
                           }
                       })
-                      .err(err -> PeerServer.logWarning(peer.getForeignName() + ": error closing file loader for " + pathName));
+                      .err(err -> PeerServer.log().warning(peer.getForeignName() + ": error closing file loader for " + pathName));
         }
     }
 
@@ -191,12 +191,12 @@ public class FileReadWriteThreadPool {
         toRemove.forEach(ft -> PeerServer.fsManager().cancelFileLoader(ft.pathName)
                   .ok(res -> {
                       if (res) {
-                          PeerServer.logInfo(ft.peer.getForeignName() + ": cancelling transfer of " + ft.pathName);
+                          PeerServer.log().info(ft.peer.getForeignName() + ": cancelling transfer of " + ft.pathName);
                       } else {
-                          PeerServer.logWarning(ft.peer.getForeignName() + ": tracked file " + ft.pathName + " not found");
+                          PeerServer.log().warning(ft.peer.getForeignName() + ": tracked file " + ft.pathName + " not found");
                       }
                   })
-                  .err(err -> PeerServer.logWarning(ft.peer.getForeignName() + ": failed cancelling file loader: "+ err.getMessage())));
+                  .err(err -> PeerServer.log().warning(ft.peer.getForeignName() + ": failed cancelling file loader: "+ err.getMessage())));
         synchronized (storedPeers) {
             storedPeers.remove(peer);
         }

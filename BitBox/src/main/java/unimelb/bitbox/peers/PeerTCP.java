@@ -20,7 +20,7 @@ public class PeerTCP extends Peer {
         try {
             socket.close();
         } catch (IOException e) {
-            PeerServer.logSevere("Error closing socket: " + e.getMessage());
+            PeerServer.log().severe("Error closing socket: " + e.getMessage());
         }
     }
 
@@ -32,7 +32,7 @@ public class PeerTCP extends Peer {
             }
         } catch (IOException e) {
             if (!PeerTCP.this.isClosed()) {
-                PeerServer.logSevere("Error reading from socket: " + e.getMessage());
+                PeerServer.log().severe("Error reading from socket: " + e.getMessage());
                 PeerTCP.this.close();
             }
         }
@@ -56,9 +56,9 @@ class OutgoingConnectionTCP extends OutgoingConnection {
                 message.onSent.run();
             }
         } catch (IOException e) {
-            PeerServer.logSevere("Error writing to socket: " + e.getMessage());
+            PeerServer.log().severe("Error writing to socket: " + e.getMessage());
         } catch (InterruptedException e) {
-            PeerServer.logInfo("thread interrupted: " + e.getMessage());
+            PeerServer.log().info("thread interrupted: " + e.getMessage());
         }
     }
 }
