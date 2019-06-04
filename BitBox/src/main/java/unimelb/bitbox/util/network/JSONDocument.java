@@ -9,7 +9,7 @@ import unimelb.bitbox.util.functional.algebraic.Result;
 import java.util.ArrayList;
 import java.util.List;
 
-public class JSONDocument implements JSONData {
+public class JSONDocument implements IJSONData {
     private JSONObject obj = new JSONObject();
 
     public JSONDocument() {}
@@ -45,7 +45,7 @@ public class JSONDocument implements JSONData {
         obj.put(key, val);
         return this;
     }
-    public JSONDocument append(String key, JSONData val) {
+    public JSONDocument append(String key, IJSONData val) {
         obj.put(key, val.toJSON());
         return this;
     }
@@ -73,7 +73,7 @@ public class JSONDocument implements JSONData {
         }
         return this;
     }
-    public JSONDocument appendIfMissing(String key, JSONData val) {
+    public JSONDocument appendIfMissing(String key, IJSONData val) {
         if (!containsKey(key)) {
             append(key, val);
         }

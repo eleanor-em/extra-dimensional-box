@@ -3,7 +3,7 @@ package unimelb.bitbox.util.network;
 import java.io.IOException;
 import java.net.DatagramSocket;
 
-public class UDPSocket extends SocketWrapper {
+public class UDPSocket implements ISocket {
     private DatagramSocket socket;
 
     public UDPSocket(int port) throws IOException {

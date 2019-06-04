@@ -7,7 +7,7 @@ import unimelb.bitbox.util.concurrency.DelayedInitialiser;
 import unimelb.bitbox.util.config.CfgValue;
 import unimelb.bitbox.util.functional.algebraic.Maybe;
 import unimelb.bitbox.util.network.HostPort;
-import unimelb.bitbox.util.network.SocketWrapper;
+import unimelb.bitbox.util.network.ISocket;
 import unimelb.bitbox.util.network.TCPSocket;
 import unimelb.bitbox.util.network.UDPSocket;
 
@@ -27,7 +27,7 @@ public abstract class ConnectionHandler {
     protected final int port;
 
     // Objects for use by this class
-    private final DelayedInitialiser<SocketWrapper> socket = new DelayedInitialiser<>();
+    private final DelayedInitialiser<ISocket> socket = new DelayedInitialiser<>();
 
     // Adding and removing peers is uncommon compared to iterating over peers.
     // Use CopyOnWrite for synchronization efficiency
@@ -127,13 +127,13 @@ public abstract class ConnectionHandler {
         peers.forEach(this::closeConnection);
     }
 
-    protected void setSocket(SocketWrapper value) {
+    protected void setSocket(ISocket value) {
         socket.set(value);
     }
 
     protected DatagramSocket awaitUDPSocket() {
         try {
-            SocketWrapper value = socket.await();
+            ISocket value = socket.await();
             assert value instanceof UDPSocket;
             return ((UDPSocket) value).get();
         } catch (InterruptedException e) {
@@ -144,7 +144,7 @@ public abstract class ConnectionHandler {
 
     protected ServerSocket awaitTCPSocket() {
         try {
-            SocketWrapper value = socket.await();
+            ISocket value = socket.await();
             assert value instanceof TCPSocket;
             return ((TCPSocket) value).get();
         } catch (InterruptedException e) {
@@ -195,7 +195,7 @@ public abstract class ConnectionHandler {
         } finally {
             if (active.get()) {
                 PeerServer.logInfo("Restarting accept thread");
-                if (socket.get().map(SocketWrapper::isClosed).fromMaybe(false)) {
+                if (socket.get().map(ISocket::isClosed).fromMaybe(false)) {
                     socket.reset();
                 }
                 executor.submit(this::acceptConnectionsPersistent);

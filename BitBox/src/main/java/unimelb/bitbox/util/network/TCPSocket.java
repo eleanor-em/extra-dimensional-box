@@ -3,7 +3,7 @@ package unimelb.bitbox.util.network;
 import java.io.IOException;
 import java.net.ServerSocket;
 
-public class TCPSocket extends SocketWrapper {
+public class TCPSocket implements ISocket {
     private ServerSocket socket;
     public TCPSocket(int port) throws IOException {
         this(port, 0);

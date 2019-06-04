@@ -19,4 +19,6 @@ public class Iteration {
             return false;
         }
     }
+
+    private Iteration() {}
 }

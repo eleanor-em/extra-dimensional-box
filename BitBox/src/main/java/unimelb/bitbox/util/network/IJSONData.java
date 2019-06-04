@@ -1,6 +1,6 @@
 package unimelb.bitbox.util.network;
 
-public interface JSONData {
+public interface IJSONData {
     JSONDocument toJSON();
 
     default String encode() {

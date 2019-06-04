@@ -1,13 +1,13 @@
 package unimelb.bitbox.client.requests;
 
 import unimelb.bitbox.util.network.HostPort;
-import unimelb.bitbox.util.network.JSONData;
+import unimelb.bitbox.util.network.IJSONData;
 import unimelb.bitbox.util.network.JSONDocument;
 
 /**
  * Parent class of requests sent by the Client to a Peer.
  */
-abstract public class ClientRequest implements JSONData {
+abstract public class ClientRequest implements IJSONData {
     private final JSONDocument document = new JSONDocument();
 
     /**

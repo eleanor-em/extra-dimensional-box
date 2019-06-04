@@ -1,14 +1,14 @@
 package unimelb.bitbox.util.fs;
 
 import unimelb.bitbox.util.functional.algebraic.Result;
-import unimelb.bitbox.util.network.JSONData;
+import unimelb.bitbox.util.network.IJSONData;
 import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.JSONException;
 
 /**
  * Additional information about a given file.
  */
-public class FileDescriptor implements JSONData {
+public class FileDescriptor implements IJSONData {
     /**
      * Timestamp of the last modification time of the file.
      */
