@@ -74,16 +74,20 @@ public abstract class Peer {
         // Don't do anything if we're not waiting to be activated.
         if (state.compareAndSet(PeerState.WAIT_FOR_RESPONSE, PeerState.ACTIVE)
          || state.compareAndSet(PeerState.WAIT_FOR_REQUEST, PeerState.ACTIVE)) {
+            PeerServer.log().info("Activating " + getForeignName());
+
             // Add to our tracker
             KnownPeerTracker.addAddress(localHostPort, hostPort);
             KnownPeerTracker.notifyPeerCount(PeerServer.getPeerCount());
 
             // Trigger synchronisation
-            PeerServer.log().info("Activating " + getForeignName());
             PeerServer.synchroniseFiles();
         }
     }
 
+    private void activate() {
+        activate(localHostPort);
+    }
 
     /**
      * Returns a HostPort object representing the actual host and port of the connected peer,
@@ -199,6 +203,7 @@ public abstract class Peer {
      * This method is called when a message has been received from this peer and successfully parsed.
      */
     public final void notify(Message message) {
+        activate();
         if (!message.isRequest()) {
             responseReceived(message);
         }

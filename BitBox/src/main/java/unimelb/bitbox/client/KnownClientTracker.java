@@ -42,7 +42,7 @@ class KnownClientTracker {
 
                 // Don't add directly to the client list so that the synchronised operation is only performed after
                 // the file has been closed, for performance.
-                loaded.add(date + rest);
+                loaded.add("[" + date + "]" + rest);
             }
         } catch (FileNotFoundException ignored) {
             // This is fine, the file just might not exist yet
@@ -93,8 +93,11 @@ class KnownClientTracker {
                 writer.write(clients.size() + " unique connections\n");
                 writer.write(idents.size() + " unique idents\n");
                 writer.write(addresses.size() + " unique addresses\n");
-                // Write the clients, sorted lexicographically, and joined with a newline.
-                writer.write(String.join("\n", sortedClients));
+
+                while (sortedClients.size() > 0) {
+                    // Write the clients, sorted lexicographically, and joined with a newline.
+                    writer.write(sortedClients.poll() + "\n");
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();

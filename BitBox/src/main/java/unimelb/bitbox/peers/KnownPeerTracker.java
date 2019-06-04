@@ -84,7 +84,11 @@ class KnownPeerTracker {
                 writer.write(actualAddresses.size() + " unique addresses\n");
                 writer.write(addresses.size() + " unique connections\n");
                 writer.write(maxConcurrent + ": record for concurrent peers (" + lastModifiedTimestamp + ")\n");
-                writer.write(sortedConnections.stream().reduce("", (a, x) -> a + x + "\n"));
+
+                while (sortedConnections.size() > 0) {
+                    // Write the clients, sorted lexicographically, and joined with a newline.
+                    writer.write(sortedConnections.poll() + "\n");
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();

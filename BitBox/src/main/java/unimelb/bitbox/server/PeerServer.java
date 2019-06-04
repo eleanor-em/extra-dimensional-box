@@ -176,7 +176,7 @@ public class PeerServer implements FileSystemObserver {
         long blockSize;
         blockSize = Long.parseLong(Configuration.getConfigurationValue("blockSize"));
         if (mode.get() == ConnectionMode.UDP) {
-            blockSize = Math.min(blockSize, 8192);
+            blockSize = Math.min(blockSize, udpBlockSize.get());
         }
         return blockSize;
     }
