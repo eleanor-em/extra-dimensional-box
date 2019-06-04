@@ -34,7 +34,7 @@ public class JSONDocument implements IJSONData {
         return this;
     }
     public JSONDocument append(String key, Enum<?> val) {
-        obj.put(key, val);
+        obj.put(key, val.name());
         return this;
     }
     public JSONDocument append(String key, boolean val) {

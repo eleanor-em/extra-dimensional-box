@@ -3,7 +3,7 @@ package unimelb.bitbox.messages;
 import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.fs.FileDescriptor;
-import unimelb.bitbox.util.fs.FileSystemException;
+import unimelb.bitbox.util.fs.FileManagerException;
 
 public class FileDeleteResponse extends Response {
     private static final String SUCCESS = "File deleted";
@@ -34,7 +34,7 @@ public class FileDeleteResponse extends Response {
                               }
                               try {
                                   PeerServer.fsManager().deleteFile(pathName, fileDescriptor.lastModified, fileDescriptor.md5);
-                              } catch (FileSystemException e) {
+                              } catch (FileManagerException e) {
                                   return "there was a problem deleting the file: " + e.getMessage();
                               }
                           }

@@ -2,7 +2,7 @@ package unimelb.bitbox.messages;
 
 import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.server.PeerServer;
-import unimelb.bitbox.util.fs.FileSystemException;
+import unimelb.bitbox.util.fs.FileManagerException;
 
 public class DirectoryCreateResponse extends Response {
     private static final String SUCCESS = "directory created";
@@ -26,7 +26,7 @@ public class DirectoryCreateResponse extends Response {
         } else {
             try {
                 PeerServer.fsManager().makeDirectory(pathName);
-            } catch (FileSystemException e) {
+            } catch (FileManagerException e) {
                 reply = "there was a problem creating the directory";
             }
         }

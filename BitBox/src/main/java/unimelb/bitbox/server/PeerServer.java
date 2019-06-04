@@ -80,7 +80,7 @@ public class PeerServer implements FileSystemObserver {
         if (INSTANCE != null) {
             throw new RuntimeException("PeerServer initialised twice");
         }
-        INSTANCE = new PeerServer();
+        new PeerServer();
     }
 
     private static PeerServer get() {
@@ -128,6 +128,8 @@ public class PeerServer implements FileSystemObserver {
     }
 
     private PeerServer() throws NumberFormatException, IOException {
+        INSTANCE = this;
+
         // initialise things
         CfgValue<String> path = CfgValue.create("path");
         path.setOnChanged(() -> log.warning("Path was changed in config, but will not be updated until restart"));

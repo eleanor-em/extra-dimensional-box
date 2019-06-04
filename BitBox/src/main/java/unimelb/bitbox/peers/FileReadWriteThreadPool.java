@@ -62,13 +62,13 @@ public class FileReadWriteThreadPool {
                  .fromMaybe(false)) {
             PeerServer.logInfo(peer.getForeignName() + ": received create/modify request, but was already transferring" +
                     "same or newer file");
+        } else {
+            // start the transfer
+            fileModifiedDates.put(ft, fileDescriptor.lastModified);
+            sendReadRequest(peer, pathName, fileDescriptor, 0);
+            PeerServer.logInfo(peer.getForeignName() + ": sent FILE_BYTES_REQUEST for " +
+                    pathName + " at position: [0/" + fileDescriptor.fileSize + "]");
         }
-
-        // start the transfer
-        fileModifiedDates.put(ft, fileDescriptor.lastModified);
-        sendReadRequest(peer, pathName, fileDescriptor, 0);
-        PeerServer.logInfo(peer.getForeignName() + ": sent FILE_BYTES_REQUEST for " +
-                pathName + " at position: [0/" + fileDescriptor.fileSize + "]");
     }
 
     /**
