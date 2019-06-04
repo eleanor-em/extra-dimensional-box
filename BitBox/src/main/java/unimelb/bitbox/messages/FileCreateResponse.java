@@ -21,7 +21,7 @@ public class FileCreateResponse extends Response {
         this.pathName = pathName;
         this.fileDescriptor = fileDescriptor;
 
-        document.append("command", FILE_CREATE_RESPONSE);
+        document.append("command", MessageType.FILE_CREATE_RESPONSE);
         document.append("fileDescriptor", fileDescriptor);
         document.append("pathName", pathName);
     }
@@ -63,18 +63,15 @@ public class FileCreateResponse extends Response {
 
         if (successful) {
             // Check if this file is already elsewhere on disk
-            boolean checkShortcut = true;
-            try {
-                checkShortcut = !PeerServer.fsManager().checkShortcut(pathName);
-            } catch (IOException e) {
-                PeerServer.logSevere(peer.getForeignName() + ": error checking shortcut for " + pathName);
-            }
-
-            if (checkShortcut) {
-                PeerServer.logInfo(peer.getForeignName() + ": file " + pathName +
-                        " not available locally. Send a FILE_BYTES_REQUEST");
-                PeerServer.rwManager().addFile(peer, pathName, fileDescriptor);
-            }
+            PeerServer.fsManager().checkShortcut(pathName)
+                      .match(err -> PeerServer.logSevere(peer.getForeignName() + ": error checking shortcut for " + pathName),
+                          res -> {
+                          if (res) {
+                              PeerServer.logInfo(peer.getForeignName() + ": file " + pathName +
+                                      " not available locally. Send a FILE_BYTES_REQUEST");
+                              PeerServer.rwManager().addFile(peer, pathName, fileDescriptor);
+                          }
+                      });
         }
     }
 }

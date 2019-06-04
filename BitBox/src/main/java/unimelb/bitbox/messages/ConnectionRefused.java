@@ -10,8 +10,8 @@ import java.util.stream.Collectors;
 
 public class ConnectionRefused extends Message {
     public ConnectionRefused(Collection<Peer> peers) {
-        super(CONNECTION_REFUSED);
-        document.append("command", CONNECTION_REFUSED);
+        super("REFUSED");
+        document.append("command", MessageType.CONNECTION_REFUSED);
         document.append("message", "connection limit reached");
         List<JSONDocument> peersDoc = peers.stream()
                                            .map(peer -> peer.getHostPort().toJSON())

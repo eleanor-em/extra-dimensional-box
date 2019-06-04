@@ -12,7 +12,7 @@ public class DirectoryCreateResponse extends Response {
         super("DIRECTORY_CREATE:" + pathName, peer);
 
         this.pathName = pathName;
-        document.append("command", DIRECTORY_CREATE_RESPONSE);
+        document.append("command", MessageType.DIRECTORY_CREATE_RESPONSE);
         document.append("pathName", pathName);
     }
 

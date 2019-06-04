@@ -12,7 +12,7 @@ public class DirectoryDeleteResponse extends Response {
         super("DIRECTORY_DELETE:" + pathName, peer);
         this.pathName = pathName;
 
-        document.append("command", DIRECTORY_DELETE_RESPONSE);
+        document.append("command", MessageType.DIRECTORY_DELETE_RESPONSE);
         document.append("pathName", pathName);
     }
 

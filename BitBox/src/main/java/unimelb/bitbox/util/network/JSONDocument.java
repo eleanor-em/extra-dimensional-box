@@ -33,6 +33,10 @@ public class JSONDocument implements JSONData {
         obj.put(key, val);
         return this;
     }
+    public JSONDocument append(String key, Enum<?> val) {
+        obj.put(key, val);
+        return this;
+    }
     public JSONDocument append(String key, boolean val) {
         obj.put(key, val);
         return this;

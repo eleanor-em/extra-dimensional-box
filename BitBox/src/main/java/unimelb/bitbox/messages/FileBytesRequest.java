@@ -9,7 +9,7 @@ public class FileBytesRequest extends Message {
 
         long bytesLeft = Math.min(fileDescriptor.fileSize - position, PeerServer.getMaximumLength());
 
-        document.append("command", FILE_BYTES_REQUEST);
+        document.append("command", MessageType.FILE_BYTES_REQUEST);
         document.append("fileDescriptor", fileDescriptor);
         document.append("pathName", pathName);
         document.append("position", position);

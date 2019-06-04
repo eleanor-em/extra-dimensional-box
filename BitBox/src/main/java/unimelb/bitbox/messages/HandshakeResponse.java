@@ -11,7 +11,7 @@ public class HandshakeResponse extends Response {
         super("HANDSHAKE", peer);
         this.hostPort = hostPort;
 
-        document.append("command", HANDSHAKE_RESPONSE);
+        document.append("command", MessageType.HANDSHAKE_RESPONSE);
         document.append("hostPort", PeerServer.getHostPort().toJSON());
     }
 

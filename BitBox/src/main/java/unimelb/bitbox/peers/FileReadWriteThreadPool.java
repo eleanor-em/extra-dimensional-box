@@ -14,7 +14,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 class FileTransfer {
@@ -161,22 +160,19 @@ public class FileReadWriteThreadPool {
 
 
             // Check if more bytes are needed. If yes, send another FileBytesRequest
-            try {
-                if (!PeerServer.fsManager().checkWriteComplete(pathName)) {
-                    peer.sendMessage(new FileBytesRequest(pathName, fileDescriptor, nextPosition));
-                    PeerServer.logInfo(peer.getForeignName() + ": sent FILE_BYTES_REQUEST for " + pathName +
-                            " at position: [" + nextPosition + "/" + fileDescriptor.fileSize + "]");
-                } else {
-                    cancelFile(peer, pathName);
-                    PeerServer.logInfo(peer.getForeignName() + ": received all bytes for " + pathName +
-                            ". File created successfully");
-                }
-            } catch (IOException e) {
-                PeerServer.logWarning(peer.getForeignName() + ": error closing file loader for " + pathName);
-            } catch (OutOfMemoryError e){
-                PeerServer.logInfo(peer.getForeignName() + ": not enough memory to write " + pathName +
-                        " at position: [" + nextPosition + "/" + fileDescriptor.fileSize + "]");
-            }
+            PeerServer.fsManager().checkWriteComplete(pathName)
+                      .ok(res -> {
+                          if (res) {
+                              peer.sendMessage(new FileBytesRequest(pathName, fileDescriptor, nextPosition));
+                              PeerServer.logInfo(peer.getForeignName() + ": sent FILE_BYTES_REQUEST for " + pathName +
+                                      " at position: [" + nextPosition + "/" + fileDescriptor.fileSize + "]");
+                          } else {
+                              cancelFile(peer, pathName);
+                              PeerServer.logInfo(peer.getForeignName() + ": received all bytes for " + pathName +
+                                      ". File created successfully");
+                          }
+                      })
+                      .err(err -> PeerServer.logWarning(peer.getForeignName() + ": error closing file loader for " + pathName));
         }
     }
 
@@ -191,16 +187,15 @@ public class FileReadWriteThreadPool {
                                                        .collect(Collectors.toList());
         toRemove.forEach(fileModifiedDates::remove);
         // Clear any file transfers associated with this peer
-        toRemove.forEach(ft -> {
-            try {
-                if (!PeerServer.fsManager().cancelFileLoader(ft.pathName)) {
-                    throw new IOException(ft.pathName);
-                }
-                PeerServer.logInfo(ft.peer.getForeignName() + ":Cancelling transfer of " + ft.pathName);
-            } catch (IOException e) {
-                PeerServer.logWarning(ft.peer.getForeignName() + ": failed cancelling file loader: "+ e.getMessage());
-            }
-        });
+        toRemove.forEach(ft -> PeerServer.fsManager().cancelFileLoader(ft.pathName)
+                  .ok(res -> {
+                      if (res) {
+                          PeerServer.logInfo(ft.peer.getForeignName() + ": cancelling transfer of " + ft.pathName);
+                      } else {
+                          PeerServer.logWarning(ft.peer.getForeignName() + ": tracked file " + ft.pathName + " not found");
+                      }
+                  })
+                  .err(err -> PeerServer.logWarning(ft.peer.getForeignName() + ": failed cancelling file loader: "+ err.getMessage())));
         synchronized (storedPeers) {
             storedPeers.remove(peer);
         }
@@ -214,23 +209,7 @@ public class FileReadWriteThreadPool {
 
         @Override
         public void run() {
-            AtomicReference<String> content = new AtomicReference<>("");
-            AtomicReference<String> reply = new AtomicReference<>(FileBytesResponse.SUCCESS);
-            try {
-                PeerServer.fsManager().readFile(fileDescriptor.md5, position, length)
-                      .match(byteBuffer -> content.set(Base64.getEncoder().encodeToString(byteBuffer.array())),
-                             () -> reply.set("no matching file found: " + fileDescriptor.md5 + ", " + position + ", " + length));
-            } catch (OutOfMemoryError e) {
-                reply.set("length requested too large");
-                PeerServer.logWarning(peer.getForeignName() + ": error writing bytes of file " + pathName + " at [" +
-                        position + "/" + fileDescriptor.fileSize + "]. The file size is too big: " + e.getMessage());
-            } catch (IOException e) {
-                reply.set("unsuccessful read");
-                PeerServer.logWarning(peer + ": failed reading bytes of file " + pathName + " at [" +
-                        position + "/" + fileDescriptor.fileSize + "]: " + e.getMessage());
-            }
-
-            peer.sendMessage(new FileBytesResponse(pathName, fileDescriptor, length, position, content.get(), reply.get(), peer));
+            peer.sendMessage(new FileBytesResponse(pathName, fileDescriptor, length, position, peer));
         }
     }
 }

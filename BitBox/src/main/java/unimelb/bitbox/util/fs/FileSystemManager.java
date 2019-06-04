@@ -1,7 +1,8 @@
 package unimelb.bitbox.util.fs;
 
 import unimelb.bitbox.server.PeerServer;
-import unimelb.bitbox.util.functional.algebraic.Maybe;
+import unimelb.bitbox.util.functional.algebraic.Result;
+import unimelb.bitbox.util.functional.throwing.ThrowingFunction;
 
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -318,11 +319,11 @@ public class FileSystemManager extends Thread {
         pathName = separatorsToSystem(pathName);
         synchronized (this) {
             String fullPathName = root + FileSystems.getDefault().getSeparator() + pathName;
-            FileSystemException.check(watchedFiles.containsKey(fullPathName), "File " + pathName + " does not exist");
+            FileSystemException.check(watchedFiles.containsKey(fullPathName), "file " + pathName + " does not exist");
             FileSystemException.check(watchedFiles.get(fullPathName).lastModified <= lastModified || watchedFiles.get(fullPathName).md5.equals(md5),
-                                      "Unexpected content for " + pathName);
+                                      "unexpected content for " + pathName);
             File file = new File(fullPathName);
-            FileSystemException.check(file.delete(), "Failed deleting " + pathName);
+            FileSystemException.check(file.delete(), "failed deleting " + pathName);
             PeerServer.logInfo("deleting " + fullPathName);
         }
     }
@@ -374,37 +375,38 @@ public class FileSystemManager extends Thread {
      * @param md5      The MD5 hash of the content of the file to read from.
      * @param position The position in the file to start reading from.
      * @param length   The number of bytes to read.
-     * @return A {@link java.nio.ByteBuffer} if the bytes are successfully read, otherwise null if
-     * there was no such file with that content.
-     * @throws IOException              If there were any problems accessing the file system.
+     * @return A {@link java.nio.ByteBuffer} if the bytes are successfully read, otherwise
+     *         an error describing the unsuccessful state.
      */
-    public Maybe<ByteBuffer> readFile(String md5, long position, long length) throws IOException {
-        synchronized (this) {
-            if (hashMap.containsKey(md5)) {
-                for (String attempt : hashMap.get(md5)) {
-                    File file = new File(attempt);
-                    PeerServer.logInfo("reading file " + file);
-                    RandomAccessFile raf = new RandomAccessFile(file, "rw");
-                    FileChannel channel = raf.getChannel();
-                    FileLock lock = channel.lock();
-                    String currentMd5 = hashFile(file, attempt, watchedFiles.get(attempt).lastModified);
-                    if (currentMd5.equals(md5)) {
-                        ByteBuffer bb = ByteBuffer.allocate((int) length);
-                        channel.position(position);
-                        int read = channel.read(bb);
+    public Result<IOException, ByteBuffer> readFile(String md5, long position, long length) {
+        return Result.of(() -> {
+            synchronized (this) {
+                if (hashMap.containsKey(md5)) {
+                    for (String attempt : hashMap.get(md5)) {
+                        File file = new File(attempt);
+                        PeerServer.logInfo("reading file " + file);
+                        RandomAccessFile raf = new RandomAccessFile(file, "rw");
+                        FileChannel channel = raf.getChannel();
+                        FileLock lock = channel.lock();
+                        String currentMd5 = hashFile(file, attempt, watchedFiles.get(attempt).lastModified);
+                        if (currentMd5.equals(md5)) {
+                            ByteBuffer bb = ByteBuffer.allocate((int) length);
+                            channel.position(position);
+                            int read = channel.read(bb);
+                            lock.release();
+                            channel.close();
+                            raf.close();
+                            if (read < length) throw new IOException("did not read everything expected");
+                            return bb;
+                        }
                         lock.release();
                         channel.close();
                         raf.close();
-                        if (read < length) throw new IOException("did not read everything expected");
-                        return Maybe.just(bb);
                     }
-                    lock.release();
-                    channel.close();
-                    raf.close();
                 }
+                throw new FileSystemException("file not found");
             }
-            return Maybe.nothing();
-        }
+        });
     }
 
     /**
@@ -418,27 +420,9 @@ public class FileSystemManager extends Thread {
      *
      * @param pathName The name of the file to check if loading has completed.
      * @return True if the file was completed, false if not and the loader is still waiting for more data.
-     * @throws IOException              If there was a problem accessing the file system, the loader is no longer available in this case.
      */
-    public boolean checkWriteComplete(String pathName) throws IOException {
-        pathName = separatorsToSystem(pathName);
-        synchronized (this) {
-            String fullPathName = root + FileSystems.getDefault().getSeparator() + pathName;
-            if (!loadingFiles.containsKey(fullPathName)) return false;
-            boolean check;
-            try {
-                check = loadingFiles.get(fullPathName).checkWriteComplete();
-            } catch (IOException e) {
-                FileLoader fl = loadingFiles.get(fullPathName);
-                loadingFiles.remove(fullPathName);
-                fl.cancel();
-                throw e;
-            }
-            if (check) {
-                loadingFiles.remove(fullPathName);
-            }
-            return check;
-        }
+    public Result<IOException, Boolean> checkWriteComplete(String pathName) {
+        return this.check(pathName, FileLoader::checkWriteComplete);
     }
 
     /**
@@ -451,27 +435,34 @@ public class FileSystemManager extends Thread {
      *
      * @param pathName The name of the file for the associated file loader.
      * @return True if a shortcut was used, false otherwise.
-     * @throws IOException              If there were any errors accessing the file system, the loader is no longer available in this case.
      */
-    public boolean checkShortcut(String pathName) throws IOException {
-        pathName = separatorsToSystem(pathName);
-        synchronized (this) {
-            String fullPathName = root + FileSystems.getDefault().getSeparator() + pathName;
-            if (!loadingFiles.containsKey(fullPathName)) return false;
-            boolean check;
-            try {
-                check = loadingFiles.get(fullPathName).checkShortcut();
-            } catch (IOException e) {
-                FileLoader fl = loadingFiles.get(fullPathName);
-                loadingFiles.remove(fullPathName);
-                fl.cancel();
-                throw e;
+    public Result<IOException, Boolean> checkShortcut(String pathName) {
+        return this.check(pathName, FileLoader::checkShortcut);
+    }
+
+    /**
+     * Checks the file described by `pathName` with the predicate `f`.
+     */
+    private Result<IOException, Boolean> check(String pathName, ThrowingFunction<FileLoader, Boolean, IOException> f) {
+        return Result.of(() -> {
+            synchronized (this) {
+                String fullPathName = root + FileSystems.getDefault().getSeparator() + separatorsToSystem(pathName);
+                if (!loadingFiles.containsKey(fullPathName)) return false;
+                boolean check;
+                try {
+                    check = f.apply(loadingFiles.get(fullPathName));
+                } catch (IOException e) {
+                    FileLoader fl = loadingFiles.get(fullPathName);
+                    loadingFiles.remove(fullPathName);
+                    fl.cancel();
+                    throw e;
+                }
+                if (check) {
+                    loadingFiles.remove(fullPathName);
+                }
+                return check;
             }
-            if (check) {
-                loadingFiles.remove(fullPathName);
-            }
-            return check;
-        }
+        });
     }
 
     /**
@@ -507,26 +498,26 @@ public class FileSystemManager extends Thread {
      *
      * @param pathName The name of the file loader, i.e. the associated file it was trying to load.
      * @return True if the file loader existed and was cancelled without problem, false otherwise. The loader is no longer available in any case.
-     * @throws IOException if there was a problem accessing the file system, the loader is no longer available in this case.
      */
-    public boolean cancelFileLoader(String pathName) throws IOException {
-        pathName = separatorsToSystem(pathName);
-        synchronized (this) {
-            String fullPathName = root + FileSystems.getDefault().getSeparator() + pathName;
-            if (loadingFiles.containsKey(fullPathName)) {
-                try {
-                    loadingFiles.get(fullPathName).cancel();
-                    loadingFiles.remove(fullPathName);
-                } catch (IOException e) {
-                    FileLoader fl = loadingFiles.get(fullPathName);
-                    loadingFiles.remove(fullPathName);
-                    fl.cancel();
-                    throw e;
+    public Result<IOException, Boolean> cancelFileLoader(String pathName) {
+        return Result.of(() -> {
+            synchronized (this) {
+                String fullPathName = root + FileSystems.getDefault().getSeparator() + separatorsToSystem(pathName);
+                if (loadingFiles.containsKey(fullPathName)) {
+                    try {
+                        loadingFiles.get(fullPathName).cancel();
+                        loadingFiles.remove(fullPathName);
+                    } catch (IOException e) {
+                        FileLoader fl = loadingFiles.get(fullPathName);
+                        loadingFiles.remove(fullPathName);
+                        fl.cancel();
+                        throw e;
+                    }
+                    return true;
                 }
-                return true;
             }
-        }
-        return false;
+            return false;
+        });
     }
 
     // synchronization
