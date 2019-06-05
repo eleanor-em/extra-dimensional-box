@@ -1,11 +1,11 @@
-package unimelb.bitbox.server.connections;
+package unimelb.bitbox.server;
 
 import unimelb.bitbox.messages.ConnectionRefused;
 import unimelb.bitbox.messages.HandshakeRequest;
 import unimelb.bitbox.messages.Message;
 import unimelb.bitbox.peers.Peer;
+import unimelb.bitbox.peers.PeerType;
 import unimelb.bitbox.peers.PeerUDP;
-import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.functional.algebraic.Maybe;
 import unimelb.bitbox.util.network.HostPort;
 import unimelb.bitbox.util.network.UDPSocket;
@@ -17,11 +17,13 @@ import java.net.InetSocketAddress;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 
-public class UDPConnectionHandler extends ConnectionHandler {
+class UDPConnectionHandler extends ConnectionHandler {
+    private static final int UDP_MAX_PACKET = 65507;
+
     @Override
     void acceptConnections() throws IOException {
         // Maximum packet size is 65507 bytes
-        byte[] buffer = new byte[65507];
+        byte[] buffer = new byte[UDP_MAX_PACKET];
 
         setSocket(new UDPSocket(port, 100));
         DatagramSocket udpSocket = awaitUDPSocket();
@@ -41,7 +43,7 @@ public class UDPConnectionHandler extends ConnectionHandler {
                         () -> {
                             if (canStorePeer()) {
                                 // Create the peer if we have room for another
-                                Peer peer = new PeerUDP(name, false, udpSocket, packet);
+                                Peer peer = new PeerUDP(name, PeerType.INCOMING, udpSocket, packet);
                                 addPeer(peer);
                                 return Maybe.just(peer);
                             }
@@ -67,7 +69,7 @@ public class UDPConnectionHandler extends ConnectionHandler {
                 e.printStackTrace();
             }
         }
-        PeerServer.log().info("No longer listening on port " + this.port);
+        PeerServer.log().info("No longer listening on port " + port);
     }
 
     @Override
@@ -80,9 +82,9 @@ public class UDPConnectionHandler extends ConnectionHandler {
 
         String name = getAnyName();
 
-        byte[] buffer = new byte[65507];
+        byte[] buffer = new byte[UDP_MAX_PACKET];
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length, new InetSocketAddress(peerHostPort.hostname, peerHostPort.port));
-        Peer peer = new PeerUDP(name, true, awaitUDPSocket(), packet);
+        Peer peer = new PeerUDP(name, PeerType.OUTGOING, awaitUDPSocket(), packet);
         peer.sendMessage(new HandshakeRequest());
 
         addPeer(peer);

@@ -7,13 +7,13 @@ import unimelb.bitbox.util.network.JSONDocument;
 /**
  * Parent class of requests sent by the Client to a Peer.
  */
-abstract public class ClientRequest implements IJSONData {
+public abstract class ClientRequest implements IJSONData {
     private final JSONDocument document = new JSONDocument();
 
     /**
      * Construct a request that has only a command
      */
-    protected ClientRequest(String command) {
+    ClientRequest(String command) {
         document.append("command", command);
     }
 
@@ -21,7 +21,7 @@ abstract public class ClientRequest implements IJSONData {
      * Construct a request that has a command and a target peer.
      * @throws ClientArgsException if the address is malformed
      */
-    protected ClientRequest(String command, String peerAddress)
+    ClientRequest(String command, String peerAddress)
             throws ClientArgsException {
         this(command);
 
@@ -35,7 +35,7 @@ abstract public class ClientRequest implements IJSONData {
      * Adds host and port information, where appropriate.
      * @param hostPort the object to extract the information from
      */
-    protected void appendHostPort(HostPort hostPort) {
+    private void appendHostPort(HostPort hostPort) {
         document.append("host", hostPort.hostname);
         document.append("port", hostPort.port);
     }

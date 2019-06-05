@@ -4,7 +4,7 @@ import java.util.concurrent.Future;
 
 public class KeepAliveWatcher {
     Future<?> future;
-    private Runnable task;
+    private final Runnable task;
 
     KeepAliveWatcher(Future<?> future, Runnable task) {
         this.future = future;

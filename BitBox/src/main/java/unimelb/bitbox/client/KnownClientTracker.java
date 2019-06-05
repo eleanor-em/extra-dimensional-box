@@ -22,7 +22,7 @@ class KnownClientTracker {
      * Loads the previous client file.
      */
     private static void load() {
-        List<String> loaded = new ArrayList<>();
+        Collection<String> loaded = new ArrayList<>();
         try (BufferedReader reader = new BufferedReader(new FileReader(CLIENT_LIST_FILE))) {
             String line;
             // First 3 lines are header files
@@ -35,7 +35,7 @@ class KnownClientTracker {
                 String date = line.split("]")[0].substring(1);
                 String rest = line.split("]")[1];
 
-                // Ensure the timestamp is padded to 23 characters
+                // Ensure the timestamp is padded to 23 characters for consistency
                 if (date.length() < 23) {
                     date += " ";
                 }
@@ -94,7 +94,7 @@ class KnownClientTracker {
                 writer.write(idents.size() + " unique idents\n");
                 writer.write(addresses.size() + " unique addresses\n");
 
-                while (sortedClients.size() > 0) {
+                while (!sortedClients.isEmpty()) {
                     // Write the clients, sorted lexicographically, and joined with a newline.
                     writer.write(sortedClients.poll() + "\n");
                 }

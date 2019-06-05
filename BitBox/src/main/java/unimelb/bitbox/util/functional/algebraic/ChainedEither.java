@@ -5,7 +5,7 @@ import unimelb.bitbox.util.functional.combinator.Combinators;
 import java.util.function.Consumer;
 
 public class ChainedEither<A extends T, B extends T, C extends T, T> {
-    private Either<A, Either<B, C>> val;
+    private Either<A, Either<B, C>> val = null;
 
     private ChainedEither() {}
 
@@ -29,7 +29,7 @@ public class ChainedEither<A extends T, B extends T, C extends T, T> {
         return val.matchThen(Combinators::id, val -> val.matchThen(Combinators::id, Combinators::id));
     }
 
-    public void match(Consumer<A> left, Consumer<B> middle, Consumer<C> right) {
+    public void match(Consumer<? super A> left, Consumer<? super B> middle, Consumer<? super C> right) {
         val.match(left, either -> either.match(middle, right));
     }
 }

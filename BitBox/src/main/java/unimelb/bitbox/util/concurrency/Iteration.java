@@ -11,6 +11,7 @@ public class Iteration {
      * @param func  the function to apply
      * @return whether the iteration succeeded
      */
+    @SuppressWarnings("ProhibitedExceptionCaught")
     public static <T> boolean forEachAsync(Collection<T> c, Consumer<? super T> func) {
         try {
             c.forEach(func);

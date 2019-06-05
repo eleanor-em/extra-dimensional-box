@@ -7,11 +7,11 @@ import unimelb.bitbox.util.fs.FileManagerException;
 
 public class FileDeleteResponse extends Response {
     private static final String SUCCESS = "File deleted";
-    private FileDescriptor fd;
+    private final FileDescriptor fd;
     
     public FileDeleteResponse(FileDescriptor fileDescriptor, Peer peer){
         super("FILE_DELETE:" + fileDescriptor, peer);
-        this.fd = fileDescriptor;
+        fd = fileDescriptor;
 
         document.append("command", MessageType.FILE_DELETE_RESPONSE);
         document.append("fileDescriptor", fileDescriptor);

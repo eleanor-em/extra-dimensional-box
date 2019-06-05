@@ -241,10 +241,7 @@ public abstract class Either<L, R>
      */
     static <L, R> Either<L, R> cast(Either<? extends L, ? extends R> either)
     {
-        return either.matchThen(
-                (L l) -> left(l),
-                (R r) -> right(r)
-        );
+        return either.matchThen(Either::left, Either::right);
     }
 
     /**

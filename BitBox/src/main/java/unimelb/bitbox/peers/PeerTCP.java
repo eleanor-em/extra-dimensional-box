@@ -1,5 +1,6 @@
 package unimelb.bitbox.peers;
 
+import unimelb.bitbox.messages.Message;
 import unimelb.bitbox.server.PeerServer;
 
 import java.io.*;
@@ -7,11 +8,11 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 
 public class PeerTCP extends Peer {
-    private Socket socket;
+    private final Socket socket;
 
-    public PeerTCP(String name, Socket socket, boolean outgoing) {
-        super(name, outgoing, socket.getInetAddress().getHostAddress(), socket.getPort(), new OutgoingConnectionTCP(socket));
-        this.submit(this::receiveMessages);
+    public PeerTCP(String name, Socket socket, PeerType type) {
+        super(name, type, socket.getInetAddress().getHostAddress(), socket.getPort(), new OutgoingConnectionTCP(socket));
+        submit(this::receiveMessages);
         this.socket = socket;
     }
 
@@ -24,23 +25,29 @@ public class PeerTCP extends Peer {
         }
     }
 
+    @Override
+    void requestSent(Message request) {}
+
+    @Override
+    void responseReceived(Message response) {}
+
     private void receiveMessages() {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
             String message;
             while ((message = in.readLine()) != null) {
-                PeerTCP.this.receiveMessage(message);
+                receiveMessage(message);
             }
         } catch (IOException e) {
-            if (!PeerTCP.this.isClosed()) {
+            if (!isClosed()) {
                 PeerServer.log().severe("Error reading from socket: " + e.getMessage());
-                PeerTCP.this.close();
+                close();
             }
         }
     }
 }
 
 class OutgoingConnectionTCP extends OutgoingConnection {
-    private Socket socket;
+    private final Socket socket;
 
     OutgoingConnectionTCP(Socket socket) {
         this.socket = socket;

@@ -70,7 +70,7 @@ public abstract class Maybe<V> implements ThrowingSupplier<V, IllegalStateExcept
     /**
      * Effectively final, singleton instance.
      */
-    private static Nothing<?> NOTHING;
+    private static Nothing<?> NOTHING = null;
 
     /**
      * Private constructor to seal the type.
@@ -187,10 +187,7 @@ public abstract class Maybe<V> implements ThrowingSupplier<V, IllegalStateExcept
      */
     public V fromMaybe(Supplier<V> supplier)
     {
-        return matchThen(
-                (V v) -> v,
-                () -> supplier.get()
-        );
+        return matchThen(Combinators::id, supplier);
     }
 
     /**
@@ -274,10 +271,7 @@ public abstract class Maybe<V> implements ThrowingSupplier<V, IllegalStateExcept
      */
     static <T, V extends T> Maybe<T> cast(Maybe<V> m)
     {
-        return m.matchThen(
-                (T value) -> just(value),
-                () -> nothing()
-        );
+        return m.matchThen(Maybe::just, Maybe::nothing);
     }
 
     @Override

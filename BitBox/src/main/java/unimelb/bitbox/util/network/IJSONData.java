@@ -1,5 +1,6 @@
 package unimelb.bitbox.util.network;
 
+@FunctionalInterface
 public interface IJSONData {
     JSONDocument toJSON();
 

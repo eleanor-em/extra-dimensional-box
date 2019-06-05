@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class CfgEnumValue<T extends Enum<T>> extends CfgValue<T> {
-    private static Map<String, String> actualValues = new HashMap<>();
+    private static final Map<String, String> actualValues = new HashMap<>();
 
     public CfgEnumValue(String propertyName, Class<T> enumType) {
         super(propertyName, value -> convert(propertyName, value, enumType));

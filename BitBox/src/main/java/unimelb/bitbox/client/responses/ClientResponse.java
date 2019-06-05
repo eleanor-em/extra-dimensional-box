@@ -10,7 +10,7 @@ import unimelb.bitbox.util.network.JSONDocument;
 public abstract class ClientResponse {
     protected JSONDocument response = new JSONDocument();
 
-    protected ClientResponse() {}
+    ClientResponse() {}
 
     public static Result<ServerException, JSONDocument> getResponse(String command, JSONDocument document) {
         switch (command) {

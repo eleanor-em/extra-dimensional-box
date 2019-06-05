@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.net.DatagramSocket;
 
 public class UDPSocket implements ISocket {
-    private DatagramSocket socket;
+    private final DatagramSocket socket;
 
     public UDPSocket(int port) throws IOException {
         this(port, 0);

@@ -12,10 +12,15 @@ import java.util.Base64;
 /**
  * Contains utility methods for working with the cryptography library.
  */
+// We need to be specific about the types of keys we accept
+@SuppressWarnings("TypeMayBeWeakened")
 public class Crypto {
     private static final int AES_KEY_BITS = 128;
-    public static final int AES_KEY_BYTES = AES_KEY_BITS / 8;
-    public static final int RSA_KEY_BYTES = 256;
+    private static final int AES_KEY_BYTES = AES_KEY_BITS / 8;
+    private static final int RSA_KEY_BYTES = 256;
+
+    private Crypto() {}
+
     /**
      * Generates a secret AES key.
      */
@@ -137,12 +142,13 @@ public class Crypto {
             if (requiredBytes < AES_KEY_BYTES) {
                 for (int i = 0; i < requiredBytes; ++i) {
                     // Printable character range is 32-126. Trust me on this.
+                    @SuppressWarnings("MagicNumber")
                     char next = (char) cryptoRandRange(32, 126);
 
                     // Crap, we can't use a quote or a backslash for JSON.
                     // Just try again if this happens
                     if (next == '"' || next == '\\') {
-                        --i;
+                        ++requiredBytes;
                     } else {
                         paddedMessage.append(next);
                     }

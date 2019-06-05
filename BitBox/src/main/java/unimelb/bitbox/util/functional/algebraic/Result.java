@@ -46,7 +46,7 @@ public class Result<E extends Exception, V> implements ThrowingSupplier<V, E>
     /**
      * The Either type used internally to hold the alternative values.
      */
-    private Either<E, V> either;
+    private final Either<E, V> either;
 
     /**
      * Constructor.
@@ -213,10 +213,7 @@ public class Result<E extends Exception, V> implements ThrowingSupplier<V, E>
      */
     static <E extends Exception, V> Result<E, V> join(Result<? extends E, ? extends Result<? extends E, ? extends V>> r)
     {
-        return cast(r.matchThen(
-                e -> error(e),
-                v -> v
-        ));
+        return cast(r.matchThen(Result::error, Combinators::id));
     }
 
     /**
@@ -382,7 +379,7 @@ public class Result<E extends Exception, V> implements ThrowingSupplier<V, E>
     {
         return matchThen(
                 (E e) -> cast(r.get()),
-                (V v) -> value(v)
+                Result::value
         );
     }
 
@@ -490,7 +487,7 @@ public class Result<E extends Exception, V> implements ThrowingSupplier<V, E>
     public <T> Result<E, T> map(Function<? super V, ? extends T> f)
     {
         return matchThen(
-                (E e) -> error(e),
+                Result::error,
                 (V v) -> value(f.apply(v))
         );
     }
@@ -498,7 +495,7 @@ public class Result<E extends Exception, V> implements ThrowingSupplier<V, E>
     public <T extends Exception> Result<T, V> mapError(Function<? super E, ? extends T> f) {
         return matchThen(
                 (E e) -> error(f.apply(e)),
-                (V v) -> value(v)
+                Result::value
         );
     }
 

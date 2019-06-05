@@ -1,8 +1,7 @@
-package unimelb.bitbox.server.connections;
+package unimelb.bitbox.server;
 
 import unimelb.bitbox.messages.Message;
 import unimelb.bitbox.peers.Peer;
-import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.concurrency.DelayedInitialiser;
 import unimelb.bitbox.util.config.CfgValue;
 import unimelb.bitbox.util.functional.algebraic.Maybe;
@@ -24,23 +23,22 @@ public abstract class ConnectionHandler {
     private static final int PEER_RETRY_TIME = 60;
     private static final String DEFAULT_NAME = "Anonymous";
     private static final CfgValue<Integer> maxIncomingConnections = CfgValue.createInt("maximumIncommingConnections");
-    protected final int port;
+    final int port;
 
     // Objects for use by this class
     private final DelayedInitialiser<ISocket> socket = new DelayedInitialiser<>();
+    private final Set<HostPort> peerAddresses = ConcurrentHashMap.newKeySet();
+    private final Queue<String> names = new ConcurrentLinkedQueue<>();
 
     // Adding and removing peers is uncommon compared to iterating over peers.
     // Use CopyOnWrite for synchronization efficiency
     private final List<Peer> peers = new CopyOnWriteArrayList<>();
 
-    private final Set<HostPort> peerAddresses = ConcurrentHashMap.newKeySet();
-    private final Queue<String> names = new ConcurrentLinkedQueue<>();
-
     // Threading
     private final AtomicBoolean active = new AtomicBoolean(true);
     private final ExecutorService executor = Executors.newCachedThreadPool();
 
-    public ConnectionHandler() {
+    ConnectionHandler() {
         port = PeerServer.getHostPort().port;
         createNames();
 
@@ -48,7 +46,7 @@ public abstract class ConnectionHandler {
         executor.submit(this::acceptConnectionsPersistent);
     }
 
-    public void deactivate() {
+    void deactivate() {
         active.set(false);
         socket.get().consume(wrapper -> {
             try {
@@ -63,7 +61,7 @@ public abstract class ConnectionHandler {
         closeAllConnections();
     }
 
-    public void addPeerAddress(String address) {
+    private void addPeerAddress(String address) {
         HostPort.fromAddress(address)
                 .match(ignored -> PeerServer.log().warning("Tried to add invalid address `" + address + "`"),
                        peerHostPort -> {
@@ -71,22 +69,22 @@ public abstract class ConnectionHandler {
                            addPeerAddress(peerHostPort);
                        });
     }
-    public void addPeerAddress(HostPort peerHostPort) {
+    void addPeerAddress(HostPort peerHostPort) {
         peerAddresses.add(peerHostPort);
     }
 
-    public void addPeerAddressAll(String[] addresses) {
+    void addPeerAddressAll(String[] addresses) {
         for (String address : addresses) {
             addPeerAddress(address);
         }
     }
 
-    public synchronized void retryPeers() {
+    void retryPeers() {
         // Remove all peers that successfully connect.
         peerAddresses.removeIf(addr -> tryPeer(addr).isJust());
     }
 
-    public Collection<HostPort> getOutgoingAddresses() {
+    Collection<HostPort> getOutgoingAddresses() {
         synchronized (peers) {
             return peers.stream()
                     .filter(Peer::getOutgoing)
@@ -106,7 +104,7 @@ public abstract class ConnectionHandler {
         return false;
     }
 
-    public void broadcastMessage(Message message) {
+    void broadcastMessage(Message message) {
         getActivePeers().forEach(peer -> peer.sendMessage(message));
     }
 
@@ -123,15 +121,16 @@ public abstract class ConnectionHandler {
             }
         }
     }
-    public void closeAllConnections() {
+
+    private void closeAllConnections() {
         peers.forEach(this::closeConnection);
     }
 
-    protected void setSocket(ISocket value) {
+    void setSocket(ISocket value) {
         socket.set(value);
     }
 
-    protected DatagramSocket awaitUDPSocket() {
+    DatagramSocket awaitUDPSocket() {
         try {
             ISocket value = socket.await();
             assert value instanceof UDPSocket;
@@ -142,7 +141,7 @@ public abstract class ConnectionHandler {
         }
     }
 
-    protected ServerSocket awaitTCPSocket() {
+    ServerSocket awaitTCPSocket() {
         try {
             ISocket value = socket.await();
             assert value instanceof TCPSocket;
@@ -153,7 +152,7 @@ public abstract class ConnectionHandler {
         }
     }
 
-    protected boolean hasPeer(HostPort hostPort) {
+    boolean hasPeer(HostPort hostPort) {
         return peers.stream()
                     .anyMatch(peer -> peer.matches(hostPort));
     }
@@ -170,15 +169,15 @@ public abstract class ConnectionHandler {
                 .collect(Collectors.toList());
     }
 
-    protected void addPeer(Peer peer) {
+    void addPeer(Peer peer) {
         peers.add(peer);
     }
 
-    protected boolean canStorePeer() {
+    boolean canStorePeer() {
         return getIncomingPeerCount() < maxIncomingConnections.get();
     }
 
-    protected String getAnyName() {
+    String getAnyName() {
         return Optional.ofNullable(names.poll())
                 .orElse(DEFAULT_NAME);
     }

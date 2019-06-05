@@ -13,18 +13,18 @@ public class FileDescriptor implements IJSONData {
     /**
      * Timestamp of the last modification time of the file.
      */
-    public long lastModified;
+    public long lastModified = 0L;
     /**
      * The MD5 hash of the file's content.
      */
-    public String md5;
+    public String md5 = null;
     /**
      * The size of the file in bytes.
      */
-    public long fileSize;
+    public long fileSize = 0L;
     public String pathName;
 
-    public final boolean isDirectory;
+    private final boolean isDirectory;
 
     /**
      * Constructor
@@ -40,10 +40,10 @@ public class FileDescriptor implements IJSONData {
         isDirectory = false;
     }
 
-    public static FileDescriptor directory(String pathName) {
+    static FileDescriptor directory(String pathName) {
         return new FileDescriptor(pathName);
     }
-    public static FileDescriptor rename(FileDescriptor src, String newPathName) {
+    static FileDescriptor rename(FileDescriptor src, String newPathName) {
         if (src.isDirectory) {
             return new FileDescriptor(newPathName);
         }

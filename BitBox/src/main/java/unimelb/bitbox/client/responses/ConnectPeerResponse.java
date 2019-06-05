@@ -17,7 +17,7 @@ import unimelb.bitbox.util.network.HostPort;
  */
 class ConnectPeerResponse extends ClientResponse {
 
-    protected ConnectPeerResponse(HostPort hostPort) {
+    ConnectPeerResponse(HostPort hostPort) {
         response.append("command", "CONNECT_PEER_RESPONSE");
 
         final String SUCCESS = "connected to peer";

@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 
 public class TCPSocket implements ISocket {
-    private ServerSocket socket;
+    private final ServerSocket socket;
     public TCPSocket(int port) throws IOException {
         this(port, 0);
     }

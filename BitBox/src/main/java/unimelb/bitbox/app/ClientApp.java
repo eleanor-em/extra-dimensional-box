@@ -32,13 +32,17 @@ public class ClientApp {
     /**
      * Where the client should look for the private key
      */
-    public static final String PRIVATE_KEY_FILE = "bitboxclient_rsa";
+    private static final String PRIVATE_KEY_FILE = "bitboxclient_rsa";
+
+    private ClientApp() {
+    }
 
     /**
      * Produce the command-line arguments for the program, and return it as an Options object.
      * @return the generated options
      */
-    private static Options generateCLIOptions() {
+    @SuppressWarnings({"StaticMethodOnlyUsedInOneClass", "WeakerAccess"})
+    static Options generateCLIOptions() {
         Options options = new Options();
         options.addOption("c", "command", true, "command to run");
         options.addOption("s", "server-address", true, "address of the server peer");
@@ -67,13 +71,9 @@ public class ClientApp {
                 // Parse the response
                 Result.of(() -> new AuthResponseParser(responseText))
                         // Check response for errors, and decrypt it
-                        .andThen(response -> {
-                            if (response.isError()) {
-                                return Result.error(new ClientError("Authentication failure: " + response.getMessage()));
-                            } else {
-                                return response.decryptKey(connection.privateKey);
-                            }
-                        })
+                        .andThen(response -> response.isError()
+                                ? Result.error(new ClientError("Authentication failure: " + response.getMessage()))
+                                : response.decryptKey(connection.privateKey))
                         .andThen(key -> Crypto.encryptMessage(key, connection.request).mapError(ClientError::new)
                                 .andThen(encryptedRequest -> Result.of(() -> {
                                     // Write the encrypted message to the socket
@@ -92,13 +92,9 @@ public class ClientApp {
                                     } else if (encryptedResponse.containsKey("status")) {
                                         // Check if the response contained an error
                                         return encryptedResponse.getBoolean("status")
-                                                .map(status -> {
-                                                    if (!status) {
-                                                        return "Failed response: " + encryptedResponse.getString("message");
-                                                    } else {
-                                                        return "Malformed response: " + encryptedResponse;
-                                                    }
-                                                })
+                                                .map(status -> status
+                                                        ? "Malformed response: " + encryptedResponse
+                                                        : "Failed response: " + encryptedResponse.getString("message"))
                                                 .mapError(ClientError::new);
                                     } else {
                                         // Validation done, decrypt the message
@@ -140,16 +136,17 @@ public class ClientApp {
      */
     private static class ServerConnection {
         public final Socket socket;
-        public final String ident;
+        final String ident;
         public final JSONDocument request;
-        public final PrivateKey privateKey;
+        final PrivateKey privateKey;
 
         /**
          * Initialse the server connection with the given arguments.
          * @param args command-line arguments
          * @return a Result containing either the connection object, or an error
          */
-        public static Result<ClientArgsException, ServerConnection> initialise(String[] args) {
+        @SuppressWarnings("StaticMethodOnlyUsedInOneClass")
+        static Result<ClientArgsException, ServerConnection> initialise(String[] args) {
             // Parse the command line options
             return Result.of(() -> new DefaultParser().parse(generateCLIOptions(), args))
                     .or(Result.error(new ClientArgsException("failed to parse command line options")))
@@ -177,12 +174,12 @@ public class ClientApp {
          * Load the private key, and store the data.
          */
         private ServerConnection(ArgsData data) throws IOException {
-            this.socket = data.socket;
-            this.ident = data.ident;
-            this.request = data.request;
+            socket = data.socket;
+            ident = data.ident;
+            request = data.request;
 
             Security.addProvider(new BouncyCastleProvider());
-            PEMParser pemParser = new PEMParser(new FileReader(new File(ClientApp.PRIVATE_KEY_FILE)));
+            PEMParser pemParser = new PEMParser(new FileReader(new File(PRIVATE_KEY_FILE)));
             JcaPEMKeyConverter converter = new JcaPEMKeyConverter().setProvider("BC");
             KeyPair kp = converter.getKeyPair((PEMKeyPair) pemParser.readObject());
             privateKey = kp.getPrivate();
@@ -192,20 +189,20 @@ public class ClientApp {
          * Encapsulates the CommandLine object, and allows extra data to be produced.
          */
         private static class ArgsData {
-            public final CommandLine opts;
-            public String ident;
-            public HostPort hostPort;
-            public JSONDocument request;
-            public Socket socket;
+            final CommandLine opts;
+            String ident = null;
+            public HostPort hostPort = null;
+            public JSONDocument request = null;
+            public Socket socket = null;
 
-            public ArgsData(CommandLine opts) {
+            ArgsData(CommandLine opts) {
                 this.opts = opts;
             }
 
             /**
              * Looks up the key in the command line arguments, and returns the value, or an error if the option was not provided.
              */
-            private Result<ClientArgsException, String> getFromOpts(String key) {
+            Result<ClientArgsException, String> getFromOpts(String key) {
                 if (!opts.hasOption(key)) {
                     return Result.error(new ClientArgsException("missing command line option: -" + key));
                 }
@@ -219,16 +216,16 @@ public class ClientApp {
  * Object to parse an AUTH_RESPONSE message, and decrypt the key.
  */
 class AuthResponseParser {
-    private boolean status;
-    private byte[] key;
-    private String message;
+    private final boolean status;
+    private byte[] key = null;
+    private final String message;
 
     /**
      * Extract the data from the provided message.
      * @param message the JSON data to interpret
      * @throws ClientError in case the provided message is malformed
      */
-    public AuthResponseParser(String message) throws ClientError {
+    AuthResponseParser(String message) throws ClientError {
         JSONDocument doc;
         try {
             doc = JSONDocument.parse(message).get();
@@ -248,7 +245,7 @@ class AuthResponseParser {
      * Attempt to decrypt the parsed key using the given private key.
      * @return a Result containing either the decrypted secret key, or an error.
      */
-    public Result<ClientError, SecretKey> decryptKey(PrivateKey privateKey) {
+    Result<ClientError, SecretKey> decryptKey(PrivateKey privateKey) {
         return Crypto.decryptSecretKey(key, privateKey).mapError(ClientError::new);
     }
 
@@ -271,25 +268,25 @@ class AuthResponseParser {
  * Wraps an error that can occur while executing the client.
  */
 class ClientError extends Exception {
-    private ChainedEither<Exception, IOException, CryptoException, Exception> exception;
+    private final ChainedEither<Exception, IOException, CryptoException, Exception> exception;
 
     /**
      * In the case that a general message needs to be used, we will use the superclass's stack trace.
      */
-    public ClientError(String message) {
+    ClientError(String message) {
         super(message);
         exception = ChainedEither.left(new Exception(message));
     }
 
-    public ClientError(IOException e) {
+    ClientError(IOException e) {
         exception = ChainedEither.middle(e);
     }
 
-    public ClientError(CryptoException e) {
+    ClientError(CryptoException e) {
         exception = ChainedEither.right(e);
     }
 
-    public ClientError(JSONException e) {
+    ClientError(JSONException e) {
         this(new CryptoException(e));
     }
 

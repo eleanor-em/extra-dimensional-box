@@ -8,11 +8,11 @@ import java.io.IOException;
 
 public class FileCreateResponse extends Response {
     private static final String SUCCESS = "file loader ready";
-    private FileDescriptor fd;
+    private final FileDescriptor fd;
 
     public FileCreateResponse(FileDescriptor fileDescriptor, Peer peer) {
         super("FILE_CREATE:" + fileDescriptor, peer);
-        this.fd = fileDescriptor;
+        fd = fileDescriptor;
 
         document.append("command", MessageType.FILE_CREATE_RESPONSE);
         document.append("fileDescriptor", fileDescriptor);

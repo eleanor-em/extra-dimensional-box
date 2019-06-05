@@ -9,7 +9,7 @@ import unimelb.bitbox.util.functional.algebraic.Result;
 import java.util.ArrayList;
 import java.util.List;
 
-public class JSONDocument implements IJSONData {
+public class JSONDocument {
     private JSONObject obj = new JSONObject();
 
     public JSONDocument() {}
@@ -45,13 +45,17 @@ public class JSONDocument implements IJSONData {
         obj.put(key, val);
         return this;
     }
+    public JSONDocument append(String key, JSONDocument val) {
+        obj.put(key, val.obj);
+        return this;
+    }
     public JSONDocument append(String key, IJSONData val) {
         obj.put(key, val.toJSON());
         return this;
     }
-    public JSONDocument append(String key, List<?> val) {
+    public JSONDocument append(String key, Iterable<?> val) {
         JSONArray list = new JSONArray();
-        for(Object o : val){
+        for (Object o : val){
             if(o instanceof JSONDocument){
                 list.add(((JSONDocument)o).obj);
             } else {
@@ -79,7 +83,7 @@ public class JSONDocument implements IJSONData {
         }
         return this;
     }
-    public JSONDocument appendIfMissing(String key, List<?> val) {
+    public JSONDocument appendIfMissing(String key, Iterable<?> val) {
         if (!containsKey(key)) {
             append(key, val);
         }
@@ -95,15 +99,11 @@ public class JSONDocument implements IJSONData {
         return obj.isEmpty();
     }
 
-    public JSONDocument toJSON(){
-        return this;
-    }
-
     public boolean containsKey(String key) {
         return obj.containsKey(key);
     }
 
-    public <T> Result<JSONException, T> get(String key) {
+    private <T> Result<JSONException, T> get(String key) {
         if (!containsKey(key)) {
             return Result.error(new JSONException("Field `" + key + "` missing"));
         }
@@ -121,19 +121,24 @@ public class JSONDocument implements IJSONData {
     }
 
     public Result<JSONException, Long> getLong(String key) {
-        return get(key);
-    }
-    public Result<JSONException, Integer> getInteger(String key) {
-        return getLong(key).map(Long::intValue);
+        return get(key).andThen(val -> val instanceof Long
+                ? get(key)
+                : Result.error(new JSONException("wrong type for field " + key)));
     }
     public Result<JSONException, String> getString(String key) {
-        return get(key);
+        return get(key).andThen(val -> val instanceof String
+                ? get(key)
+                : Result.error(new JSONException("wrong type for field " + key)));
     }
     public Result<JSONException, Boolean> getBoolean(String key) {
-        return get(key);
+        return get(key).andThen(val -> val instanceof Boolean
+                ? get(key)
+                : Result.error(new JSONException("wrong type for field " + key)));
     }
     public Result<JSONException, JSONDocument> getJSON(String key) {
-        return get(key);
+        return get(key).andThen(val -> val instanceof JSONDocument
+                ? get(key)
+                : Result.error(new JSONException("wrong type for field " + key)));
     }
 
     public <T> Result<JSONException, List<T>> getArray(String key) {
@@ -161,6 +166,7 @@ public class JSONDocument implements IJSONData {
         }
     }
 
+    public String networkEncode() { return this + "\n"; }
 
     @Override
     public String toString() { return obj.toJSONString(); }

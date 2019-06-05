@@ -17,7 +17,7 @@ import unimelb.bitbox.util.network.HostPort;
  */
 class DisconnectPeerResponse extends ClientResponse {
 
-    protected DisconnectPeerResponse(HostPort hostPort) {
+    DisconnectPeerResponse(HostPort hostPort) {
         response.append("command", "DISCONNECT_PEER_RESPONSE");
 
         final String SUCCESS = "disconnected from peer";

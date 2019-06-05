@@ -8,7 +8,7 @@ import unimelb.bitbox.util.functional.algebraic.Maybe;
  * Thrown in case of a malformed response from a peer.
  */
 public class JSONException extends Exception {
-    private Maybe<ParseException> cause = Maybe.nothing();
+    private final Maybe<ParseException> cause;
 
     @Override
     public void printStackTrace() {
@@ -21,6 +21,7 @@ public class JSONException extends Exception {
 
     public JSONException(String message) {
         super("JSON document invalid: " + message);
+        cause = Maybe.nothing();
     }
     public JSONException(String json, ParseException cause) {
         super("Error parsing JSON string `" + json + "`:" + cause);

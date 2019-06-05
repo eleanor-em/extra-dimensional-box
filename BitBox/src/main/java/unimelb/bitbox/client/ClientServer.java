@@ -15,8 +15,8 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.InvalidKeyException;
+import java.util.Collection;
 import java.util.HashSet;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -29,7 +29,7 @@ public class ClientServer implements Runnable {
     private static final CfgValue<String> authorizedKeys = CfgValue.create("authorized_keys");
 
     // Data used by the class
-    private final Set<SSHPublicKey> keys = new HashSet<>();
+    private final Collection<SSHPublicKey> keys = new HashSet<>();
     private final ExecutorService pool = Executors.newCachedThreadPool();
 
     /**
@@ -111,13 +111,9 @@ public class ClientServer implements Runnable {
         Result<ServerException, JSONDocument> response = decrypted.andThen(doc ->
                 doc.getString("command")
                    .mapError(ServerException::new)
-                   .andThen(command -> {
-                       if (command.equals("AUTH_REQUEST")) {
-                           return generateAuthResponse(document, client);
-                       } else {
-                           return ClientResponse.getResponse(command, doc);
-                       }
-                   }));
+                   .andThen(command -> "AUTH_REQUEST".equals(command)
+                           ? generateAuthResponse(document, client)
+                           : ClientResponse.getResponse(command, doc)));
 
         if (client.sentKey()) {
             response = response.map(responseDocument ->
@@ -176,7 +172,7 @@ public class ClientServer implements Runnable {
                                     .matchThen(err -> {
                                                 err.printStackTrace();
                                                 response.append("status", false);
-                                                response.append("message", "error encrypting key: " + err.toString());
+                                                response.append("message", "error encrypting key: " + err);
                                                 return response;
                                             },
                                             encryptedKey -> {

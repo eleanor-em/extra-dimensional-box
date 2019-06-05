@@ -8,12 +8,12 @@ import java.util.function.Supplier;
 
 public class CfgDependent<T> {
     private final LazyInitialiser<T> value;
-    private final Collection<CfgValue<?>> dependsOn;
+    private final Collection<? extends CfgValue<?>> dependsOn;
 
     public CfgDependent(CfgValue<?> dependsOn, Supplier<T> calc) {
         this(Collections.singletonList(dependsOn), calc);
     }
-    public CfgDependent(Collection<CfgValue<?>> dependsOn, Supplier<T> calc) {
+    public CfgDependent(Collection<? extends CfgValue<?>> dependsOn, Supplier<T> calc) {
         this.dependsOn = dependsOn;
         value = new LazyInitialiser<>(calc);
         setOnChanged(() -> value.set(calc.get()));
@@ -24,7 +24,7 @@ public class CfgDependent<T> {
         return value.get();
     }
 
-    public void setOnChanged(Runnable action) {
+    public final void setOnChanged(Runnable action) {
         dependsOn.forEach(val -> val.setOnChanged(action));
     }
 }

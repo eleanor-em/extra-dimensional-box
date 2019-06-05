@@ -4,8 +4,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 public class LazyInitialiser<T> {
-    private Supplier<T> supplier;
-    private AtomicReference<T> cached = new AtomicReference<>();
+    private final Supplier<? extends T> supplier;
+    private final AtomicReference<T> cached = new AtomicReference<>();
 
     public T get() {
         cached.compareAndSet(null, supplier.get());
@@ -19,7 +19,7 @@ public class LazyInitialiser<T> {
         }
     }
 
-    public LazyInitialiser(Supplier<T> supplier) {
+    public LazyInitialiser(Supplier<? extends T> supplier) {
         this.supplier = supplier;
     }
 }

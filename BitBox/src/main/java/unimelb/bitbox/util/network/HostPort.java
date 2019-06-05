@@ -13,11 +13,11 @@ public class HostPort {
     public final String hostname;
     public final int port;
 
-    private HostPort alias;
+    private final HostPort alias;
 
     public static Result<JSONException, HostPort> fromJSON(JSONDocument doc) {
-        Result<JSONException, String> host = doc.get("host");
-        Result<JSONException, Integer> port = doc.getInteger("port");
+        Result<JSONException, String> host = doc.getString("host");
+        Result<JSONException, Long> port = doc.getLong("port");
 
         return host.andThen(hostVal -> port.map(portVal -> new HostPort(hostVal, portVal)));
     }
@@ -39,7 +39,7 @@ public class HostPort {
         return Result.value(new HostPort(host, port, false));
     }
 
-    public static HostPort fromAlias(String host, int port) {
+    private static HostPort fromAlias(String host, int port) {
         String hostUsed = host.replace("/", "");
         try {
             hostUsed = InetAddress.getByName(hostUsed).getHostAddress();
@@ -47,6 +47,10 @@ public class HostPort {
             PeerServer.log().warning("Unknown host " + hostUsed + ":" + port);
         }
         return new HostPort(hostUsed, port, true);
+    }
+
+    public HostPort(String host, long port) {
+        this(host, (int) port, false);
     }
 
     public HostPort(String host, int port) {
@@ -58,11 +62,9 @@ public class HostPort {
         this.hostname = hostname.replace("/", "");
         this.port = port;
         // If this wasn't an alias HostPort, cache an alias for later; otherwise, we are our own alias
-        if (!aliased) {
-            this.alias = fromAlias(hostname, port);
-        } else {
-            this.alias = this;
-        }
+        alias = aliased
+              ? this
+              : fromAlias(hostname, port);
     }
 
     public String asAddress() {

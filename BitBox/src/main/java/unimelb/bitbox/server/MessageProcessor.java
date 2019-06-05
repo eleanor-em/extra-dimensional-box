@@ -46,7 +46,7 @@ public class MessageProcessor implements Runnable  {
         try {
             JSONDocument doc = JSONDocument.parse(text).get();
             String command = doc.getString("command").get();
-            Result<JSONException, String> friendlyName = doc.get("friendlyName");
+            Result<JSONException, String> friendlyName = doc.getString("friendlyName");
 
             // if we got a friendly name, log it
             String logMessage = message.peer.getForeignName() + " received: " + command
@@ -70,12 +70,12 @@ public class MessageProcessor implements Runnable  {
         Maybe<Message> parsedResponse = Maybe.nothing();
 
         // Look up some data for later: these are used for multiple cases
-        Result<JSONException, String> pathName = document.get("pathName");
+        Result<JSONException, String> pathName = document.getString("pathName");
         Result<JSONException, FileDescriptor> fileDescriptor = pathName.andThen(name ->
                                                                         document.getJSON("fileDescriptor")
                                                                                 .andThen(fd -> FileDescriptor.fromJSON(name, fd)));
-        Result<JSONException, Long> position = document.get("position");
-        Result<JSONException, Long> length = document.get("length");
+        Result<JSONException, Long> position = document.getLong("position");
+        Result<JSONException, Long> length = document.getLong("length");
         Result<JSONException, FilePacket> packet = fileDescriptor.andThen(fd ->
                                                                           position.andThen(pos ->
                                                                           length.andThen(len ->
@@ -165,7 +165,7 @@ public class MessageProcessor implements Runnable  {
                     // why did they send this to us..?
                     invalidProtocolResponse(peer, "unexpected CONNECTION_REFUSED");
                 }
-                PeerServer.log().warning("Connection refused: " + document.get("message").get());
+                PeerServer.log().warning("Connection refused: " + document.getString("message").get());
                 peer.close();
 
                 // now try to connect to the provided peer list

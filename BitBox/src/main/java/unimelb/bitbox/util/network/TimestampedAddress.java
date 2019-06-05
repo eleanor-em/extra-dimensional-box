@@ -4,7 +4,7 @@ import java.sql.Timestamp;
 import java.util.Date;
 
 public class TimestampedAddress {
-    private String address;
+    private final String address;
     private String timestamp;
 
     public TimestampedAddress(String address) {

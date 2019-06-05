@@ -55,8 +55,6 @@ public class ReadWriteManager {
      */
     public void readFile(FilePacket packet) {
         executor.execute(new ReadWorker(packet));
-        PeerServer.log().info(packet.peer().getForeignName() + ": task submitted: read " + packet.pathName() +
-                              " at position: [" + packet.position + "/" + packet.fd().fileSize + "]");
     }
 
     /**
@@ -64,10 +62,7 @@ public class ReadWriteManager {
      * @param content   the actual bytes to write, encoded in base 64
      */
     public void writeFile(FilePacket packet, String content) {
-        Runnable worker = new WriteWorker(packet, content);
-        executor.execute(worker);
-        PeerServer.log().info(packet.peer() + ": task submitted: write " + packet.pathName() + " at position: ["
-                              + packet.position + "/" + packet.fd().fileSize + "]");
+        executor.execute(new WriteWorker(packet, content));
     }
 
     private class WriteWorker implements Runnable {

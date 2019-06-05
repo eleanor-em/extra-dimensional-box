@@ -1,10 +1,10 @@
-package unimelb.bitbox.server.connections;
+package unimelb.bitbox.server;
 
 import unimelb.bitbox.messages.ConnectionRefused;
 import unimelb.bitbox.messages.HandshakeRequest;
 import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.peers.PeerTCP;
-import unimelb.bitbox.server.PeerServer;
+import unimelb.bitbox.peers.PeerType;
 import unimelb.bitbox.util.functional.algebraic.Maybe;
 import unimelb.bitbox.util.network.HostPort;
 import unimelb.bitbox.util.network.TCPSocket;
@@ -17,23 +17,23 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 
-public class TCPConnectionHandler extends ConnectionHandler {
+class TCPConnectionHandler extends ConnectionHandler {
     @Override
     void acceptConnections() throws IOException {
         // Need to set and then await in case there was already a socket created
-        setSocket(new TCPSocket(this.port, 100));
-        ServerSocket tcpServerSocket = awaitTCPSocket();
-        PeerServer.log().info("Listening on port " + this.port);
+        setSocket(new TCPSocket(port, 100));
+        final ServerSocket tcpServerSocket = awaitTCPSocket();
+        PeerServer.log().info("Listening on port " + port);
 
         while (!tcpServerSocket.isClosed()) {
             try {
                 Socket socket = tcpServerSocket.accept();
-                PeerServer.log().info("Accepted connection: " + socket.getInetAddress().toString() + ":" + socket.getPort());
+                PeerServer.log().info("Accepted connection: " + socket.getInetAddress() + ":" + socket.getPort());
 
                 // check we have room for more peers
                 // (only count incoming connections)
                 if (canStorePeer()) {
-                    Peer peer = new PeerTCP(getAnyName(), socket, false);
+                    final Peer peer = new PeerTCP(getAnyName(), socket, PeerType.INCOMING);
                     addPeer(peer);
                     PeerServer.log().info("Connected to peer " + peer);
                 } else {
@@ -71,7 +71,7 @@ public class TCPConnectionHandler extends ConnectionHandler {
 
             // find a name
             String name = getAnyName();
-            Peer peer = new PeerTCP(name, socket, true);
+            Peer peer = new PeerTCP(name, socket, PeerType.OUTGOING);
             peer.sendMessage(new HandshakeRequest());
 
             addPeer(peer);

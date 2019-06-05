@@ -22,7 +22,7 @@ public enum MessageType {
     DIRECTORY_DELETE_RESPONSE;
 
     public static Result<JSONException, MessageType> fromString(String str) {
-        return Result.ofRuntime(() -> MessageType.valueOf(str))
+        return Result.ofRuntime(() -> valueOf(str))
                      .mapError(ignored -> new JSONException("command not recognised"));
     }
 }

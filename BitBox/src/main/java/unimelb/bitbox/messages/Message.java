@@ -12,9 +12,9 @@ import unimelb.bitbox.util.network.JSONException;
  */
 public abstract class Message implements IJSONData {
     protected JSONDocument document;
-    private String summary;
+    private final String summary;
 
-    public Message(String summary) {
+    Message(String summary) {
         this.summary = summary;
 
         document = new JSONDocument();
@@ -41,7 +41,7 @@ public abstract class Message implements IJSONData {
         document.getBoolean("status")
                 .ok(status -> {
                     if (!status) {
-                        Result.of(() -> PeerServer.log().warning("Sending failed " + getCommand() + ": " + document.get("message")))
+                        Result.of(() -> PeerServer.log().warning("Sending failed " + getCommand() + ": " + document.getString("message")))
                               .err(e -> PeerServer.log().warning("Malformed message: " + e.getMessage()));
                     }
                 });

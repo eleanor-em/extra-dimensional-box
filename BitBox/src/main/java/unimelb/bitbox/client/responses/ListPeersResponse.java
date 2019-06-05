@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
  */
 class ListPeersResponse extends ClientResponse {
 
-    protected ListPeersResponse() {
+    ListPeersResponse() {
         response.append("command", "LIST_PEERS_RESPONSE");
         response.append("peers", PeerServer.getConnection().getActivePeers()
                                             .stream()

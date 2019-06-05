@@ -20,16 +20,16 @@ import java.util.regex.Pattern;
  */
 public class SSHPublicKey {
     private static final int VALUE_LENGTH = 4;
-    private static final byte[] INITIAL_PREFIX = new byte[]{0x00, 0x00, 0x00, 0x07, 0x73, 0x73, 0x68, 0x2d, 0x72, 0x73, 0x61};
+    private static final byte[] INITIAL_PREFIX = {0x00, 0x00, 0x00, 0x07, 0x73, 0x73, 0x68, 0x2d, 0x72, 0x73, 0x61};
     private static final Pattern SSH_RSA_PATTERN = Pattern.compile("ssh-rsa[\\s]+([A-Za-z0-9/+]+=*)[\\s]+(.*)");
 
-    private String keyString;
-    private PublicKey key;
+    private final String keyString;
+    private final PublicKey key;
     public PublicKey getKey() {
         return key;
     }
 
-    private String ident;
+    private final String ident;
     public String getIdent() {
         return ident;
     }
@@ -78,7 +78,7 @@ public class SSHPublicKey {
 
     private static BigInteger getValue(InputStream is) throws IOException {
         byte[] lenBuff = new byte[VALUE_LENGTH];
-        if (VALUE_LENGTH != is.read(lenBuff)) {
+        if (is.read(lenBuff) != VALUE_LENGTH) {
             throw new InvalidParameterException("Unable to read value length");
         }
 

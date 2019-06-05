@@ -2,10 +2,8 @@ package unimelb.bitbox.server;
 
 import unimelb.bitbox.client.ClientServer;
 import unimelb.bitbox.messages.*;
+import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.peers.ReadWriteManager;
-import unimelb.bitbox.server.connections.ConnectionHandler;
-import unimelb.bitbox.server.connections.TCPConnectionHandler;
-import unimelb.bitbox.server.connections.UDPConnectionHandler;
 import unimelb.bitbox.util.concurrency.KeepAlive;
 import unimelb.bitbox.util.config.CfgDependent;
 import unimelb.bitbox.util.config.CfgEnumValue;
@@ -21,14 +19,17 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.logging.Logger;
 
-public class PeerServer implements FileSystemObserver {
-    // Enum data
-    enum ConnectionMode {
-        TCP,
-        UDP
-    }
+/**
+ * A connection can use either TCP or UDP.
+ */
+enum ConnectionMode {
+    TCP,
+    UDP
+}
 
-    // Configuration values
+public class PeerServer implements FileSystemObserver {
+
+    /* Configuration values */
     private final CfgValue<Long> udpBlockSize = CfgValue.createLong("udpBlockSize");
     private final CfgValue<String> advertisedName = CfgValue.create("advertisedName");
     private final CfgValue<Integer> tcpPort = CfgValue.createInt("port");
@@ -37,13 +38,14 @@ public class PeerServer implements FileSystemObserver {
     private final CfgDependent<HostPort> hostPort = new CfgDependent<>(Arrays.asList(advertisedName, tcpPort, udpPort), this::calculateHostPort);
     private final CfgDependent<Long> blockSize = new CfgDependent<>(mode, this::calculateBlockSize);
 
-    // Objects used by the class
+    /* Objects used by the class */
     private final Logger log = Logger.getLogger(PeerServer.class.getName());
     private final FileSystemManager fileSystemManager;
     private final MessageProcessor processor = new MessageProcessor();
     private final ReadWriteManager rwManager = new ReadWriteManager();
     private ConnectionHandler connection;
 
+    /* Getters */
     public static FileSystemManager fsManager() {
         return get().fileSystemManager;
     }
@@ -53,13 +55,10 @@ public class PeerServer implements FileSystemObserver {
         return get().log;
     }
 
-    // Getters for data needed by other classes
     public static long getMaximumLength() {
-        if (get().mode.get() == ConnectionMode.TCP) {
-            return get().blockSize.get();
-        } else {
-            return get().udpBlockSize.get();
-        }
+        return get().mode.get() == ConnectionMode.TCP
+                ? get().blockSize.get()
+                : get().udpBlockSize.get();
     }
     public static HostPort getHostPort() {
         return get().hostPort.get();
@@ -68,44 +67,51 @@ public class PeerServer implements FileSystemObserver {
         return get().connection;
     }
 
-    // Message handling
+    /**
+     * Adds a message to the message processor's queue.
+     */
     public static void enqueueMessage(ReceivedMessage message) {
         get().processor.add(message);
     }
 
-    // Event handling
-    @Override
-    public void processFileSystemEvent(FileSystemEvent fileSystemEvent) {
-        FileDescriptor fd = fileSystemEvent.fileDescriptor;
-        switch (fileSystemEvent.event) {
-            case DIRECTORY_CREATE:
-                connection.broadcastMessage(new DirectoryCreateRequest(fileSystemEvent.pathName));
-                break;
-            case DIRECTORY_DELETE:
-                connection.broadcastMessage(new DirectoryDeleteRequest(fileSystemEvent.pathName));
-                break;
-            case FILE_CREATE:
-                connection.broadcastMessage(new FileCreateRequest(fd));
-                break;
-            case FILE_DELETE:
-                connection.broadcastMessage(new FileDeleteRequest(fd));
-                break;
-            case FILE_MODIFY:
-                connection.broadcastMessage(new FileModifyRequest(fd));
-                break;
-        }
+    /* File system event handling */
+    public static void synchroniseFiles(Peer peer) {
+        fsManager().generateSyncEvents().forEach(ev -> peer.sendMessage(processEvent(ev)));
     }
 
-    public static void synchroniseFiles() {
-        fsManager().generateSyncEvents()
-                .forEach(get()::processFileSystemEvent);
+    @Override
+    public void processFileSystemEvent(FileSystemEvent ev) {
+        connection.broadcastMessage(processEvent(ev));
+    }
+
+    private static Message processEvent(FileSystemEvent ev) {
+        FileDescriptor fd = ev.fileDescriptor;
+        switch (ev.event) {
+            case DIRECTORY_CREATE:
+                return new DirectoryCreateRequest(ev.pathName);
+            case DIRECTORY_DELETE:
+                return new DirectoryDeleteRequest(ev.pathName);
+            case FILE_CREATE:
+                return new FileCreateRequest(fd);
+            case FILE_DELETE:
+                return new FileDeleteRequest(fd);
+            case FILE_MODIFY:
+                return new FileModifyRequest(fd);
+            default:
+                throw new RuntimeException("unrecognised event " + ev.event);
+        }
+    }
+    private static void synchroniseFiles() {
+        fsManager().generateSyncEvents().forEach(get()::processFileSystemEvent);
     }
 
     public static int getPeerCount() {
         return get().connection.getActivePeers().size();
     }
 
-    private static PeerServer INSTANCE;
+    /* Singleton implementation */
+
+    private static PeerServer INSTANCE = null;
 
     public static void initialise() throws IOException {
         if (INSTANCE != null) {
@@ -121,19 +127,19 @@ public class PeerServer implements FileSystemObserver {
         return INSTANCE;
     }
 
-    private PeerServer() throws NumberFormatException, IOException {
+    private PeerServer() throws IOException {
         INSTANCE = this;
 
-        // initialise things
+        // Create the file system manager
         CfgValue<String> path = CfgValue.create("path");
         path.setOnChanged(() -> log.warning("Path was changed in config, but will not be updated until restart"));
         fileSystemManager = new FileSystemManager(path.get(), this);
 
-		// create the processor thread
+		// Create the processor thread
         KeepAlive.submit(processor);
 		log.info("Processor thread started");
 
-        // start the peer connection thread
+        // Start the connection handler
         setConnection(mode.get());
         mode.setOnChanged(newMode -> {
             connection.deactivate();
@@ -150,11 +156,11 @@ public class PeerServer implements FileSystemObserver {
         connection.addPeerAddressAll(peersToConnect.get());
         connection.retryPeers();
 
-		// create the server thread for the client
+		// Create the server thread for the client
 		KeepAlive.submit(new ClientServer());
 		log.info("Server thread started");
 
-		// create the synchroniser thread
+		// Create the synchroniser thread
 		KeepAlive.submit(this::regularlySynchronise);
 		log.info("Synchroniser thread started");
 	}
@@ -171,7 +177,6 @@ public class PeerServer implements FileSystemObserver {
         }
     }
 
-    // Updates for config value changes
     private long calculateBlockSize() {
         long blockSize;
         blockSize = Long.parseLong(Configuration.getConfigurationValue("blockSize"));
@@ -183,19 +188,15 @@ public class PeerServer implements FileSystemObserver {
 
     private HostPort calculateHostPort() {
         int serverPort;
-        if (mode.get() == ConnectionMode.TCP) {
-            serverPort = tcpPort.get();
-        } else {
-            serverPort = udpPort.get();
-        }
+        serverPort = mode.get() == ConnectionMode.TCP
+                     ? tcpPort.get()
+                     : udpPort.get();
         return new HostPort(advertisedName.get(), serverPort);
     }
 
     private void setConnection(ConnectionMode mode) {
-        if (mode == ConnectionMode.TCP) {
-            connection = new TCPConnectionHandler();
-        } else {
-            connection = new UDPConnectionHandler();
-        }
+        connection = mode == ConnectionMode.TCP
+                     ? new TCPConnectionHandler()
+                     : new UDPConnectionHandler();
     }
 }

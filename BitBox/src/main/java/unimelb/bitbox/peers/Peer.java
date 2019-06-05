@@ -20,8 +20,7 @@ enum PeerState {
     WAIT_FOR_REQUEST,
     WAIT_FOR_RESPONSE,
     ACTIVE,
-    CLOSED,
-    INACTIVE
+    CLOSED
 }
 
 /**
@@ -32,7 +31,7 @@ enum PeerState {
 public abstract class Peer {
     // Data
     private final String name;
-    private boolean wasOutgoing;
+    private PeerType type;
     private final HostPort localHostPort;
     private HostPort hostPort;
 
@@ -50,9 +49,9 @@ public abstract class Peer {
     }
 
     public void forceIncoming() {
-        wasOutgoing = false;
+        type = PeerType.INCOMING;
     }
-    public void addCloseTask(Runnable task) {
+    void addCloseTask(Runnable task) {
         onClose.add(task);
     }
 
@@ -66,7 +65,7 @@ public abstract class Peer {
         return state.get() == PeerState.ACTIVE;
     }
     public boolean getOutgoing() {
-        return wasOutgoing;
+        return type == PeerType.OUTGOING;
     }
 
     // Activate the peer connection after a handshake is complete.
@@ -82,7 +81,7 @@ public abstract class Peer {
             KnownPeerTracker.notifyPeerCount(PeerServer.getPeerCount());
 
             // Trigger synchronisation
-            PeerServer.synchroniseFiles();
+            PeerServer.synchroniseFiles(this);
         }
     }
 
@@ -103,7 +102,7 @@ public abstract class Peer {
      * Tests whether the peer's information matches the given HostPort.
      */
     public boolean matches(HostPort peerHostPort) {
-        return localHostPort.fuzzyEquals(peerHostPort) || localHostPort.fuzzyEquals(peerHostPort);
+        return localHostPort.fuzzyEquals(peerHostPort) || hostPort.fuzzyEquals(peerHostPort);
     }
     /**
      * @return the plain name (e.g. Alice, Bob, Carol) of this peer
@@ -122,19 +121,19 @@ public abstract class Peer {
     /**
      * Construct a Peer.
      * @param name      the name to attach to this peer
-     * @param outgoing  whether the peer was an otugoing connection
+     * @param type      whether the peer was an otugoing connection
      * @param host      the hostname of the peer
      * @param port      the port of the peer
      */
-    Peer(String name, boolean outgoing, String host, int port, OutgoingConnection outConn) {
+    Peer(String name, PeerType type, String host, int port, OutgoingConnection outConn) {
         PeerServer.log().info("Peer created: " + name + " @ " + host + ":" + port);
         this.name = name;
-        wasOutgoing = outgoing;
+        this.type = type;
 
         localHostPort = new HostPort(host, port);
         hostPort = localHostPort;
 
-        state.set(outgoing ? PeerState.WAIT_FOR_RESPONSE : PeerState.WAIT_FOR_REQUEST);
+        state.set(type == PeerType.OUTGOING ? PeerState.WAIT_FOR_RESPONSE : PeerState.WAIT_FOR_REQUEST);
         this.outConn = outConn;
         submit(outConn);
     }
@@ -159,7 +158,7 @@ public abstract class Peer {
     /**
      * An action to perform when the peer is closed.
      */
-    protected void closeInternal() {}
+    abstract void closeInternal();
 
     /**
      * Send a message to this peer.
@@ -171,7 +170,7 @@ public abstract class Peer {
     /**
      * Send a message to this peer, then close the peer.
      */
-    public synchronized final void sendMessageAndClose(Message message) {
+    public final synchronized void sendMessageAndClose(Message message) {
         sendMessage(message, this::close);
     }
 
@@ -213,12 +212,12 @@ public abstract class Peer {
     /**
      * Called when a request has been sent to this peer.
      */
-    protected void requestSent(Message request) {}
+    abstract void requestSent(Message request);
 
     /**
      * Called when a response has been received from this peer.
      */
-    protected void responseReceived(Message response) {}
+    abstract void responseReceived(Message response);
 
     @Override
     public String toString() {
@@ -246,12 +245,12 @@ class OutgoingMessage {
     public final String message;
     public final Runnable onSent;
 
-    public OutgoingMessage(String message, Runnable onSent) {
+    OutgoingMessage(String message, Runnable onSent) {
         this.message = message;
         this.onSent = onSent;
     }
 
-    public String networkEncoded() {
+    String networkEncoded() {
         return message.trim() + "\n";
     }
 }

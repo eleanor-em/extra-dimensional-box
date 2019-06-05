@@ -8,8 +8,6 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.util.concurrent.TimeUnit;
 
-import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
-
 public class FileWatcher extends Thread {
     private final File file;
     private final Runnable action;
@@ -18,7 +16,7 @@ public class FileWatcher extends Thread {
     public FileWatcher(File file, Runnable action, int timeoutMilliseconds) {
         this.file = file;
         this.action = action;
-        this.timeout = timeoutMilliseconds;
+        timeout = timeoutMilliseconds;
     }
 
     @Override
@@ -27,7 +25,7 @@ public class FileWatcher extends Thread {
             // If there was no parent, take the root path
             Path path = Maybe.of(file.toPath().getParent())
                              .fromMaybe(Paths.get(""));
-            path.register(watcher, ENTRY_MODIFY);
+            path.register(watcher, StandardWatchEventKinds.ENTRY_MODIFY);
             while (true) {
                 try {
                     Maybe.of(watcher.poll(timeout, TimeUnit.MILLISECONDS))

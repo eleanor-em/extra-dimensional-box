@@ -9,17 +9,19 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 class ConfigException extends RuntimeException {
-    private Maybe<Exception> cause = Maybe.nothing();
+    private final Maybe<Exception> cause;
 
-    public ConfigException(String key) {
+    ConfigException(String key) {
         super("Error parsing configuration value `" + key + "`: key not found");
+        cause = Maybe.nothing();
     }
 
-    public ConfigException(String key, Class<?> type) {
+    ConfigException(String key, Class<?> type) {
         super("Error parsing configuration value `" + key + ": type " + type.getName() + " is not an enum");
+        cause = Maybe.nothing();
     }
 
-    public ConfigException(String key, Exception cause) {
+    ConfigException(String key, Exception cause) {
         super("Error parsing configuration value `" + key + "`: " + cause.getMessage());
         this.cause = Maybe.just(cause);
     }
@@ -36,12 +38,12 @@ class ConfigException extends RuntimeException {
 
 public class CfgValue<T> {
     private final String propertyName;
-    private Function<String, T> converter;
+    private final Function<? super String, T> converter;
     private T cached;
     private String strValue;
 
     // This flag avoids infinite recursion in get()
-    private boolean updated;
+    private boolean updated = false;
 
     private final List<Consumer<T>> actions = Collections.synchronizedList(new ArrayList<>());
 
@@ -56,7 +58,7 @@ public class CfgValue<T> {
     public static CfgValue<Long> createLong(String propertyName) {
         return new CfgValue<>(propertyName, Long::parseLong);
     }
-    public static <T> CfgValue<T> create(String propertyName, Function<String, T> converter) {
+    public static <T> CfgValue<T> create(String propertyName, Function<? super String, T> converter) {
         return new CfgValue<>(propertyName, converter);
     }
 
@@ -72,7 +74,7 @@ public class CfgValue<T> {
         converter = str -> (T) str;
         update();
     }
-    protected CfgValue(String propertyName, Function<String, T> converter) {
+    CfgValue(String propertyName, Function<? super String, T> converter) {
         this.propertyName = propertyName;
         if (!Configuration.contains(propertyName)) {
             throw new ConfigException(propertyName);
@@ -111,7 +113,7 @@ public class CfgValue<T> {
         return cached;
     }
 
-    public boolean hasChanged() {
+    private boolean hasChanged() {
         Configuration.updateValues();
         return !Configuration.getConfigurationValue(propertyName).equals(strValue);
     }
@@ -119,11 +121,8 @@ public class CfgValue<T> {
     public void setOnChanged(Consumer<T> action) {
         actions.add(action);
     }
-    public void setOnChangedThrowable(Runnable action) {
-        setOnChanged(ignored -> action.run());
-    }
     public void setOnChanged(Runnable action) {
-        setOnChangedThrowable(action);
+        setOnChanged(ignored -> action.run());
     }
 }
 

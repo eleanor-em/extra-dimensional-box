@@ -17,10 +17,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class PeerUDP extends Peer {
-    private RetryService.RetryServer retryServer = new RetryService.RetryServer(this);
+    private final RetryService.RetryServer retryServer = new RetryService.RetryServer(this);
 
-    public PeerUDP(String name, boolean outgoing, DatagramSocket socket, DatagramPacket packet) {
-        super(name, outgoing, packet.getAddress().toString().split("/")[1], packet.getPort(),
+    public PeerUDP(String name, PeerType type, DatagramSocket socket, DatagramPacket packet) {
+        super(name, type, packet.getAddress().toString().split("/")[1], packet.getPort(),
               new OutgoingConnectionUDP(socket, packet));
     }
 
@@ -41,11 +41,11 @@ public class PeerUDP extends Peer {
 }
 
 class OutgoingConnectionUDP extends OutgoingConnection {
-    private DatagramSocket udpSocket;
-    private DatagramPacket packet;
+    private final DatagramSocket udpSocket;
+    private final DatagramPacket packet;
 
     OutgoingConnectionUDP(DatagramSocket socket, DatagramPacket packet) {
-        this.udpSocket = socket;
+        udpSocket = socket;
         this.packet = packet;
     }
 
@@ -69,33 +69,46 @@ class OutgoingConnectionUDP extends OutgoingConnection {
 }
 
 class RetryService {
+    private RetryService() {}
+
     public static class RetryServer {
         protected final PeerUDP peer;
 
-        public RetryServer(PeerUDP peer) {
+        RetryServer(PeerUDP peer) {
             this.peer = peer;
         }
 
-        public void submit(Message message) {
-            RetryService.submit(peer, message);
+        void submit(Message request) {
+            RequestData req = new RequestData(peer, request);
+            if (trackedRequests.add(req)) {
+                retries.add(new RetryInstance(req));
+            }
         }
-        public void notify(Message response) {
-            RetryService.notify(peer, response);
+        void notify(Message response) {
+            trackedRequests.remove(new RequestData(peer, response));
         }
 
-        public void cancel() {
-            RetryService.cancelPeer(peer);
+        void cancel() {
+            // This weird construction is required due to a clumsy implementation of ConcurrentHashMap.entrySet().removeIf()
+            Iterator<RequestData> it = trackedRequests.iterator();
+            //noinspection WhileLoopReplaceableByForEach
+            while (it.hasNext()) {
+                RequestData req = it.next();
+                if (req.peer.equals(peer)) {
+                    trackedRequests.remove(req);
+                }
+            }
         }
     }
 
     private static class RequestData {
         public final PeerUDP peer;
-        public final String digest;
+        final String digest;
         public final Message request;
 
-        public RequestData(PeerUDP peer, Message request) {
+        RequestData(PeerUDP peer, Message request) {
             this.peer = peer;
-            this.digest = request.getSummary();
+            digest = request.getSummary();
             this.request = request;
         }
 
@@ -122,7 +135,7 @@ class RetryService {
         private long submissionTime;
         private int retries = 0;
 
-        public boolean retry() {
+        boolean retry() {
             if (data.peer.isClosed()) {
                 return false;
             }
@@ -141,7 +154,8 @@ class RetryService {
             }
         }
 
-        public long timeToWait() {
+        long timeToWait() {
+            //noinspection MagicNumber: 1000000 is the obvious conversion from nanoseconds to milliseconds
             return retryTime.get() + (submissionTime - System.nanoTime()) / 1000000;
         }
 
@@ -156,29 +170,6 @@ class RetryService {
 
     static {
         KeepAlive.submit(RetryService::run);
-    }
-
-    private static void submit(PeerUDP peer, Message request) {
-        RequestData req = new RequestData(peer, request);
-        if (trackedRequests.add(req)) {
-            retries.add(new RetryInstance(req));
-        }
-    }
-
-    private static void notify(PeerUDP peer, Message response) {
-        trackedRequests.remove(new RequestData(peer, response));
-    }
-
-    private static void cancelPeer(PeerUDP peer) {
-        // This weird construction is required due to a clumsy implementation of ConcurrentHashMap.entrySet().removeIf()
-        Iterator<RequestData> it = trackedRequests.iterator();
-        //noinspection WhileLoopReplaceableByForEach
-        while (it.hasNext()) {
-            RequestData req = it.next();
-            if (req.peer.equals(peer)) {
-                trackedRequests.remove(req);
-            }
-        }
     }
 
     private static void run() {

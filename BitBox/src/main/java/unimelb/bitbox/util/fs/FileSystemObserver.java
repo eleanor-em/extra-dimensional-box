@@ -2,6 +2,7 @@ package unimelb.bitbox.util.fs;
 
 import unimelb.bitbox.util.fs.FileSystemManager.FileSystemEvent;
 
+@FunctionalInterface
 public interface FileSystemObserver {
-	public void processFileSystemEvent(FileSystemEvent fileSystemEvent);
+	void processFileSystemEvent(FileSystemEvent fileSystemEvent);
 }

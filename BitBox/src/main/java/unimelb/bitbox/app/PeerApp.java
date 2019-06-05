@@ -9,7 +9,10 @@ import java.util.logging.Logger;
  */
 public class PeerApp
 {
-	private static Logger log = Logger.getLogger(PeerApp.class.getName());
+	private static final Logger log = Logger.getLogger(PeerApp.class.getName());
+
+    private PeerApp() {}
+
     public static void main (String[] args) {
     	System.setProperty("java.util.logging.SimpleFormatter.format",
                 "[%1$tc] %2$s %4$s: %5$s%n");

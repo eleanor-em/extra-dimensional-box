@@ -11,18 +11,18 @@ import java.util.function.Function;
  * Stores data about a client connection.
  */
 class ClientConnection {
-    private Socket socket;
-    private boolean authenticated;
+    private final Socket socket;
+    private boolean authenticated = false;
     private boolean sentKey = false;
     private String ident;
-    private SecretKey key;
+    private SecretKey key = null;
 
     private boolean anonymous = true;
 
     /**
      * Initialise a client given an accepted socket
      */
-    public ClientConnection(Socket socket) {
+    ClientConnection(Socket socket) {
         this.socket = socket;
         ident = "<unknown>";
     }
@@ -37,7 +37,7 @@ class ClientConnection {
     /**
      * @return whether this client connection has been authenticated
      */
-    public boolean isAuthenticated() {
+    boolean isAuthenticated() {
         return authenticated;
     }
 
@@ -52,7 +52,7 @@ class ClientConnection {
      * Sets the identity if the client hasn't already had an identity set.
      * @param ident the identity to set to
      */
-    public void setIdent(String ident) {
+    void setIdent(String ident) {
         if (anonymous) {
             this.ident = ident;
             anonymous = false;
@@ -62,7 +62,7 @@ class ClientConnection {
     /**
      * @return the client's identity, &lt;unknown&gt; if the identity has not yet been set
      */
-    public String getIdent() {
+    String getIdent() {
         return ident;
     }
 
@@ -70,7 +70,7 @@ class ClientConnection {
      * Authenticates the client, using the given key as a session key
      * @param key the session key
      */
-    public void authenticate(SecretKey key) {
+    void authenticate(SecretKey key) {
         if (!anonymous) {
             authenticated = true;
             assert key != null;
@@ -83,7 +83,7 @@ class ClientConnection {
      * @param op the operation
      * @return a Result representing the operation's outcome, or a failure response if the client is not authenticated
      */
-    public <E extends Exception> Result<E, JSONDocument> bindKey(Function<SecretKey, Result<E, JSONDocument>> op) {
+    <E extends Exception> Result<E, JSONDocument> bindKey(Function<? super SecretKey, ? extends Result<E, JSONDocument>> op) {
         if (authenticated) {
             return op.apply(key);
         }
@@ -95,7 +95,7 @@ class ClientConnection {
      * @param op the function to map
      * @return the result of the function if the client is authenticated, and a failure response otherwise
      */
-    public JSONDocument mapKey(Function<SecretKey, JSONDocument> op) {
+    JSONDocument mapKey(Function<? super SecretKey, ? extends JSONDocument> op) {
         if (authenticated) {
             return op.apply(key);
         }
@@ -106,7 +106,7 @@ class ClientConnection {
      * Informs the client that the key has been sent over the connection.
      * @return whether the client had already sent the key
      */
-    public boolean sentKey() {
+    boolean sentKey() {
         boolean ret = sentKey;
         sentKey = true;
         return ret;

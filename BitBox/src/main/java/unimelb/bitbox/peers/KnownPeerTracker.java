@@ -85,7 +85,7 @@ class KnownPeerTracker {
                 writer.write(addresses.size() + " unique connections\n");
                 writer.write(maxConcurrent + ": record for concurrent peers (" + lastModifiedTimestamp + ")\n");
 
-                while (sortedConnections.size() > 0) {
+                while (!sortedConnections.isEmpty()) {
                     // Write the clients, sorted lexicographically, and joined with a newline.
                     writer.write(sortedConnections.poll() + "\n");
                 }

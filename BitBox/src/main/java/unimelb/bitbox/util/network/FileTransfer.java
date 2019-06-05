@@ -8,7 +8,7 @@ import unimelb.bitbox.util.fs.FileDescriptor;
 public class FileTransfer {
     public final Peer peer;
     public final FileDescriptor fileDescriptor;
-    private boolean sentInitialRequest = false;
+    private boolean waitingToSend = true;
 
     public FileTransfer(Peer peer, FileDescriptor fileDescriptor) {
         this.peer = peer;
@@ -34,8 +34,8 @@ public class FileTransfer {
     }
 
     public void sendInitialBytesRequest() {
-        if (!sentInitialRequest) {
-            sentInitialRequest = true;
+        if (waitingToSend) {
+            waitingToSend = false;
             peer.sendMessage(new FileBytesRequest(fileDescriptor.pathName, fileDescriptor, 0));
             PeerServer.log().info(peer.getForeignName() + ": sent FILE_BYTES_REQUEST for " +
                                    fileDescriptor.pathName + " at position: [0/" + fileDescriptor.fileSize + "]");

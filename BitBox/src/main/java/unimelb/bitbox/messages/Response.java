@@ -5,7 +5,7 @@ import unimelb.bitbox.peers.Peer;
 public abstract class Response extends Message {
     final Peer peer;
 
-    public Response(String summary, Peer peer) {
+    Response(String summary, Peer peer) {
         super(summary);
 
         this.peer = peer;
@@ -16,6 +16,6 @@ public abstract class Response extends Message {
     @Override
     public final String networkEncode() {
         onSent();
-        return toJSON().networkEncode();
+        return super.networkEncode();
     }
 }

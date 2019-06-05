@@ -13,10 +13,7 @@ import java.nio.channels.FileLock;
 import java.nio.file.*;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.*;
 
 /**
  * A file system manager, that recursively monitors a given share directory,
@@ -48,13 +45,13 @@ import java.util.HashSet;
  * @author Andrew Linxi Wang (contributions to Windows compatibility)
  * @author Eleanor McMurtry (improvements to error reporting, fix modify loader, remove old failed transfers)
  */
-public class FileSystemManager extends Thread {
+public final class FileSystemManager extends Thread {
     /**
      * The special suffix on file names for loading files. Any files in the
      * share directory with this suffix will never generate file system events,
      * as they are ignored by the file system monitor.
      */
-    public final String loadingSuffix = "(bitbox)";
+    private final String loadingSuffix = "(bitbox)";
 
     /**
      * Possible file system events.
@@ -64,7 +61,7 @@ public class FileSystemManager extends Thread {
      * <li>{@link #DIRECTORY_CREATE}</li>
      * <li>{@link #DIRECTORY_DELETE}</li>
      */
-    public enum EVENT {
+    public enum FileEventType {
         /**
          * A new file has been created. The parent directory must
          * exist for this event to be emitted.
@@ -116,9 +113,9 @@ public class FileSystemManager extends Thread {
          */
         public final String pathName;
         /**
-         * The type of this event. See {@link EVENT}.
+         * The type of this event. See {@link FileEventType}.
          */
-        public final EVENT event;
+        public final FileEventType event;
         /**
          * Additional information for the file/directory.
          */
@@ -132,7 +129,7 @@ public class FileSystemManager extends Thread {
          * @param event          The type of event.
          * @param fileDescriptor The associated file descriptor for the file.
          */
-        public FileSystemEvent(String path, String name, EVENT event, FileDescriptor fileDescriptor) {
+        FileSystemEvent(String path, String name, FileEventType event, FileDescriptor fileDescriptor) {
             this.path = path;
             this.name = name;
             pathName = (path + FileSystems.getDefault().getSeparator() + name).substring(root.length() + 1);
@@ -147,11 +144,11 @@ public class FileSystemManager extends Thread {
          * @param name  The name of the directory.
          * @param event The type of event.
          */
-        public FileSystemEvent(String path, String name, EVENT event) {
+        FileSystemEvent(String path, String name, FileEventType event) {
             this.path = path;
             this.name = name;
             pathName = (path + FileSystems.getDefault().getSeparator() + name).substring(root.length() + 1);
-            this.fileDescriptor = FileDescriptor.directory(pathName);
+            fileDescriptor = FileDescriptor.directory(pathName);
             this.event = event;
         }
 
@@ -421,7 +418,7 @@ public class FileSystemManager extends Thread {
      * @return True if the file was completed, false if not and the loader is still waiting for more data.
      */
     public Result<IOException, Boolean> checkWriteComplete(FileDescriptor fd) {
-        return this.check(fd.pathName, FileLoader::checkWriteComplete);
+        return check(fd.pathName, FileLoader::checkWriteComplete);
     }
 
     /**
@@ -435,13 +432,13 @@ public class FileSystemManager extends Thread {
      * @return True if a shortcut was used, false otherwise.
      */
     public Result<IOException, Boolean> checkShortcut(FileDescriptor fd) {
-        return this.check(fd.pathName, FileLoader::checkShortcut);
+        return check(fd.pathName, FileLoader::checkShortcut);
     }
 
     /**
      * Checks the file described by `pathName` with the predicate `f`.
      */
-    private Result<IOException, Boolean> check(String pathName, ThrowingFunction<FileLoader, Boolean, IOException> f) {
+    private Result<IOException, Boolean> check(String pathName, ThrowingFunction<? super FileLoader, Boolean, ? extends IOException> f) {
         return Result.of(() -> {
             synchronized (this) {
                 String fullPathName = root + FileSystems.getDefault().getSeparator() + separatorsToSystem(pathName);
@@ -482,7 +479,7 @@ public class FileSystemManager extends Thread {
      *                     for the loader to be successfully created.
      * @throws IOException If there were any errors accessing the file system.
      */
-    public void modifyFileLoader(String pathName, String md5, long lastModified, long newFileSize) throws IOException {
+    private void modifyFileLoader(String pathName, String md5, long lastModified, long newFileSize) throws IOException {
         pathName = separatorsToSystem(pathName);
         synchronized (this) {
             String fullPathName = root + FileSystems.getDefault().getSeparator() + pathName;
@@ -544,19 +541,19 @@ public class FileSystemManager extends Thread {
      * @return A list of file system events that create the entire contents of the
      * share directory.
      */
-    public ArrayList<FileSystemEvent> generateSyncEvents() {
+    public Iterable<FileSystemEvent> generateSyncEvents() {
         synchronized (this) {
-            ArrayList<FileSystemEvent> pathEvents = new ArrayList<>();
-            ArrayList<String> keys = new ArrayList<>(watchedDirectories);
+            List<FileSystemEvent> pathEvents = new ArrayList<>();
+            List<String> keys = new ArrayList<>(watchedDirectories);
             for (String pathname : keys) {
                 File file = new File(pathname);
-                pathEvents.add(new FileSystemEvent(file.getParent(), file.getName(), EVENT.DIRECTORY_CREATE));
+                pathEvents.add(new FileSystemEvent(file.getParent(), file.getName(), FileEventType.DIRECTORY_CREATE));
             }
             pathEvents.sort(Comparator.comparingInt(arg0 -> arg0.path.length()));
             keys = new ArrayList<>(watchedFiles.keySet());
             for (String pathname : keys) {
                 File file = new File(pathname);
-                pathEvents.add(new FileSystemEvent(file.getParent(), file.getName(), EVENT.FILE_CREATE, watchedFiles.get(pathname)));
+                pathEvents.add(new FileSystemEvent(file.getParent(), file.getName(), FileEventType.FILE_CREATE, watchedFiles.get(pathname)));
             }
             return pathEvents;
         }
@@ -567,14 +564,14 @@ public class FileSystemManager extends Thread {
     ////////////////////
 
     private class FileLoader {
-        private FileDescriptor fileDescriptor;
-        private String pathName;
-        private FileChannel channel;
-        private FileLock lock;
-        private File file;
-        private RandomAccessFile raf;
+        private final FileDescriptor fileDescriptor;
+        private final String pathName;
+        private final FileChannel channel;
+        private final FileLock lock;
+        private final File file;
+        private final RandomAccessFile raf;
 
-        public FileLoader(String pathName, FileDescriptor fileDescriptor) throws IOException {
+        FileLoader(String pathName, FileDescriptor fileDescriptor) throws IOException {
             this.pathName = pathName;
             this.fileDescriptor = fileDescriptor;
             file = new File(pathName + loadingSuffix);
@@ -586,7 +583,7 @@ public class FileSystemManager extends Thread {
             lock = channel.lock();
         }
 
-        public void cancel() throws IOException {
+        void cancel() throws IOException {
             if (file.exists()) {
                 lock.release();
                 channel.close();
@@ -595,7 +592,7 @@ public class FileSystemManager extends Thread {
             }
         }
 
-        public boolean checkShortcut() throws IOException {
+        boolean checkShortcut() throws IOException {
             // check for a shortcut
             boolean success = false;
             if (hashMap.containsKey(fileDescriptor.md5)) {
@@ -611,9 +608,7 @@ public class FileSystemManager extends Thread {
                         String currentMd5 = hashFile(file, attempt, watchedFiles.get(attempt).lastModified);
                         if (currentMd5.equals(fileDescriptor.md5)) {
                             Path dest = Paths.get(pathName);
-                            CopyOption[] options = new CopyOption[]{
-                                    StandardCopyOption.REPLACE_EXISTING
-                            };
+                            CopyOption[] options = { StandardCopyOption.REPLACE_EXISTING };
                             InputStream is = Channels.newInputStream(channel2);
                             Files.copy(is, dest, options);
                             FileManagerException.check(dest.toFile().setLastModified(fileDescriptor.lastModified), "Failed setting modified date of " + dest.toString());
@@ -641,13 +636,13 @@ public class FileSystemManager extends Thread {
             return success;
         }
 
-        public void writeFile(ByteBuffer src, long position) throws IOException {
+        void writeFile(ByteBuffer src, long position) throws IOException {
             FileManagerException.check(position <= fileDescriptor.fileSize, "trying to write bytes beyond what is expected for " + file.getPath());
             FileManagerException.check(file.exists(), "file deleted during transfer: " + file.getPath());
             channel.write(src, position);
         }
 
-        public boolean checkWriteComplete() throws IOException {
+        boolean checkWriteComplete() throws IOException {
             String currentMd5 = hashFile(pathName, raf);
             if (currentMd5.equals(fileDescriptor.md5)) {
                 lock.release();
@@ -665,17 +660,17 @@ public class FileSystemManager extends Thread {
         }
     }
 
-    private HashSet<String> watchedDirectories;
-    private HashMap<String, HashSet<String>> hashMap;
-    private FileSystemObserver fileSystemObserver;
-    private HashMap<String, FileDescriptor> watchedFiles;
-    private String root;
+    private final HashSet<String> watchedDirectories;
+    private final HashMap<String, HashSet<String>> hashMap;
+    private final FileSystemObserver fileSystemObserver;
+    private final HashMap<String, FileDescriptor> watchedFiles;
+    private final String root;
     private String canonicalRoot;
-    private HashMap<String, FileLoader> loadingFiles;
+    private final HashMap<String, FileLoader> loadingFiles;
 
 
     public void run() {
-        ArrayList<FileSystemEvent> pathEvents = new ArrayList<>();
+        List<FileSystemEvent> pathEvents = new ArrayList<>();
         while (!isInterrupted()) {
 
             pathEvents.clear();
@@ -695,13 +690,13 @@ public class FileSystemManager extends Thread {
             // check for deleted files
             pathEvents.clear();
             synchronized (this) {
-                ArrayList<String> keys = new ArrayList<>(watchedFiles.keySet());
+                List<String> keys = new ArrayList<>(watchedFiles.keySet());
                 for (String pathname : keys) {
                     File file = new File(pathname);
                     if (!file.exists()) {
                         FileDescriptor fd = watchedFiles.get(pathname);
                         dropFile(pathname);
-                        pathEvents.add(new FileSystemEvent(file.getParent(), file.getName(), EVENT.FILE_DELETE, fd));
+                        pathEvents.add(new FileSystemEvent(file.getParent(), file.getName(), FileEventType.FILE_DELETE, fd));
                     }
                 }
 
@@ -711,7 +706,7 @@ public class FileSystemManager extends Thread {
                     File file = new File(pathname);
                     if (!file.exists()) {
                         dropDir(pathname);
-                        pathEvents.add(new FileSystemEvent(file.getParent(), file.getName(), EVENT.DIRECTORY_DELETE));
+                        pathEvents.add(new FileSystemEvent(file.getParent(), file.getName(), FileEventType.DIRECTORY_DELETE));
                     }
                 }
             }
@@ -763,23 +758,23 @@ public class FileSystemManager extends Thread {
         scanDirectoryTree(name, true);
     }
 
-    private ArrayList<FileSystemEvent> scanDirectoryTree(String name)
+    private Collection<FileSystemEvent> scanDirectoryTree(String name)
             throws IOException {
         return scanDirectoryTree(name, false);
     }
 
-    private ArrayList<FileSystemEvent> scanDirectoryTree(String name, boolean clearFiles)
+    private Collection<FileSystemEvent> scanDirectoryTree(String name, boolean clearFiles)
         throws IOException {
-        ArrayList<FileSystemEvent> pathEvents = new ArrayList<>();
+        List<FileSystemEvent> pathEvents = new ArrayList<>();
         File file = new File(name);
 
         // Don't add files that are loading
         if (name.endsWith(loadingSuffix)) {
             if (clearFiles) {
-                if (!file.delete()) {
-                    PeerServer.log().warning("Failed deleting " + file.getPath());
-                } else {
+                if (file.delete()) {
                     PeerServer.log().info("Deleting old transfer " + file.getPath());
+                } else {
+                    PeerServer.log().warning("Failed deleting " + file.getPath());
                 }
                 watchedFiles.remove(file.getPath());
             }
@@ -790,20 +785,20 @@ public class FileSystemManager extends Thread {
                 if (lastModified != watchedFiles.get(name).lastModified) {
                     String newHash = hashFile(file, name, 0);
                     modifyFile(name, newHash, lastModified, fileSize);
-                    FileSystemEvent pe = new FileSystemEvent(file.getParent(), file.getName(), EVENT.FILE_MODIFY, watchedFiles.get(name));
+                    FileSystemEvent pe = new FileSystemEvent(file.getParent(), file.getName(), FileEventType.FILE_MODIFY, watchedFiles.get(name));
                     pathEvents.add(pe);
                 }
             } else {
                 String newHash = hashFile(file, name, 0);
                 addFile(name, new FileDescriptor(name, lastModified, newHash, fileSize));
-                FileSystemEvent pe = new FileSystemEvent(file.getParent(), file.getName(), EVENT.FILE_CREATE, watchedFiles.get(name));
+                FileSystemEvent pe = new FileSystemEvent(file.getParent(), file.getName(), FileEventType.FILE_CREATE, watchedFiles.get(name));
                 pathEvents.add(pe);
             }
         } else if (file.isDirectory()) {
             Path path = Paths.get(name);
             if (!watchedDirectories.contains(name) && !name.equals(root)) {
                 addDir(name);
-                pathEvents.add(new FileSystemEvent(file.getParent(), file.getName(), EVENT.DIRECTORY_CREATE));
+                pathEvents.add(new FileSystemEvent(file.getParent(), file.getName(), FileEventType.DIRECTORY_CREATE));
             }
 
             DirectoryStream<Path> stream = Files.newDirectoryStream(path);
@@ -816,9 +811,9 @@ public class FileSystemManager extends Thread {
     }
 
     private void removeHash(String name) {
-        HashSet<String> hs = hashMap.get(watchedFiles.get(name).md5);
+        Set<String> hs = hashMap.get(watchedFiles.get(name).md5);
         hs.remove(name);
-        if (hs.size() == 0) hs.remove(watchedFiles.get(name).md5);
+        if (!hs.isEmpty()) hs.remove(watchedFiles.get(name).md5);
     }
 
     private void addHash(String md5, String name) {
@@ -892,12 +887,10 @@ public class FileSystemManager extends Thread {
 
     private static String separatorsToSystem(String res) {
         assert res != null;
-        if (File.separatorChar == '\\') {
-            // From Windows to Linux/Mac
-            return res.replace('/', File.separatorChar);
-        } else {
-            // From Linux/Mac to Windows
-            return res.replace('\\', File.separatorChar);
-        }
+        // From Windows to Linux/Mac
+        // From Linux/Mac to Windows
+        return File.separatorChar == '\\'
+             ? res.replace('/', File.separatorChar)
+             : res.replace('\\', File.separatorChar);
     }
 }

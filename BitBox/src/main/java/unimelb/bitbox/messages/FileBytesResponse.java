@@ -12,14 +12,14 @@ public class FileBytesResponse extends Response {
     final FileDescriptor fileDescriptor;
     final String pathName;
     final long position;
-    final long length;
+    private final long length;
 
     public FileBytesResponse(FilePacket packet) {
         super("BYTES:" + packet.fd() + ":" + packet.position, packet.peer());
-        this.fileDescriptor = packet.fd();
-        this.pathName = packet.pathName();
-        this.position = packet.position;
-        this.length = packet.length;
+        fileDescriptor = packet.fd();
+        pathName = packet.pathName();
+        position = packet.position;
+        length = packet.length;
 
         // Prepare the message
         document.append("command", MessageType.FILE_BYTES_RESPONSE);
