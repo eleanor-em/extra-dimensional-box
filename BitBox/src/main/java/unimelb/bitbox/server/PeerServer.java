@@ -2,7 +2,7 @@ package unimelb.bitbox.server;
 
 import unimelb.bitbox.client.ClientServer;
 import unimelb.bitbox.messages.*;
-import unimelb.bitbox.peers.FileReadWriteThreadPool;
+import unimelb.bitbox.peers.ReadWriteManager;
 import unimelb.bitbox.server.connections.ConnectionHandler;
 import unimelb.bitbox.server.connections.TCPConnectionHandler;
 import unimelb.bitbox.server.connections.UDPConnectionHandler;
@@ -11,11 +11,11 @@ import unimelb.bitbox.util.config.CfgDependent;
 import unimelb.bitbox.util.config.CfgEnumValue;
 import unimelb.bitbox.util.config.CfgValue;
 import unimelb.bitbox.util.config.Configuration;
+import unimelb.bitbox.util.fs.FileDescriptor;
 import unimelb.bitbox.util.fs.FileSystemManager;
 import unimelb.bitbox.util.fs.FileSystemManager.FileSystemEvent;
 import unimelb.bitbox.util.fs.FileSystemObserver;
 import unimelb.bitbox.util.network.HostPort;
-import unimelb.bitbox.util.network.JSONDocument;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -41,13 +41,13 @@ public class PeerServer implements FileSystemObserver {
     private final Logger log = Logger.getLogger(PeerServer.class.getName());
     private final FileSystemManager fileSystemManager;
     private final MessageProcessor processor = new MessageProcessor();
-    private final FileReadWriteThreadPool rwManager = new FileReadWriteThreadPool();
+    private final ReadWriteManager rwManager = new ReadWriteManager();
     private ConnectionHandler connection;
 
     public static FileSystemManager fsManager() {
         return get().fileSystemManager;
     }
-    public static FileReadWriteThreadPool rwManager() { return get().rwManager; }
+    public static ReadWriteManager rwManager() { return get().rwManager; }
 
     public static Logger log() {
         return get().log;
@@ -76,7 +76,7 @@ public class PeerServer implements FileSystemObserver {
     // Event handling
     @Override
     public void processFileSystemEvent(FileSystemEvent fileSystemEvent) {
-        JSONDocument fileDescriptor = fileSystemEvent.fileDescriptor.toJSON();
+        FileDescriptor fd = fileSystemEvent.fileDescriptor;
         switch (fileSystemEvent.event) {
             case DIRECTORY_CREATE:
                 connection.broadcastMessage(new DirectoryCreateRequest(fileSystemEvent.pathName));
@@ -85,13 +85,13 @@ public class PeerServer implements FileSystemObserver {
                 connection.broadcastMessage(new DirectoryDeleteRequest(fileSystemEvent.pathName));
                 break;
             case FILE_CREATE:
-                connection.broadcastMessage(new FileCreateRequest(fileDescriptor, fileSystemEvent.pathName));
+                connection.broadcastMessage(new FileCreateRequest(fd));
                 break;
             case FILE_DELETE:
-                connection.broadcastMessage(new FileDeleteRequest(fileDescriptor, fileSystemEvent.pathName));
+                connection.broadcastMessage(new FileDeleteRequest(fd));
                 break;
             case FILE_MODIFY:
-                connection.broadcastMessage(new FileModifyRequest(fileDescriptor, fileSystemEvent.pathName));
+                connection.broadcastMessage(new FileModifyRequest(fd));
                 break;
         }
     }

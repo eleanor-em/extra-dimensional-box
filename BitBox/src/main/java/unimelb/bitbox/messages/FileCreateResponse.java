@@ -8,39 +8,32 @@ import java.io.IOException;
 
 public class FileCreateResponse extends Response {
     private static final String SUCCESS = "file loader ready";
-    private String pathName;
-    private FileDescriptor fileDescriptor;
+    private FileDescriptor fd;
 
-    private boolean successful = false;
-    public boolean isSuccessful() {
-        return successful;
-    }
-
-    public FileCreateResponse(String pathName, FileDescriptor fileDescriptor, Peer peer) {
-        super("FILE_CREATE:" + pathName + ":" + fileDescriptor, peer);
-        this.pathName = pathName;
-        this.fileDescriptor = fileDescriptor;
+    public FileCreateResponse(FileDescriptor fileDescriptor, Peer peer) {
+        super("FILE_CREATE:" + fileDescriptor, peer);
+        this.fd = fileDescriptor;
 
         document.append("command", MessageType.FILE_CREATE_RESPONSE);
         document.append("fileDescriptor", fileDescriptor);
-        document.append("pathName", pathName);
+        document.append("pathName", fd.pathName);
     }
 
     private String generateFileLoader() {
         try {
-            PeerServer.fsManager().createFileLoader(pathName, fileDescriptor);
+            PeerServer.fsManager().createFileLoader(fd);
         } catch (IOException e) {
             // We possibly have a different version of this file.
-            if (PeerServer.fsManager().fileNameExists(pathName)) {
+            if (PeerServer.fsManager().fileExists(fd)) {
                 try {
-                    PeerServer.fsManager().modifyFileLoader(pathName, fileDescriptor);
+                    PeerServer.fsManager().modifyFileLoader(fd);
                 } catch (IOException ignored) {
                     // We're currently transferring this file, or else our file is newer.
-                    PeerServer.log().warning("failed to generate file loader for " + pathName);
-                    return "error generating modify file loader: " + pathName;
+                    PeerServer.log().warning("failed to generate file loader for " + fd.pathName);
+                    return "error generating modify file loader: " + fd.pathName;
                 }
             } else {
-                return "error generating create file loader: " + pathName;
+                return "error generating create file loader: " + fd.pathName;
             }
         }
         return SUCCESS;
@@ -49,27 +42,27 @@ public class FileCreateResponse extends Response {
     @Override
     void onSent() {
         String reply;
-        if (PeerServer.fsManager().fileNameExists(pathName, fileDescriptor.md5)) {
+        if (PeerServer.fsManager().fileMatches(fd)) {
             reply = "file already exists locally";
-        } else if (!PeerServer.fsManager().isSafePathName(pathName)) {
-            reply = "unsafe pathname given: " + pathName;
+        } else if (!PeerServer.fsManager().isSafePathName(fd.pathName)) {
+            reply = "unsafe pathname given: " + fd.pathName;
         } else {
             reply = generateFileLoader();
         }
 
-        successful = reply.equals(SUCCESS);
+        boolean successful = reply.equals(SUCCESS);
         document.append("message", reply);
         document.append("status", successful);
 
         if (successful) {
             // Check if this file is already elsewhere on disk
-            PeerServer.fsManager().checkShortcut(pathName)
-                      .match(err -> PeerServer.log().severe(peer.getForeignName() + ": error checking shortcut for " + pathName),
+            PeerServer.fsManager().checkShortcut(fd)
+                      .match(err -> PeerServer.log().severe(peer.getForeignName() + ": error checking shortcut for " + fd.pathName),
                           res -> {
                           if (!res) {
-                              PeerServer.log().info(peer.getForeignName() + ": file " + pathName +
+                              PeerServer.log().info(peer.getForeignName() + ": file " + fd.pathName +
                                       " not available locally. Send a FILE_BYTES_REQUEST");
-                              PeerServer.rwManager().addFile(peer, pathName, fileDescriptor);
+                              PeerServer.rwManager().addFile(peer, fd);
                           }
                       });
         }

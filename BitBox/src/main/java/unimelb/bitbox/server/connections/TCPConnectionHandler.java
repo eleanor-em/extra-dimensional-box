@@ -72,13 +72,10 @@ public class TCPConnectionHandler extends ConnectionHandler {
             // find a name
             String name = getAnyName();
             Peer peer = new PeerTCP(name, socket, true);
-            addPeer(peer);
-
-            // send a handshake to the peer
-            PeerServer.log().info(peer.getForeignName() + ": Sending handshake request");
             peer.sendMessage(new HandshakeRequest());
 
-            // success: remove this peer from the set of peers to connect to
+            addPeer(peer);
+
             PeerServer.log().info("Connected to peer " + name + " @ " + peerHostPort);
             return Maybe.just(peer);
         } catch (IOException e) {

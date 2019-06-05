@@ -7,33 +7,31 @@ import unimelb.bitbox.util.fs.FileManagerException;
 
 public class FileDeleteResponse extends Response {
     private static final String SUCCESS = "File deleted";
-    private String pathName;
-    private FileDescriptor fileDescriptor;
+    private FileDescriptor fd;
     
-    public FileDeleteResponse(String pathName, FileDescriptor fileDescriptor, Peer peer){
-        super("FILE_DELETE:" + pathName + ":" + fileDescriptor, peer);
-        this.pathName = pathName;
-        this.fileDescriptor = fileDescriptor;
+    public FileDeleteResponse(FileDescriptor fileDescriptor, Peer peer){
+        super("FILE_DELETE:" + fileDescriptor, peer);
+        this.fd = fileDescriptor;
 
         document.append("command", MessageType.FILE_DELETE_RESPONSE);
         document.append("fileDescriptor", fileDescriptor);
-        document.append("pathName", pathName);
+        document.append("pathName", fd.pathName);
     }
 
     @Override
     void onSent() {
         // Try cancelling the file loader first
-        String reply = PeerServer.fsManager().cancelFileLoader(pathName)
+        String reply = PeerServer.fsManager().cancelFileLoader(fd.pathName)
                   .matchThen(
                       err -> "there was a problem deleting the file: " + err.getMessage(),
                       res -> {
                           if (!res) {
                               // if the file wasn't already loading, check that it's a safe pathname
-                              if (!PeerServer.fsManager().isSafePathName(pathName)) {
+                              if (!PeerServer.fsManager().isSafePathName(fd.pathName)) {
                                   return "unsafe pathname given";
                               }
                               try {
-                                  PeerServer.fsManager().deleteFile(pathName, fileDescriptor.lastModified, fileDescriptor.md5);
+                                  PeerServer.fsManager().deleteFile(fd);
                               } catch (FileManagerException e) {
                                   return "there was a problem deleting the file: " + e.getMessage();
                               }

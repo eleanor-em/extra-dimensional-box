@@ -1,12 +1,12 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.util.network.JSONDocument;
+import unimelb.bitbox.util.fs.FileDescriptor;
 
 public class FileModifyRequest extends Message {
-    public FileModifyRequest(JSONDocument fileDescriptor, String pathName) {
-        super("MODIFY:" + pathName + ":" + fileDescriptor);
+    public FileModifyRequest(FileDescriptor fd) {
+        super("MODIFY:" + fd);
         document.append("command", MessageType.FILE_MODIFY_REQUEST);
-        document.append("fileDescriptor", fileDescriptor);
-        document.append("pathName", pathName);
+        document.append("fileDescriptor", fd);
+        document.append("pathName", fd.pathName);
     }
 }

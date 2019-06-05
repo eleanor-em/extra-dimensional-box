@@ -86,6 +86,11 @@ public class JSONDocument implements IJSONData {
         return this;
     }
 
+    public JSONDocument join(JSONDocument other) {
+        other.obj.forEach(obj::put);
+        return this;
+    }
+
     public boolean isEmpty() {
         return obj.isEmpty();
     }

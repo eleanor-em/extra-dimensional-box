@@ -6,6 +6,7 @@ import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.util.fs.FileDescriptor;
 import unimelb.bitbox.util.functional.algebraic.Maybe;
 import unimelb.bitbox.util.functional.algebraic.Result;
+import unimelb.bitbox.util.network.FilePacket;
 import unimelb.bitbox.util.network.HostPort;
 import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.JSONException;
@@ -44,15 +45,16 @@ public class MessageProcessor implements Runnable  {
         // try to respond to the message
         try {
             JSONDocument doc = JSONDocument.parse(text).get();
-            Result<JSONException, String> command = doc.get("command");
+            String command = doc.getString("command").get();
             Result<JSONException, String> friendlyName = doc.get("friendlyName");
 
             // if we got a friendly name, log it
-            String logMessage = message.peer.getForeignName() + " received: " + command.get()
+            String logMessage = message.peer.getForeignName() + " received: " + command
                     + friendlyName.map(name -> " (via " + name + ")").orElse("");
             PeerServer.log().info(logMessage);
+            PeerServer.log().info(doc.toString());
 
-            respondToMessage(message.peer, MessageType.fromString(command.get()).get(), doc);
+            respondToMessage(message.peer, MessageType.fromString(command).get(), doc);
         } catch (JSONException e) {
             PeerServer.log().warning(e.getMessage());
             invalidProtocolResponse(message.peer, e.getMessage());
@@ -69,10 +71,16 @@ public class MessageProcessor implements Runnable  {
 
         // Look up some data for later: these are used for multiple cases
         Result<JSONException, String> pathName = document.get("pathName");
-        Result<JSONException, FileDescriptor> fileDescriptor = document.getJSON("fileDescriptor")
-                                                                       .andThen(FileDescriptor::fromJSON);
+        Result<JSONException, FileDescriptor> fileDescriptor = pathName.andThen(name ->
+                                                                        document.getJSON("fileDescriptor")
+                                                                                .andThen(fd -> FileDescriptor.fromJSON(name, fd)));
         Result<JSONException, Long> position = document.get("position");
         Result<JSONException, Long> length = document.get("length");
+        Result<JSONException, FilePacket> packet = fileDescriptor.andThen(fd ->
+                                                                          position.andThen(pos ->
+                                                                          length.andThen(len ->
+                                                                          Result.value(new FilePacket(peer, fd, pos, len))
+                                                                          )));
         Result<JSONException, HostPort> hostPort = document.getJSON("hostPort")
                                                            .andThen(HostPort::fromJSON);
 
@@ -81,16 +89,16 @@ public class MessageProcessor implements Runnable  {
              * File and directory requests
              */
             case FILE_CREATE_REQUEST:
-                peer.sendMessage(new FileCreateResponse(pathName.get(), fileDescriptor.get(), peer));
+                peer.sendMessage(new FileCreateResponse(fileDescriptor.get(), peer));
                 break;
             case FILE_MODIFY_REQUEST:
-                peer.sendMessage(new FileModifyResponse(pathName.get(), fileDescriptor.get(), peer));
+                peer.sendMessage(new FileModifyResponse(fileDescriptor.get(), peer));
                 break;
             case FILE_BYTES_REQUEST:
-                PeerServer.rwManager().readFile(peer, pathName.get(), fileDescriptor.get(), position.get(), length.get());
+                PeerServer.rwManager().readFile(packet.get());
                 break;
             case FILE_DELETE_REQUEST:
-                peer.sendMessage(new FileDeleteResponse(pathName.get(), fileDescriptor.get(), peer));
+                peer.sendMessage(new FileDeleteResponse(fileDescriptor.get(), peer));
                 break;
 
             case DIRECTORY_CREATE_REQUEST:
@@ -105,13 +113,13 @@ public class MessageProcessor implements Runnable  {
              * File and directory responses
              */
             case FILE_CREATE_RESPONSE:
-                parsedResponse = Maybe.just(new FileCreateResponse(pathName.get(), fileDescriptor.get(), peer));
+                parsedResponse = Maybe.just(new FileCreateResponse(fileDescriptor.get(), peer));
                 break;
             case FILE_DELETE_RESPONSE:
-                parsedResponse = Maybe.just(new FileDeleteResponse(pathName.get(), fileDescriptor.get(), peer));
+                parsedResponse = Maybe.just(new FileDeleteResponse(fileDescriptor.get(), peer));
                 break;
             case FILE_MODIFY_RESPONSE:
-                parsedResponse = Maybe.just(new FileModifyResponse(pathName.get(), fileDescriptor.get(), peer));
+                parsedResponse = Maybe.just(new FileModifyResponse(fileDescriptor.get(), peer));
                 break;
             case DIRECTORY_CREATE_RESPONSE:
                 parsedResponse = Maybe.just(new DirectoryCreateResponse(pathName.get(), peer));
@@ -122,17 +130,16 @@ public class MessageProcessor implements Runnable  {
 
             case FILE_BYTES_RESPONSE:
                 final String content = document.getString("content").get();
+                final FileBytesResponse response = new FileBytesResponse(packet.get());
+                parsedResponse = Maybe.just(response);
 
                 if (document.getBoolean("status").get()) {
-                    PeerServer.rwManager().writeFile(peer, fileDescriptor.get(), pathName.get(), position.get(), length.get(), content);
+                    PeerServer.rwManager().writeFile(packet.get(), content);
                 } else {
                     // Let's try to read the bytes again!
                     PeerServer.log().info("Retrying byte request for " + pathName);
-                    PeerServer.rwManager().sendReadRequest(peer, pathName.get(), fileDescriptor.get(), position.get());
+                    peer.sendMessage(FileBytesRequest.retry(response));
                 }
-
-                parsedResponse = Maybe.just(new FileBytesResponse(pathName.get(), fileDescriptor.get(), length.get(),
-                                                                  position.get(), peer));
                 break;
 
             /*

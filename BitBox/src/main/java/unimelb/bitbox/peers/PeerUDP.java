@@ -1,6 +1,7 @@
 package unimelb.bitbox.peers;
 
 import unimelb.bitbox.messages.Message;
+import unimelb.bitbox.messages.MessageType;
 import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.concurrency.KeepAlive;
 import unimelb.bitbox.util.config.CfgValue;
@@ -30,13 +31,11 @@ public class PeerUDP extends Peer {
 
     @Override
     protected void requestSent(Message request) {
-        PeerServer.log().info(getForeignName() + ": waiting for response: " + request.getSummary());
         retryServer.submit(request);
     }
 
     @Override
     protected void responseReceived(Message response) {
-        PeerServer.log().info(getForeignName() + ": notified response: " + response.getSummary());
         retryServer.notify(response);
     }
 }
@@ -135,7 +134,8 @@ class RetryService {
                 data.peer.close();
                 return false;
             } else {
-                PeerServer.log().info(data.peer + ": retrying " + data.request.getCommand() + "(" + retries + ")");
+                final String command = data.request.getCommand().map(MessageType::toString).orElse("<UNKNOWN>");
+                PeerServer.log().info(data.peer + ": retrying " + command + "(" + retries + ")");
                 ++retries;
                 return true;
             }

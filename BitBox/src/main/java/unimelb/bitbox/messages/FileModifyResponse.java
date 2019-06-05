@@ -9,46 +9,40 @@ import java.io.IOException;
 
 public class FileModifyResponse extends Response {
     private static final String SUCCESS = "file loader ready";
-    private String pathName;
-    private FileDescriptor fileDescriptor;
+    private FileDescriptor fd;
 
-    private boolean successful;
-    public boolean isSuccessful() {
-        return successful;
-    }
-
-    public FileModifyResponse(String pathName, FileDescriptor fileDescriptor, Peer peer) {
-        super("MODIFY:" + pathName + ":" + fileDescriptor, peer);
-        this.pathName = pathName;
-        this.fileDescriptor = fileDescriptor;
+    public FileModifyResponse(FileDescriptor fileDescriptor, Peer peer) {
+        super("MODIFY:" + fileDescriptor, peer);
+        this.fd = fileDescriptor;
 
         document.append("command", MessageType.FILE_MODIFY_RESPONSE);
         document.append("fileDescriptor", fileDescriptor);
-        document.append("pathName", pathName);
+        document.append("pathName", fd.pathName);
     }
 
     @Override
     void onSent() {
         String reply = SUCCESS;
+
         try {
-            if (!PeerServer.fsManager().isSafePathName(pathName)) {
+            if (!PeerServer.fsManager().isSafePathName(fd.pathName)) {
                 reply = "unsafe pathname given";
-            } else if (PeerServer.fsManager().fileNameExists(pathName, fileDescriptor.md5)) {
+            } else if (PeerServer.fsManager().fileMatches(fd)) {
                 reply = "file already exists with matching content";
-            } else if (!PeerServer.fsManager().fileNameExists(pathName)) {
+            } else if (!PeerServer.fsManager().fileExists(fd)) {
                 reply = "pathname does not exist";
             } else {
-                PeerServer.fsManager().modifyFileLoader(pathName, fileDescriptor);
+                PeerServer.fsManager().modifyFileLoader(fd);
             }
         } catch (IOException e) {
             reply = "there was a problem modifying the file";
         }
 
-        successful = reply.equals(SUCCESS);
+        boolean successful = reply.equals(SUCCESS);
         document.append("message", reply);
         document.append("status", successful);
         if (successful) {
-            PeerServer.rwManager().addFile(peer, pathName, fileDescriptor);
+            PeerServer.rwManager().addFile(peer, fd);
         }
     }
 }

@@ -1,6 +1,7 @@
 package unimelb.bitbox.peers;
 
 import unimelb.bitbox.messages.Message;
+import unimelb.bitbox.messages.MessageType;
 import unimelb.bitbox.messages.ReceivedMessage;
 import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.network.HostPort;
@@ -188,7 +189,7 @@ public abstract class Peer {
         }
 
         message.setFriendlyName(name + "-" + PeerServer.getHostPort());
-        PeerServer.log().info(getForeignName() + " sent: " + message.getCommand());
+        PeerServer.log().info(getForeignName() + " sent: " + message.getCommand().map(MessageType::toString).orElse("<UNKNOWN>"));
         outConn.addMessage(new OutgoingMessage(message.networkEncode(), onSent));
     }
 

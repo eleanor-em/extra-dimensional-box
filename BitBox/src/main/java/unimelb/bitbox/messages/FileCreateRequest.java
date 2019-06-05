@@ -1,12 +1,12 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.util.network.JSONDocument;
+import unimelb.bitbox.util.fs.FileDescriptor;
 
 public class FileCreateRequest extends Message {
-    public FileCreateRequest(JSONDocument fileDescriptor, String pathName) {
-        super("FILE_CREATE:" + pathName + ":" + fileDescriptor);
+    public FileCreateRequest(FileDescriptor fd) {
+        super("FILE_CREATE:" + fd);
         document.append("command", MessageType.FILE_CREATE_REQUEST);
-        document.append("fileDescriptor", fileDescriptor);
-        document.append("pathName", pathName);
+        document.append("fileDescriptor", fd);
+        document.append("pathName", fd.pathName);
     }
 }

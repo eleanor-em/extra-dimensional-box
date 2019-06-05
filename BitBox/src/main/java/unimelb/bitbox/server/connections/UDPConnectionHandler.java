@@ -83,8 +83,6 @@ public class UDPConnectionHandler extends ConnectionHandler {
         byte[] buffer = new byte[65507];
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length, new InetSocketAddress(peerHostPort.hostname, peerHostPort.port));
         Peer peer = new PeerUDP(name, true, awaitUDPSocket(), packet);
-
-        PeerServer.log().info(peer.getForeignName() + ": Sending handshake request");
         peer.sendMessage(new HandshakeRequest());
 
         addPeer(peer);
