@@ -31,12 +31,12 @@ enum ConnectionMode {
 public class PeerServer implements FileSystemObserver {
     /* Configuration values */
     private final CfgValue<Long> udpBlockSize = CfgValue.createLong("udpBlockSize");
+    private final CfgValue<Long> blockSize = CfgValue.createLong("blockSize");
     private final CfgValue<String> advertisedName = CfgValue.create("advertisedName");
     private final CfgValue<Integer> tcpPort = CfgValue.createInt("port");
     private final CfgValue<Integer> udpPort = CfgValue.createInt("udpPort");
     private final CfgEnumValue<ConnectionMode> mode = new CfgEnumValue<>("mode", ConnectionMode.class);
     private final CfgDependent<HostPort> hostPort = new CfgDependent<>(Arrays.asList(advertisedName, tcpPort, udpPort), this::calculateHostPort);
-    private final CfgDependent<Long> blockSize = new CfgDependent<>(mode, this::calculateBlockSize);
 
     /* Objects used by the class */
     private final Logger log = Logger.getLogger(PeerServer.class.getName());
@@ -164,6 +164,8 @@ public class PeerServer implements FileSystemObserver {
 		// Create the synchroniser thread
 		KeepAlive.submit(this::regularlySynchronise);
 		log.fine("Synchroniser thread started");
+
+		log.info("BitBox Peer online.");
 	}
 
     private void regularlySynchronise() {
@@ -175,14 +177,8 @@ public class PeerServer implements FileSystemObserver {
                 log.warning("Synchronise thread interrupted");
             }
             synchroniseFiles();
+            rwManager.reportDownloads();
         }
-    }
-
-    private long calculateBlockSize() {
-        if (mode.get() == ConnectionMode.UDP) {
-            return Math.min(blockSize.get(), udpBlockSize.get());
-        }
-        return blockSize.get();
     }
 
     private HostPort calculateHostPort() {

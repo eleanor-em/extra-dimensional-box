@@ -196,7 +196,7 @@ public final class FileSystemManager extends Thread {
      * false. In the case of a file that is being modified and
      * currently loading, returns true against the existing file.
      */
-public boolean fileMatches(FileDescriptor fd) {
+    public boolean fileMatches(FileDescriptor fd) {
         return fileExists(fd) && watchedFiles.get(fullPath(fd)).md5.equals(fd.md5);
     }
 
@@ -267,23 +267,24 @@ public boolean fileMatches(FileDescriptor fd) {
         return Result.of(() -> {
             if (hashMap.containsKey(md5)) {
                 for (String attempt : hashMap.get(md5)) {
-                    File file = new File(attempt);
+                    synchronized (watchedFiles.get(attempt)) {
+                        File file = new File(attempt);
+                        if (file.exists()) {
+                            PeerServer.log().fine("reading file " + file);
+                            try (RandomAccessFile raf = new RandomAccessFile(file, "rw");
+                                 FileChannel channel = raf.getChannel()) {
+                                channel.lock();
 
-                    if (file.exists()) {
-                        PeerServer.log().fine("reading file " + file);
-                        try (RandomAccessFile raf = new RandomAccessFile(file, "rw");
-                             FileChannel channel = raf.getChannel()) {
-                            channel.lock();
-
-                            String currentMd5 = hashFile(file, attempt, watchedFiles.get(attempt).lastModified);
-                            if (currentMd5.equals(md5)) {
-                                ByteBuffer bb = ByteBuffer.allocate((int) length);
-                                channel.position(position);
-                                int read = channel.read(bb);
-                                if (read < length) {
-                                    throw new IOException("did not read everything expected: " + read + "/" + length);
+                                String currentMd5 = hashFile(file, attempt, watchedFiles.get(attempt).lastModified);
+                                if (currentMd5.equals(md5)) {
+                                    ByteBuffer bb = ByteBuffer.allocate((int) length);
+                                    channel.position(position);
+                                    int read = channel.read(bb);
+                                    if (read < length) {
+                                        throw new IOException("did not read everything expected: " + read + "/" + length);
+                                    }
+                                    return Maybe.just(bb);
                                 }
-                                return Maybe.just(bb);
                             }
                         }
                     }

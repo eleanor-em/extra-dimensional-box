@@ -30,11 +30,9 @@ public class FileCreateResponse extends Response {
                 } catch (IOException e2) {
                     // We're currently transferring this file, or else our file is newer.
                     PeerServer.log().warning("failed to open modify file loader for " + fd.pathName);
-                    e2.printStackTrace();
                     return "error modifying file: " + e2.getMessage();
                 }
             } else {
-                e.printStackTrace();
                 return "error creating file: " + e.getMessage();
             }
         }

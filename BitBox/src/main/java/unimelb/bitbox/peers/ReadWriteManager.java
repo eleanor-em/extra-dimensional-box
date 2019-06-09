@@ -2,6 +2,7 @@ package unimelb.bitbox.peers;
 
 import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.fs.FileDescriptor;
+import unimelb.bitbox.util.network.Conversion;
 import unimelb.bitbox.util.network.FilePacket;
 import unimelb.bitbox.util.network.FileTransfer;
 
@@ -13,6 +14,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 /**
@@ -65,6 +67,32 @@ public class ReadWriteManager {
         executor.execute(new WriteWorker(packet, content));
     }
 
+    public void reportDownloads() {
+        AtomicReference<Long> totalWaiting = new AtomicReference<>(0L);
+        AtomicReference<Long> totalDone = new AtomicReference<>(0L);
+
+        StringBuilder inProgress = new StringBuilder();
+        transfers.forEach(ft -> {
+            float completion = ft.getCompletion();
+            totalDone.updateAndGet(v -> v + (long) (completion / 100 * ft.fileDescriptor.fileSize));
+            totalWaiting.updateAndGet(v -> v + ft.fileDescriptor.fileSize);
+
+            inProgress.append(String.format("In progress (%04.1f%% complete): %s\n", completion, ft.pathName()));
+        });
+        if (totalWaiting.get() > 0) {
+            float completion = (float) totalDone.get() / (float) totalWaiting.get() * 100;
+            inProgress.append("Total: ")
+                    .append(Conversion.humanFileSize(totalDone.get()))
+                    .append(" / ")
+                    .append(Conversion.humanFileSize(totalWaiting.get()))
+                    .append(" (")
+                    .append(String.format("%.1f", completion))
+                    .append("%)");
+
+            PeerServer.log().info("\n" + inProgress);
+        }
+    }
+
     private class WriteWorker implements Runnable {
         private final String content;
         private final FilePacket packet;
@@ -72,6 +100,7 @@ public class ReadWriteManager {
         WriteWorker(FilePacket packet, String content) {
             this.content = content;
             this.packet = packet;
+            updateFile(packet);
 
             // When the peer that responded closes, we need to cancel any transfers they were performing
             packet.peer().addCloseTask(() -> cancelPeerFiles(packet.peer()));
@@ -98,11 +127,11 @@ public class ReadWriteManager {
             PeerServer.fsManager().checkWriteComplete(packet.fd())
                       .ok(res -> {
                           // If the write isn't finished, send another request
-                          if (!res) {
-                              packet.sendBytesRequest();
-                          } else {
+                          if (res) {
                               cancelFile(packet);
                               PeerServer.log().fine(packet.peer().getForeignName() + ": received all bytes for " + packet.pathName() + ": file transfer successful");
+                          } else {
+                              packet.sendBytesRequest();
                           }
                       })
                       .err(err -> {
@@ -120,12 +149,26 @@ public class ReadWriteManager {
 
         @Override
         public void run() {
-            packet.sendBytesResponse();
+            packet.  sendBytesResponse();
         }
     }
 
+    private void updateFile(FilePacket packet) {
+        transfers.forEach(ft -> {
+            if (ft.equals(packet.transfer)) {
+                ft.updatePacket(packet);
+            }
+        });
+    }
+
     private void cancelFile(FilePacket packet) {
-        transfers.remove(packet.transfer);
+        if (!transfers.remove(packet.transfer)) {
+            PeerServer.log().warning("tried to remove " + packet.transfer + " but was not found");
+        }
+
+        if (transfers.isEmpty()) {
+            PeerServer.log().info("All downloads complete!");
+        }
     }
 
     private void cancelPeerFiles(Peer peer) {

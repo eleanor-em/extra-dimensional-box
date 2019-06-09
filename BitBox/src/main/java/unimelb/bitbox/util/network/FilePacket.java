@@ -45,7 +45,8 @@ public class FilePacket {
         transfer.peer.sendMessage(new FileBytesRequest(pathName(), fd(), nextPosition));
         float completion = (float) nextPosition / (float) fd().fileSize * 100;
         String completionPercent = String.format("%.1f", completion);
-        PeerServer.log().info("Downloading " + shortPathName() + " (" + completionPercent + "% complete, total " + fd().humanFileSize() + ")");
+        PeerServer.log().info("Downloading " + shortPathName() + " (" + completionPercent + "% complete, total "
+                              + Conversion.humanFileSize(fd().fileSize) + ")");
         PeerServer.log().fine(peer().getForeignName() + ": requesting bytes for " + pathName() +
                 " at position: [" + nextPosition + "/" + fd().fileSize + "]");
     }
