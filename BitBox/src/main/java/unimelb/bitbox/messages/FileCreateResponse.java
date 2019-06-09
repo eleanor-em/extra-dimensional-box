@@ -29,11 +29,13 @@ public class FileCreateResponse extends Response {
                     PeerServer.fsManager().modifyFileLoader(fd);
                 } catch (IOException e2) {
                     // We're currently transferring this file, or else our file is newer.
-                    PeerServer.log().warning("failed to generate file loader for " + fd.pathName);
-                    return "error generating modify file loader: " + fd.pathName + ": " + e2.getMessage();
+                    PeerServer.log().warning("failed to open modify file loader for " + fd.pathName);
+                    e2.printStackTrace();
+                    return "error modifying file: " + e2.getMessage();
                 }
             } else {
-                return "file does not exist";
+                e.printStackTrace();
+                return "error creating file: " + e.getMessage();
             }
         }
         return SUCCESS;

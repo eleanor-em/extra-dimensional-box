@@ -35,7 +35,7 @@ public class FileModifyResponse extends Response {
                 PeerServer.fsManager().modifyFileLoader(fd);
             }
         } catch (IOException e) {
-            reply = "there was a problem modifying the file: " + e.getMessage();
+            reply = "error modifying file: " + e.getMessage();
         }
 
         boolean successful = reply.equals(SUCCESS);

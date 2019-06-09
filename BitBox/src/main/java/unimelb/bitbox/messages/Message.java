@@ -42,9 +42,10 @@ public abstract class Message implements IJSONData {
                 .ok(status -> {
                     if (!status) {
                         Result.of(() -> {
+                            String command = getCommand().get().name();
                             String message = document.getString("message").get();
                             if (!message.contains("already exists")) {
-                                PeerServer.log().warning("Sending failed " + getCommand() + ": " + message);
+                                PeerServer.log().warning("Sending failed " + command + ": " + message);
                             }
                         }).err(e -> PeerServer.log().warning("Malformed message: " + e.getMessage()));
                     }
