@@ -27,7 +27,7 @@ public class ReadWriteManager {
      * Initiate a transfer.
      * @param ft the transfer object
      */
-    public void addFile(FileTransfer ft) {
+    private void addFile(FileTransfer ft) {
         // Check for existing transfers of the same file
         for (Iterator<FileTransfer> it = transfers.iterator(); it.hasNext();) {
             FileTransfer existing = it.next();
@@ -69,7 +69,7 @@ public class ReadWriteManager {
         private final String content;
         private final FilePacket packet;
 
-        public WriteWorker(FilePacket packet, String content) {
+        WriteWorker(FilePacket packet, String content) {
             this.content = content;
             this.packet = packet;
 
@@ -114,7 +114,7 @@ public class ReadWriteManager {
 
     private static class ReadWorker implements Runnable {
         private final FilePacket packet;
-        public ReadWorker(FilePacket packet) {
+        ReadWorker(FilePacket packet) {
             this.packet = packet;
         }
 
