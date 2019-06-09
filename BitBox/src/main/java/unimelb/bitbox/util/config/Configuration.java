@@ -2,6 +2,7 @@ package unimelb.bitbox.util.config;
 
 import unimelb.bitbox.util.concurrency.LazyInitialiser;
 import unimelb.bitbox.util.fs.FileWatcher;
+import unimelb.bitbox.util.functional.algebraic.Maybe;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -38,12 +39,12 @@ public class Configuration {
     static void updateValues() {
         long nextModified = file.lastModified();
         if (modified.getAndSet(nextModified) != nextModified) {
-            log.info("Configuration file modified");
+            log.fine("Configuration file modified");
             synchronized (watchedValues) {
                 loadProperties();
                 watchedValues.forEach(CfgValue::get);
             }
-            log.info("Updates done");
+            log.fine("Updates done");
         }
     }
 
@@ -70,8 +71,8 @@ public class Configuration {
         return properties.get().containsKey(key);
     }
 
-    public static String getConfigurationValue(String key) {
-        return properties.get().getProperty(key).trim();
+    public static Maybe<String> getConfigurationValue(String key) {
+        return Maybe.of(properties.get().getProperty(key)).map(String::trim);
     }
 
     // private constructor to prevent initialization

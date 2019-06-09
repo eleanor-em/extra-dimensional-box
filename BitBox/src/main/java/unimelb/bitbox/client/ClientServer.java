@@ -59,7 +59,7 @@ public class ClientServer implements Runnable {
      */
     private void handleClient(ClientConnection client) {
         Socket socket = client.getSocket();
-        PeerServer.log().info(client + ": received connection");
+        PeerServer.log().fine(client + ": received connection");
 
         // Open the read/write streams and process messages until the socket closes
         try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
@@ -88,14 +88,14 @@ public class ClientServer implements Runnable {
         if (!client.isAuthenticated()) {
             KnownClientTracker.addClient(client);
         }
-        PeerServer.log().info(client + ": disconnected");
+        PeerServer.log().fine(client + ": disconnected");
     }
 
     /**
      * Given a message and the client it was received from, generate an appropriate response.
      */
     private JSONDocument handleMessage(String message, ClientConnection client) {
-        PeerServer.log().info(client + ": received " + message);
+        PeerServer.log().fine(client + ": received " + message);
         // Parse the message
         JSONDocument document;
         try {

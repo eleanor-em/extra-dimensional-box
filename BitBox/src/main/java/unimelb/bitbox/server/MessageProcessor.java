@@ -51,8 +51,8 @@ public class MessageProcessor implements Runnable  {
             // if we got a friendly name, log it
             String logMessage = message.peer.getForeignName() + " received: " + command
                     + friendlyName.map(name -> " (via " + name + ")").orElse("");
-            PeerServer.log().info(logMessage);
-            PeerServer.log().info(doc.toString());
+            PeerServer.log().fine(logMessage);
+            PeerServer.log().fine(doc.toString());
 
             respondToMessage(message.peer, MessageType.fromString(command).get(), doc);
         } catch (JSONException e) {
@@ -138,7 +138,7 @@ public class MessageProcessor implements Runnable  {
                 } else if (PeerServer.fsManager().fileLoading(fileDescriptor.get())) {
                     if (document.getBoolean("retry").orElse(false)) {
                         // Let's try to read the bytes again!
-                        PeerServer.log().info("Retrying byte request for " + pathName);
+                        PeerServer.log().fine("Retrying byte request for " + pathName);
                         peer.sendMessage(FileBytesRequest.retry(response));
                     } else {
                         PeerServer.fsManager().cancelFileLoader(fileDescriptor.get());
@@ -150,7 +150,7 @@ public class MessageProcessor implements Runnable  {
              * Handshake request and responses
              */
             case HANDSHAKE_REQUEST:
-                PeerServer.log().info("Received connection request from " + hostPort.get());
+                PeerServer.log().fine("Received connection request from " + hostPort.get());
 
                 if (PeerServer.connection().getOutgoingAddresses().contains(hostPort.get())) {
                     PeerServer.log().warning("Already connected to " + hostPort.get());
@@ -178,7 +178,7 @@ public class MessageProcessor implements Runnable  {
                     HostPort.fromJSON(peerHostPort)
                             .ok(address -> {
                                 PeerServer.connection().addPeerAddress(address);
-                                PeerServer.log().info("Added peer `" + address + "`");
+                                PeerServer.log().fine("Added peer `" + address + "`");
                             });
                     PeerServer.connection().retryPeers();
                 }

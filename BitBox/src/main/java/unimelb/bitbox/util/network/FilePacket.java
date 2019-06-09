@@ -31,6 +31,10 @@ public class FilePacket {
     public String pathName() {
         return transfer.pathName();
     }
+    private String shortPathName() {
+        String[] split = pathName().split("/");
+        return split[split.length - 1];
+    }
 
     public void sendBytesResponse() {
         transfer.peer.sendMessage(new FileBytesResponse(this));
@@ -39,7 +43,10 @@ public class FilePacket {
     public void sendBytesRequest() {
         long nextPosition = position + length;
         transfer.peer.sendMessage(new FileBytesRequest(pathName(), fd(), nextPosition));
-        PeerServer.log().info(peer().getForeignName() + ": requesting bytes for " + pathName() +
+        float completion = (float) nextPosition / (float) fd().fileSize * 100;
+        String completionPercent = String.format("%.1f", completion);
+        PeerServer.log().info("Downloading " + shortPathName() + " (" + completionPercent + "% complete, total " + fd().humanFileSize() + ")");
+        PeerServer.log().fine(peer().getForeignName() + ": requesting bytes for " + pathName() +
                 " at position: [" + nextPosition + "/" + fd().fileSize + "]");
     }
 

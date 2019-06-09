@@ -65,7 +65,7 @@ class OutgoingConnectionTCP extends OutgoingConnection {
         } catch (IOException e) {
             PeerServer.log().severe("Error writing to socket: " + e.getMessage());
         } catch (InterruptedException e) {
-            PeerServer.log().info("thread interrupted: " + e.getMessage());
+            PeerServer.log().fine("thread interrupted: " + e.getMessage());
         }
     }
 }

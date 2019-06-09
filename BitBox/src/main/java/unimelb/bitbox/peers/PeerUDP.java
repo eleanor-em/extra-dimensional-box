@@ -62,7 +62,7 @@ class OutgoingConnectionUDP extends OutgoingConnection {
             } catch (IOException e) {
                 PeerServer.log().severe("Error sending packet to UDP socket: " + e.getMessage());
             } catch (InterruptedException e) {
-                PeerServer.log().info("thread interrupted: " + e.getMessage());
+                PeerServer.log().fine("thread interrupted: " + e.getMessage());
             }
         }
     }
@@ -148,7 +148,7 @@ class RetryService {
                 return false;
             } else {
                 final String command = data.request.getCommand().map(MessageType::toString).orElse("<UNKNOWN>");
-                PeerServer.log().info(data.peer + ": retrying " + command + "(" + retries + ")");
+                PeerServer.log().fine(data.peer + ": retrying " + command + "(" + retries + ")");
                 ++retries;
                 return true;
             }

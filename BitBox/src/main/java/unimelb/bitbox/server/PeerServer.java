@@ -17,6 +17,7 @@ import unimelb.bitbox.util.network.HostPort;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -128,6 +129,7 @@ public class PeerServer implements FileSystemObserver {
 
     private PeerServer() throws IOException {
         INSTANCE = this;
+        log.setLevel(Level.FINER);
 
         // Create the file system manager
         CfgValue<String> path = CfgValue.create("path");
@@ -136,7 +138,7 @@ public class PeerServer implements FileSystemObserver {
 
 		// Create the processor thread
         KeepAlive.submit(processor);
-		log.info("Processor thread started");
+		log.fine("Processor thread started");
 
         // Start the connection handler
         setConnection(mode.get());
@@ -157,11 +159,11 @@ public class PeerServer implements FileSystemObserver {
 
 		// Create the server thread for the client
 		KeepAlive.submit(new ClientServer());
-		log.info("Server thread started");
+		log.fine("Server thread started");
 
 		// Create the synchroniser thread
 		KeepAlive.submit(this::regularlySynchronise);
-		log.info("Synchroniser thread started");
+		log.fine("Synchroniser thread started");
 	}
 
     private void regularlySynchronise() {
@@ -177,12 +179,10 @@ public class PeerServer implements FileSystemObserver {
     }
 
     private long calculateBlockSize() {
-        long blockSize;
-        blockSize = Long.parseLong(Configuration.getConfigurationValue("blockSize"));
         if (mode.get() == ConnectionMode.UDP) {
-            blockSize = Math.min(blockSize, udpBlockSize.get());
+            return Math.min(blockSize.get(), udpBlockSize.get());
         }
-        return blockSize;
+        return blockSize.get();
     }
 
     private HostPort calculateHostPort() {

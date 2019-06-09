@@ -28,7 +28,7 @@ class UDPConnectionHandler extends ConnectionHandler {
         setSocket(new UDPSocket(port, 100));
         DatagramSocket udpSocket = awaitUDPSocket();
 
-        PeerServer.log().info("Listening on port " + this.port);
+        PeerServer.log().fine("Listening on port " + this.port);
         while (!udpSocket.isClosed()) {
             try {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -69,7 +69,7 @@ class UDPConnectionHandler extends ConnectionHandler {
                 e.printStackTrace();
             }
         }
-        PeerServer.log().info("No longer listening on port " + port);
+        PeerServer.log().fine("No longer listening on port " + port);
     }
 
     @Override

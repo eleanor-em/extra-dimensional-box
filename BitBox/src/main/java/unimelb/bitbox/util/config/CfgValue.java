@@ -67,8 +67,9 @@ public class CfgValue<T> {
         if (!Configuration.contains(propertyName)) {
             throw new ConfigException(propertyName);
         }
-
-        strValue = Configuration.getConfigurationValue(propertyName);
+        Configuration.getConfigurationValue(propertyName)
+                     .match(str -> strValue = str,
+                            () ->  { throw new ConfigException(propertyName); });
 
         //noinspection unchecked
         converter = str -> (T) str;
@@ -80,7 +81,9 @@ public class CfgValue<T> {
             throw new ConfigException(propertyName);
         }
 
-        strValue = Configuration.getConfigurationValue(propertyName);
+        Configuration.getConfigurationValue(propertyName)
+                .match(str -> strValue = str,
+                       () ->  { throw new ConfigException(propertyName); });
         Configuration.addValue(this);
 
         this.converter = converter;
@@ -88,7 +91,9 @@ public class CfgValue<T> {
     }
 
     private void update() {
-        strValue = Configuration.getConfigurationValue(propertyName);
+        Configuration.getConfigurationValue(propertyName)
+                .match(str -> strValue = str,
+                       () ->  { throw new ConfigException(propertyName); });
         try {
             cached = converter.apply(strValue);
         } catch (ClassCastException e) {
@@ -98,7 +103,7 @@ public class CfgValue<T> {
 
     public T get() {
         if (hasChanged()) {
-            Configuration.log.info("Configuation value `" + propertyName + "` changed");
+            Configuration.log.fine("Configuation value `" + propertyName + "` changed");
             update();
 
             if (!updated) {
@@ -115,7 +120,7 @@ public class CfgValue<T> {
 
     private boolean hasChanged() {
         Configuration.updateValues();
-        return !Configuration.getConfigurationValue(propertyName).equals(strValue);
+        return !Configuration.getConfigurationValue(propertyName).map(str -> str.equals(strValue)).orElse(false);
     }
 
     public void setOnChanged(Consumer<T> action) {

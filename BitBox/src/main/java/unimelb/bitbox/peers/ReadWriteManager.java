@@ -37,7 +37,7 @@ public class ReadWriteManager {
                     PeerServer.fsManager().cancelFileLoader(existing);
                     it.remove();
                 } else {
-                    PeerServer.log().info(ft.peer.getForeignName() + ": received create/modify request, but was already transferring same or newer file");
+                    PeerServer.log().fine(ft.peer.getForeignName() + ": received create/modify request, but was already transferring same or newer file");
                     return;
                 }
             }
@@ -83,7 +83,7 @@ public class ReadWriteManager {
             try {
                 ByteBuffer decoded = ByteBuffer.wrap(Base64.getDecoder().decode(content));
                 packet.writeData(decoded);
-                PeerServer.log().info(packet.peer().getForeignName() + ": wrote bytes to " + packet.pathName() +
+                PeerServer.log().fine(packet.peer().getForeignName() + ": wrote bytes to " + packet.pathName() +
                         " at position: [" + packet.position + "/" + packet.fd().fileSize + "]");
             }
             catch (IOException e){
@@ -102,7 +102,7 @@ public class ReadWriteManager {
                               packet.sendBytesRequest();
                           } else {
                               cancelFile(packet);
-                              PeerServer.log().info(packet.peer().getForeignName() + ": received all bytes for " + packet.pathName() + ": file transfer successful");
+                              PeerServer.log().fine(packet.peer().getForeignName() + ": received all bytes for " + packet.pathName() + ": file transfer successful");
                           }
                       })
                       .err(err -> {
@@ -136,9 +136,7 @@ public class ReadWriteManager {
             PeerServer.fsManager().cancelFileLoader(ft)
                     .ok(res -> {
                         if (res) {
-                            PeerServer.log().info(ft.peer.getForeignName() + ": cancelling transfer of " + ft.pathName());
-                        } else {
-                            PeerServer.log().warning(ft.peer.getForeignName() + ": tracked file " + ft.pathName() + " not found");
+                            PeerServer.log().fine(ft.peer.getForeignName() + ": cancelling transfer of " + ft.pathName());
                         }
                     })
                     .err(err -> PeerServer.log().warning(ft.peer.getForeignName() + ": failed cancelling file loader: "+ err.getMessage()));

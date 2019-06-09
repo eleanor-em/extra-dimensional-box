@@ -5,6 +5,8 @@ import unimelb.bitbox.util.network.IJSONData;
 import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.JSONException;
 
+import javax.print.DocFlavor;
+
 /**
  * Additional information about a given file.
  */
@@ -38,6 +40,19 @@ public class FileDescriptor implements IJSONData {
         this.md5 = md5;
         this.fileSize = fileSize;
         isDirectory = false;
+    }
+
+    public String humanFileSize() {
+        String[] suffixes = { "B", "kB", "MB", "GB"};
+        int suffixIndex = 0;
+
+        float size = fileSize;
+        while (size > 1024 && suffixIndex < suffixes.length) {
+            ++suffixIndex;
+            size /= 1024;
+        }
+
+        return String.format("%.1f %s", size, suffixes[suffixIndex]);
     }
 
     static FileDescriptor directory(String pathName) {

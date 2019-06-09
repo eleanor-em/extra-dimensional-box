@@ -91,7 +91,7 @@ public abstract class Maybe<V> implements ThrowingSupplier<V, IllegalStateExcept
      * @return the result of the matched operation
      * @throws E the exception thrown by the supplied operations
      */
-    public abstract <T, E extends Exception> T unsafeMatch(ThrowingFunction<? super V, ? extends T, ? extends E> some, ThrowingSupplier<? extends T, ? extends E> none) throws E;
+    public abstract <T, E extends Exception> T unsafeMatchThen(ThrowingFunction<? super V, ? extends T, ? extends E> some, ThrowingSupplier<? extends T, ? extends E> none) throws E;
 
     /**
      * Decide control flow based on the structure of the Maybe,
@@ -117,7 +117,7 @@ public abstract class Maybe<V> implements ThrowingSupplier<V, IllegalStateExcept
      */
     public <T> T matchThen(Function<? super V, ? extends T> some, Supplier<? extends T> none)
     {
-        return unsafeMatch(
+        return unsafeMatchThen(
                 some::apply,
                 none::get);
     }
@@ -229,6 +229,7 @@ public abstract class Maybe<V> implements ThrowingSupplier<V, IllegalStateExcept
      * @return A Maybe mirroring the Optional parameter
      * @param <V> The type of the optional value
      */
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public static <V> Maybe<V> of(Optional<V> value)
     {
         return value.map(Maybe::just).orElse(nothing());
@@ -325,7 +326,7 @@ public abstract class Maybe<V> implements ThrowingSupplier<V, IllegalStateExcept
         }
 
         @Override
-        public <T, E extends Exception> T unsafeMatch(ThrowingFunction<? super V, ? extends T, ? extends E> some, ThrowingSupplier<? extends T, ? extends E> none) throws E
+        public <T, E extends Exception> T unsafeMatchThen(ThrowingFunction<? super V, ? extends T, ? extends E> some, ThrowingSupplier<? extends T, ? extends E> none) throws E
         {
             return none.get();
         }
@@ -401,7 +402,7 @@ public abstract class Maybe<V> implements ThrowingSupplier<V, IllegalStateExcept
         }
 
         @Override
-        public <T, E extends Exception> T unsafeMatch(ThrowingFunction<? super V, ? extends T, ? extends E> some, ThrowingSupplier<? extends T, ? extends E> none) throws E
+        public <T, E extends Exception> T unsafeMatchThen(ThrowingFunction<? super V, ? extends T, ? extends E> some, ThrowingSupplier<? extends T, ? extends E> none) throws E
         {
             return some.apply(value);
         }

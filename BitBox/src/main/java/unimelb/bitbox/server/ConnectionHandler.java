@@ -65,7 +65,7 @@ public abstract class ConnectionHandler {
         HostPort.fromAddress(address)
                 .match(ignored -> PeerServer.log().warning("Tried to add invalid address `" + address + "`"),
                        peerHostPort -> {
-                           PeerServer.log().info("Adding address " + address + " to connection list");
+                           PeerServer.log().fine("Adding address " + address + " to connection list");
                            addPeerAddress(peerHostPort);
                        });
     }
@@ -112,7 +112,7 @@ public abstract class ConnectionHandler {
         if (peers.contains(peer)) {
             peers.remove(peer);
             peer.close();
-            PeerServer.log().info("Removing " + peer.getForeignName() + " from peer list");
+            PeerServer.log().fine("Removing " + peer.getForeignName() + " from peer list");
 
             // return the plain name to the queue, if it's not the default
             String plainName = peer.getName();
@@ -193,7 +193,7 @@ public abstract class ConnectionHandler {
             e.printStackTrace();
         } finally {
             if (active.get()) {
-                PeerServer.log().info("Restarting accept thread");
+                PeerServer.log().fine("Restarting accept thread");
                 if (socket.get().map(ISocket::isClosed).fromMaybe(false)) {
                     socket.reset();
                 }
@@ -215,7 +215,7 @@ public abstract class ConnectionHandler {
             e.printStackTrace();
         } finally {
             if (active.get()) {
-                PeerServer.log().info("Restarting peer retry thread");
+                PeerServer.log().fine("Restarting peer retry thread");
                 executor.submit(this::connectToPeers);
             }
         }

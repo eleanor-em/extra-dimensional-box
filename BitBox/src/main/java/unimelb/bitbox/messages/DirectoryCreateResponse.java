@@ -31,7 +31,12 @@ public class DirectoryCreateResponse extends Response {
             }
         }
 
+        boolean successful = reply.equals(SUCCESS);
+        if (successful) {
+            PeerServer.log().info("Created directory " + pathName);
+        }
+
         document.append("message", reply);
-        document.append("status", reply.equals(SUCCESS));
+        document.append("status", successful);
     }
 }

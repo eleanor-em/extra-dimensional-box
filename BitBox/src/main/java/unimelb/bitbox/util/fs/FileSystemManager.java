@@ -74,9 +74,9 @@ public final class FileSystemManager extends Thread {
             throw new IOException("incorrect root given");
         } else {
             canonicalRoot = file.getCanonicalPath();
-            PeerServer.log().info("monitoring " + canonicalRoot);
+            PeerServer.log().fine("monitoring " + canonicalRoot);
             initialScanDirectoryTree(root);
-            PeerServer.log().info("starting file system monitor thread");
+            PeerServer.log().fine("starting file system monitor thread");
             start();
         }
     }
@@ -171,7 +171,7 @@ public final class FileSystemManager extends Thread {
                  });
         }
         FileManagerException.check(file.delete(), "failed deleting " + file.getPath());
-        PeerServer.log().info("deleting " + file.getPath());
+        PeerServer.log().fine("deleting " + file.getPath());
     }
 
     // files
@@ -216,7 +216,7 @@ public boolean fileMatches(FileDescriptor fd) {
                                   "unexpected content for " + pathName);
         File file = new File(fullPathName);
         FileManagerException.check(file.delete(), "failed deleting " + pathName);
-        PeerServer.log().info("deleting " + fullPathName);
+        PeerServer.log().fine("deleting " + fullPathName);
     }
 
     /**
@@ -270,7 +270,7 @@ public boolean fileMatches(FileDescriptor fd) {
                     File file = new File(attempt);
 
                     if (file.exists()) {
-                        PeerServer.log().info("reading file " + file);
+                        PeerServer.log().fine("reading file " + file);
                         try (RandomAccessFile raf = new RandomAccessFile(file, "rw");
                              FileChannel channel = raf.getChannel()) {
                             channel.lock();
@@ -338,12 +338,15 @@ public boolean fileMatches(FileDescriptor fd) {
                     return result;
                 } catch (IOException e) {
                     try {
+                        PeerServer.log().fine("while updating file " + pathName + ":");
+                        e.printStackTrace();
                         loadingFiles.close(fullPathName);
                     } catch (IOException e2) {
                         PeerServer.log().severe("error while trying to handle error:");
                         e2.printStackTrace();
-                        PeerServer.log().severe("caused by:");
-                        e.printStackTrace();
+                    } finally {
+                        // Make sure whatever happened, we forget about the file.
+                        loadingFiles.drop(fullPathName);
                     }
                 }
                 return false;
@@ -458,6 +461,10 @@ public boolean fileMatches(FileDescriptor fd) {
             loadingFiles.remove(pathName);
         }
 
+        void drop(String pathName) {
+            loadingFiles.remove(pathName);
+        }
+
         void cancelIf(Predicate<? super FileLoader> pred) {
             for (Iterator<Map.Entry<String, FileLoader>> iterator = loadingFiles.entrySet().iterator(); iterator.hasNext(); ) {
                 Map.Entry<String, FileLoader> entry = iterator.next();
@@ -488,13 +495,13 @@ public boolean fileMatches(FileDescriptor fd) {
             file = new File(fileDescriptor.pathName + loadingSuffix);
             if (file.exists()) throw new IOException("file loader already in progress: " + fileDescriptor.pathName);
 
-            PeerServer.log().info("creating file " + file.getPath());
+            PeerServer.log().fine("creating file " + file.getPath());
             if (!file.createNewFile()) throw new IOException("failed to create file: "+ fileDescriptor.pathName);
             channel = new RandomAccessChannel(file);
         }
 
         void cancel() throws IOException {
-            PeerServer.log().info("closing transfer " + file.getPath());
+            PeerServer.log().fine("closing transfer " + file.getPath());
             if (file.exists()) {
                 channel.close();
                 FileManagerException.check(file.delete(), "Failed deleting file " + fileDescriptor.pathName);
@@ -507,18 +514,19 @@ public boolean fileMatches(FileDescriptor fd) {
             if (hashMap.containsKey(fileDescriptor.md5)) {
                 for (String attempt : hashMap.get(fileDescriptor.md5)) {
                     File file = new File(attempt);
-                    try ( RandomAccessFile raf2 = new RandomAccessFile(file, "rw");
-                          FileChannel channel2 = raf2.getChannel()) {
+                    try (RandomAccessFile raf2 = new RandomAccessFile(file, "rw");
+                         FileChannel channel2 = raf2.getChannel()) {
                         channel2.lock();
                         String currentMd5 = hashFile(file, attempt, watchedFiles.get(attempt).lastModified);
                         if (currentMd5.equals(fileDescriptor.md5)) {
+                            cancel();
+
                             Path dest = Paths.get(fileDescriptor.pathName);
                             CopyOption[] options = { StandardCopyOption.REPLACE_EXISTING };
                             InputStream is = Channels.newInputStream(channel2);
                             Files.copy(is, dest, options);
 
                             FileManagerException.check(dest.toFile().setLastModified(fileDescriptor.lastModified), "failed setting modified date of " + dest);
-                            FileManagerException.check(file.delete(), "failed deleting file " + file.getPath());
                             return true;
                         }
                     }
@@ -536,21 +544,26 @@ public boolean fileMatches(FileDescriptor fd) {
 
         boolean checkWriteComplete() throws IOException {
             String currentMd5 = hashRandomAccess(fileDescriptor.pathName, channel);
-            PeerServer.log().info("compare: " + currentMd5 + " // " + fileDescriptor.md5);
+            PeerServer.log().fine("compare: " + currentMd5 + " // " + fileDescriptor.md5);
             if (currentMd5.equals(fileDescriptor.md5)) {
                 File dest = new File(fileDescriptor.pathName);
                 if (dest.exists()) {
                     FileManagerException.check(dest.delete(), "failed deleting existing file " + dest.getPath());
                 }
+
+                // Need to close the channel to rename
+                channel.close();
                 FileManagerException.check(file.renameTo(dest), "failed renaming loading file to " + dest.getPath());
                 FileManagerException.check(dest.setLastModified(fileDescriptor.lastModified), "failed setting modified date of " + dest.getPath());
+                PeerServer.log().fine("wrote final data to " + dest.getPath());
+                PeerServer.log().info("Download of " + dest.getPath() + " complete.");
                 return true;
             }
             return false;
         }
 
         private String hashRandomAccess(String name, RandomAccessChannel channel) throws IOException {
-            PeerServer.log().info("hashing file " + name);
+            PeerServer.log().fine("hashing file " + name);
             try {
                 MessageDigest md5Digest = MessageDigest.getInstance("MD5");
                 return getFileChecksum(md5Digest, channel);
@@ -592,7 +605,7 @@ public boolean fileMatches(FileDescriptor fd) {
             // check for new/modified files
             pathEvents.addAll(scanDirectoryTree(root));
             for (FileSystemEvent pathEvent : pathEvents) {
-                PeerServer.log().info(pathEvent.toString());
+                PeerServer.log().fine(pathEvent.toString());
                 fileSystemObserver.processFileSystemEvent(pathEvent);
             }
 
@@ -621,7 +634,7 @@ public boolean fileMatches(FileDescriptor fd) {
                     arg1.path.length() - arg0.path.length());
 
             for (FileSystemEvent pathEvent : pathEvents) {
-                PeerServer.log().info(pathEvent.toString());
+                PeerServer.log().fine(pathEvent.toString());
                 fileSystemObserver.processFileSystemEvent(pathEvent);
             }
 
@@ -634,7 +647,7 @@ public boolean fileMatches(FileDescriptor fd) {
     }
 
     private String hashFile(File file, String name, long lastModified) throws IOException {
-        PeerServer.log().info("hashing file " + name);
+        PeerServer.log().fine("hashing file " + name);
         if (lastModified != 0 && lastModified == file.lastModified()) {
             return watchedFiles.get(name).md5;
         }
@@ -664,7 +677,7 @@ public boolean fileMatches(FileDescriptor fd) {
         if (name.endsWith(loadingSuffix)) {
             if (clearFiles) {
                 if (file.delete()) {
-                    PeerServer.log().info("deleting old transfer " + file.getPath());
+                    PeerServer.log().fine("deleting old transfer " + file.getPath());
                 } else {
                     PeerServer.log().warning("failed deleting " + file.getPath());
                 }
@@ -735,7 +748,7 @@ public boolean fileMatches(FileDescriptor fd) {
     }
 
     private void modifyFile(String name, String md5, long lastModified, long fileSize) {
-        PeerServer.log().info("modified file " + name);
+        PeerServer.log().fine("modified file " + name);
         removeHash(name);
         watchedFiles.get(name).md5 = md5;
         watchedFiles.get(name).lastModified = lastModified;
@@ -744,24 +757,24 @@ public boolean fileMatches(FileDescriptor fd) {
     }
 
     private void dropFile(String name) {
-        PeerServer.log().info("dropping file " + name);
+        PeerServer.log().fine("dropping file " + name);
         removeHash(name);
         watchedFiles.remove(name);
     }
 
     private void addFile(String name, FileDescriptor fileDescriptor) {
-        PeerServer.log().info("adding file " + name);
+        PeerServer.log().fine("adding file " + name);
         addHash(fileDescriptor.md5, name);
         watchedFiles.put(name, fileDescriptor);
     }
 
     private void dropDir(String name) {
-        PeerServer.log().info("dropping directory " + name);
+        PeerServer.log().fine("dropping directory " + name);
         watchedDirectories.remove(name);
     }
 
     private void addDir(String name) {
-        PeerServer.log().info("adding new directory " + name);
+        PeerServer.log().fine("adding new directory " + name);
         watchedDirectories.add(name);
     }
 
@@ -792,8 +805,5 @@ public boolean fileMatches(FileDescriptor fd) {
 
     private String fullPath(FileDescriptor fd) {
         return root + FileSystems.getDefault().getSeparator() + separatorsToSystem(fd.pathName);
-    }
-    private String fullPath(String pathName) {
-        return root + FileSystems.getDefault().getSeparator() + separatorsToSystem(pathName);
     }
 }

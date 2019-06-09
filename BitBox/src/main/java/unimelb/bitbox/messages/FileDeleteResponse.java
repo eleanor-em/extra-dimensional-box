@@ -41,7 +41,13 @@ public class FileDeleteResponse extends Response {
                           }
                           return SUCCESS;
                       });
+
+        boolean successful = reply.equals(SUCCESS);
+        if (successful) {
+            PeerServer.log().info("Deleting file " + fd.pathName);
+        }
+
         document.append("message", reply);
-        document.append("status", reply.equals(SUCCESS));
+        document.append("status", successful);
     }
 }

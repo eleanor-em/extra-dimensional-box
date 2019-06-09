@@ -82,7 +82,7 @@ public abstract class Peer {
         // Don't do anything if we're not waiting to be activated.
         if (state.compareAndSet(PeerState.WAIT_FOR_RESPONSE, PeerState.ACTIVE)
                 || state.compareAndSet(PeerState.WAIT_FOR_REQUEST, PeerState.ACTIVE)) {
-            PeerServer.log().info("Activating " + getForeignName());
+            PeerServer.log().fine("Activating " + getForeignName());
 
             // Add to our tracker
             KnownPeerTracker.addAddress(localHostPort, hostPort);
@@ -127,7 +127,7 @@ public abstract class Peer {
      * @param port      the port of the peer
      */
     Peer(String name, PeerType type, String host, int port, OutgoingConnection outConn) {
-        PeerServer.log().info("Peer created: " + name + " @ " + host + ":" + port);
+        PeerServer.log().fine("Peer created: " + name + " @ " + host + ":" + port);
         this.name = name;
         this.type = type;
 
@@ -189,7 +189,7 @@ public abstract class Peer {
         }
 
         message.setFriendlyName(name + "-" + PeerServer.hostPort());
-        PeerServer.log().info(getForeignName() + " sent: " + message.getCommand().map(MessageType::toString).orElse("<UNKNOWN>"));
+        PeerServer.log().fine(getForeignName() + " sent: " + message.getCommand().map(MessageType::toString).orElse("<UNKNOWN>"));
         outConn.addMessage(new OutgoingMessage(message.networkEncode(), onSent));
     }
 

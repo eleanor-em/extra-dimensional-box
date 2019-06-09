@@ -37,7 +37,8 @@ public class FileTransfer {
         if (waitingToSend) {
             waitingToSend = false;
             peer.sendMessage(new FileBytesRequest(fileDescriptor.pathName, fileDescriptor, 0));
-            PeerServer.log().info(peer.getForeignName() + ": sent FILE_BYTES_REQUEST for " +
+            PeerServer.log().info("Beginning download of " + fileDescriptor.pathName + " (" + fileDescriptor.humanFileSize() + ")");
+            PeerServer.log().fine(peer.getForeignName() + ": sent FILE_BYTES_REQUEST for " +
                                    fileDescriptor.pathName + " at position: [0/" + fileDescriptor.fileSize + "]");
         } else {
             PeerServer.log().severe("Tried to send initial request, but was already sent");

@@ -30,7 +30,13 @@ public class DirectoryDeleteResponse extends Response {
                 reply = "there was a problem deleting the directory: " + e.getMessage();
             }
         }
+
+        boolean successful = reply.equals(SUCCESS);
+        if (successful) {
+            PeerServer.log().info("Deleted directory " + pathName);
+        }
+
         document.append("message", reply);
-        document.append("status", reply.equals(SUCCESS));
+        document.append("status", successful);
     }
 }
