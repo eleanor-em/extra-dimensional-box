@@ -30,6 +30,9 @@ public class FileDeleteResponse extends Response {
                               if (!PeerServer.fsManager().isSafePathName(fd.pathName)) {
                                   return "unsafe pathname given";
                               }
+                              if (!PeerServer.fsManager().fileExists(fd)) {
+                                  return "file does not exist";
+                              }
                               try {
                                   PeerServer.fsManager().deleteFile(fd);
                               } catch (FileManagerException e) {

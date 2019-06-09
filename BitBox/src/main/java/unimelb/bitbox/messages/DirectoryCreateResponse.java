@@ -27,7 +27,7 @@ public class DirectoryCreateResponse extends Response {
             try {
                 PeerServer.fsManager().makeDirectory(pathName);
             } catch (FileManagerException e) {
-                reply = "there was a problem creating the directory";
+                reply = "there was a problem creating the directory: " + e.getMessage();
             }
         }
 

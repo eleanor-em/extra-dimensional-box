@@ -11,7 +11,7 @@ public class FileBytesRequest extends Message {
     public FileBytesRequest(String pathName, FileDescriptor fileDescriptor, long position) {
         super("BYTES:" + fileDescriptor + ":" + position);
 
-        long length = Math.min(fileDescriptor.fileSize - position, PeerServer.getMaximumLength());
+        long length = Math.min(fileDescriptor.fileSize - position, PeerServer.maxBlockSize());
 
         document.append("command", MessageType.FILE_BYTES_REQUEST);
         document.append("fileDescriptor", fileDescriptor);

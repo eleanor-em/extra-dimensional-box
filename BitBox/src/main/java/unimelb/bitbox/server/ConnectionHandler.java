@@ -39,7 +39,7 @@ public abstract class ConnectionHandler {
     private final ExecutorService executor = Executors.newCachedThreadPool();
 
     ConnectionHandler() {
-        port = PeerServer.getHostPort().port;
+        port = PeerServer.hostPort().port;
         createNames();
 
         executor.submit(this::connectToPeers);

@@ -10,7 +10,7 @@ public class HandshakeResponse extends Response {
         peer.activate(hostPort);
 
         document.append("command", MessageType.HANDSHAKE_RESPONSE);
-        document.append("hostPort", PeerServer.getHostPort().toJSON());
+        document.append("hostPort", PeerServer.hostPort().toJSON());
     }
 
     @Override

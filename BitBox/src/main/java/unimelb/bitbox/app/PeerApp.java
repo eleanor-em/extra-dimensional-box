@@ -17,12 +17,12 @@ public class PeerApp
     	System.setProperty("java.util.logging.SimpleFormatter.format",
                 "[%1$tc] %2$s %4$s: %5$s%n");
         log.info("BitBox Peer starting...");
-        
+
         try {
             PeerServer.initialise();
         } catch (Exception e) {
+            log.severe("failed initialising server");
             e.printStackTrace();
-            System.exit(2);
         }
     }
 }

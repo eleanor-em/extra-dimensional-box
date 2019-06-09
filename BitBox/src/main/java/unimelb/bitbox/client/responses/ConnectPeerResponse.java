@@ -23,7 +23,7 @@ class ConnectPeerResponse extends ClientResponse {
         final String SUCCESS = "connected to peer";
         String reply = SUCCESS;
 
-        if (!PeerServer.getConnection().clientTryPeer(hostPort)){
+        if (!PeerServer.connection().clientTryPeer(hostPort)){
             PeerServer.log().warning("target peer is not reachable. Failed to connect to " + hostPort);
             reply = "connection failed";
         }

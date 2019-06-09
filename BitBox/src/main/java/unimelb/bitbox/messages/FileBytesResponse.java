@@ -5,6 +5,7 @@ import unimelb.bitbox.util.fs.FileDescriptor;
 import unimelb.bitbox.util.network.FilePacket;
 
 import java.util.Base64;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class FileBytesResponse extends Response {
@@ -31,21 +32,29 @@ public class FileBytesResponse extends Response {
 
     @Override
     void onSent() {
-        AtomicReference<String> content = new AtomicReference<>();
+        AtomicReference<String> content = new AtomicReference<>("");
+        AtomicBoolean shouldRetry = new AtomicBoolean(true);
+
         String reply = PeerServer.fsManager().readFile(fileDescriptor.md5, position, length)
-                              .matchThen(error -> {
+                                 .matchThen(error -> {
                                           PeerServer.log().warning(peer + ": failed reading bytes of file " + pathName +
                                                                 " at [" + position + "/" + fileDescriptor.fileSize + "]: "
                                                                 + error.getMessage());
                                           return "failed to read bytes: " + error.getMessage();
-                                      }, byteBuffer -> {
-                                          content.set(Base64.getEncoder().encodeToString(byteBuffer.array()));
-                                          return SUCCESS;
-                                      });
+                                      }, maybeBuffer -> maybeBuffer.matchThen(
+                                              byteBuffer -> {
+                                                  content.set(Base64.getEncoder().encodeToString(byteBuffer.array()));
+                                                  return SUCCESS;
+                                              },
+                                              () -> {
+                                                  shouldRetry.set(false);
+                                                  return "file not found";
+                                              }));
 
         boolean successful = reply.equals(SUCCESS);
         document.append("content", content.get());
         document.append("message", reply);
         document.append("status", successful);
+        document.append("retry", shouldRetry.get());
     }
 }

@@ -10,8 +10,8 @@ import unimelb.bitbox.util.config.CfgEnumValue;
 import unimelb.bitbox.util.config.CfgValue;
 import unimelb.bitbox.util.config.Configuration;
 import unimelb.bitbox.util.fs.FileDescriptor;
+import unimelb.bitbox.util.fs.FileSystemEvent;
 import unimelb.bitbox.util.fs.FileSystemManager;
-import unimelb.bitbox.util.fs.FileSystemManager.FileSystemEvent;
 import unimelb.bitbox.util.fs.FileSystemObserver;
 import unimelb.bitbox.util.network.HostPort;
 
@@ -28,7 +28,6 @@ enum ConnectionMode {
 }
 
 public class PeerServer implements FileSystemObserver {
-
     /* Configuration values */
     private final CfgValue<Long> udpBlockSize = CfgValue.createLong("udpBlockSize");
     private final CfgValue<String> advertisedName = CfgValue.create("advertisedName");
@@ -55,15 +54,15 @@ public class PeerServer implements FileSystemObserver {
         return get().log;
     }
 
-    public static long getMaximumLength() {
+    public static long maxBlockSize() {
         return get().mode.get() == ConnectionMode.TCP
                 ? get().blockSize.get()
                 : get().udpBlockSize.get();
     }
-    public static HostPort getHostPort() {
+    public static HostPort hostPort() {
         return get().hostPort.get();
     }
-    public static ConnectionHandler getConnection() {
+    public static ConnectionHandler connection() {
         return get().connection;
     }
 
@@ -120,7 +119,7 @@ public class PeerServer implements FileSystemObserver {
         new PeerServer();
     }
 
-    private static PeerServer get() {
+    public static PeerServer get() {
         if (INSTANCE == null) {
             throw new RuntimeException("No peer server exists");
         }
@@ -133,7 +132,7 @@ public class PeerServer implements FileSystemObserver {
         // Create the file system manager
         CfgValue<String> path = CfgValue.create("path");
         path.setOnChanged(() -> log.warning("Path was changed in config, but will not be updated until restart"));
-        fileSystemManager = new FileSystemManager(path.get(), this);
+        fileSystemManager = new FileSystemManager(path.get());
 
 		// Create the processor thread
         KeepAlive.submit(processor);

@@ -17,7 +17,7 @@ public class FilePacket {
     public FilePacket(Peer peer, FileDescriptor fileDescriptor, long position, long length) {
         transfer = new FileTransfer(peer, fileDescriptor);
         this.position = position;
-        this.length = Math.min(PeerServer.getMaximumLength(), length);
+        this.length = Math.min(PeerServer.maxBlockSize(), length);
     }
 
     public Peer peer() {
@@ -44,7 +44,6 @@ public class FilePacket {
     }
 
     public void writeData(ByteBuffer decoded) throws IOException {
-        PeerServer.fsManager().createIfNotLoading(pathName(), transfer.fileDescriptor);
         PeerServer.fsManager().writeFile(pathName(), decoded, position);
     }
 }

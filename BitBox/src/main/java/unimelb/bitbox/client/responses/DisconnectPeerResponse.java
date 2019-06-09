@@ -21,9 +21,9 @@ class DisconnectPeerResponse extends ClientResponse {
         response.append("command", "DISCONNECT_PEER_RESPONSE");
 
         final String SUCCESS = "disconnected from peer";
-        String reply = PeerServer.getConnection().getPeer(hostPort).matchThen(
+        String reply = PeerServer.connection().getPeer(hostPort).matchThen(
                 peer -> {
-                    PeerServer.getConnection().closeConnection(peer);
+                    PeerServer.connection().closeConnection(peer);
                     return SUCCESS;
                 },
                 () -> "connection not active"

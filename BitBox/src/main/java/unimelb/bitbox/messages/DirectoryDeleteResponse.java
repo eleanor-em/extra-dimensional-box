@@ -22,12 +22,12 @@ public class DirectoryDeleteResponse extends Response {
         if (!PeerServer.fsManager().isSafePathName(pathName)) {
             reply = "unsafe pathname given";
         } else if (!PeerServer.fsManager().dirNameExists(pathName)) {
-            reply = "pathname does not exist";
+            reply = "directory does not exist";
         } else {
             try {
                 PeerServer.fsManager().deleteDirectory(pathName);
             } catch (FileManagerException e) {
-                reply = "there was a problem deleting the directory";
+                reply = "there was a problem deleting the directory: " + e.getMessage();
             }
         }
         document.append("message", reply);

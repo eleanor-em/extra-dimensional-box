@@ -30,12 +30,12 @@ public class FileModifyResponse extends Response {
             } else if (PeerServer.fsManager().fileMatches(fd)) {
                 reply = "file already exists with matching content";
             } else if (!PeerServer.fsManager().fileExists(fd)) {
-                reply = "pathname does not exist";
+                reply = "file does not exist";
             } else {
                 PeerServer.fsManager().modifyFileLoader(fd);
             }
         } catch (IOException e) {
-            reply = "there was a problem modifying the file";
+            reply = "there was a problem modifying the file: " + e.getMessage();
         }
 
         boolean successful = reply.equals(SUCCESS);

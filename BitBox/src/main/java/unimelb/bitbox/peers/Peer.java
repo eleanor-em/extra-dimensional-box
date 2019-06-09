@@ -148,7 +148,7 @@ public abstract class Peer {
         state.set(PeerState.CLOSED);
 
         PeerServer.log().warning("Connection to peer `" + getForeignName() + "` closed.");
-        PeerServer.getConnection().closeConnection(this);
+        PeerServer.connection().closeConnection(this);
         synchronized (onClose) {
             onClose.forEach(Runnable::run);
         }
@@ -187,7 +187,7 @@ public abstract class Peer {
             requestSent(message);
         }
 
-        message.setFriendlyName(name + "-" + PeerServer.getHostPort());
+        message.setFriendlyName(name + "-" + PeerServer.hostPort());
         PeerServer.log().info(getForeignName() + " sent: " + message.getCommand().map(MessageType::toString).orElse("<UNKNOWN>"));
         outConn.addMessage(new OutgoingMessage(message.networkEncode(), onSent));
     }

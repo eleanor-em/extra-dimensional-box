@@ -135,10 +135,14 @@ public class MessageProcessor implements Runnable  {
 
                 if (document.getBoolean("status").get()) {
                     PeerServer.rwManager().writeFile(packet.get(), content);
-                } else {
-                    // Let's try to read the bytes again!
-                    PeerServer.log().info("Retrying byte request for " + pathName);
-                    peer.sendMessage(FileBytesRequest.retry(response));
+                } else if (PeerServer.fsManager().fileLoading(fileDescriptor.get())) {
+                    if (document.getBoolean("retry").orElse(false)) {
+                        // Let's try to read the bytes again!
+                        PeerServer.log().info("Retrying byte request for " + pathName);
+                        peer.sendMessage(FileBytesRequest.retry(response));
+                    } else {
+                        PeerServer.fsManager().cancelFileLoader(fileDescriptor.get());
+                    }
                 }
                 break;
 
@@ -148,7 +152,7 @@ public class MessageProcessor implements Runnable  {
             case HANDSHAKE_REQUEST:
                 PeerServer.log().info("Received connection request from " + hostPort.get());
 
-                if (PeerServer.getConnection().getOutgoingAddresses().contains(hostPort.get())) {
+                if (PeerServer.connection().getOutgoingAddresses().contains(hostPort.get())) {
                     PeerServer.log().warning("Already connected to " + hostPort.get());
                     peer.close();
                 } else {
@@ -173,10 +177,10 @@ public class MessageProcessor implements Runnable  {
                 for (JSONDocument peerHostPort : peers.get()) {
                     HostPort.fromJSON(peerHostPort)
                             .ok(address -> {
-                                PeerServer.getConnection().addPeerAddress(address);
+                                PeerServer.connection().addPeerAddress(address);
                                 PeerServer.log().info("Added peer `" + address + "`");
                             });
-                    PeerServer.getConnection().retryPeers();
+                    PeerServer.connection().retryPeers();
                 }
                 break;
 

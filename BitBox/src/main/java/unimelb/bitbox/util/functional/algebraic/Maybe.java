@@ -19,6 +19,7 @@ package unimelb.bitbox.util.functional.algebraic;
 
 import org.jetbrains.annotations.Nullable;
 import unimelb.bitbox.util.functional.combinator.Combinators;
+import unimelb.bitbox.util.functional.combinator.Curried;
 import unimelb.bitbox.util.functional.throwing.ThrowingConsumer;
 import unimelb.bitbox.util.functional.throwing.ThrowingFunction;
 import unimelb.bitbox.util.functional.throwing.ThrowingRunnable;
@@ -281,6 +282,22 @@ public abstract class Maybe<V> implements ThrowingSupplier<V, IllegalStateExcept
     public abstract int hashCode();
 
     public abstract String toString();
+
+    public V orElse(V b) {
+        return matchThen(
+                Combinators::id,
+                Curried.id(b)
+        );
+    }
+
+    public void ok(Consumer<V> consumer) {
+        match(consumer, Combinators::noop);
+    }
+    public <E extends Exception> void okT(ThrowingConsumer<V, E> consumer) throws E {
+        if (isJust()) {
+            consumer.accept(get());
+        }
+    }
 
     /**
      * The class representing an absent value.

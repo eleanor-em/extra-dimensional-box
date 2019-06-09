@@ -12,7 +12,7 @@ class ListPeersResponse extends ClientResponse {
 
     ListPeersResponse() {
         response.append("command", "LIST_PEERS_RESPONSE");
-        response.append("peers", PeerServer.getConnection().getActivePeers()
+        response.append("peers", PeerServer.connection().getActivePeers()
                                             .stream()
                                             .map(peer -> peer.getHostPort().toJSON())
                                             .collect(Collectors.toList()));
