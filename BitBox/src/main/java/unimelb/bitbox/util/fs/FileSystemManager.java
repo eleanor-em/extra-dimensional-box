@@ -352,7 +352,11 @@ public final class FileSystemManager extends Thread {
                 FileManagerException.check(loadingFiles.containsKey(fullPathName), "file loader not found");
                 return loadingFiles.get(fullPathName).map(loader -> {
                     try {
-                        return f.apply(loader);
+                        boolean result = f.apply(loader);
+                        if (result) {
+                            loadingFiles.close(fullPathName);
+                        }
+                        return result;
                     } catch (IOException e) {
                         try {
                             loadingFiles.close(fullPathName);
@@ -523,6 +527,7 @@ public final class FileSystemManager extends Thread {
                 channel.close();
                 FileManagerException.check(file.delete(), "Failed deleting file " + fileDescriptor.pathName);
             }
+
         }
 
         boolean checkShortcut() throws IOException {
@@ -561,8 +566,6 @@ public final class FileSystemManager extends Thread {
             String currentMd5 = hashRandomAccess(fileDescriptor.pathName, channel);
             PeerServer.log().info("compare: " + currentMd5 + " // " + fileDescriptor.md5);
             if (currentMd5.equals(fileDescriptor.md5)) {
-                cancel();
-
                 File dest = new File(fileDescriptor.pathName);
                 if (dest.exists()) {
                     FileManagerException.check(dest.delete(), "failed deleting existing file " + dest.getPath());
