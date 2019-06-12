@@ -23,7 +23,7 @@ import java.util.stream.Stream;
  */
 public class ReadWriteManager {
     private final ExecutorService executor = Executors.newCachedThreadPool();
-    private final Set<FileTransfer> transfers = ConcurrentHashMap.newKeySet();
+    private final Set<FileTransfer> downloads = ConcurrentHashMap.newKeySet();
 
     /**
      * Initiate a transfer.
@@ -31,7 +31,7 @@ public class ReadWriteManager {
      */
     private void addFile(FileTransfer ft) {
         // Check for existing transfers of the same file
-        for (Iterator<FileTransfer> it = transfers.iterator(); it.hasNext();) {
+        for (Iterator<FileTransfer> it = downloads.iterator(); it.hasNext();) {
             FileTransfer existing = it.next();
             if (existing.pathName().equals(ft.pathName())) {
                 // If the existing transfer is for an older version, cancel it. Otherwise, cancel the new transfer
@@ -45,20 +45,21 @@ public class ReadWriteManager {
             }
         }
 
-        transfers.add(ft);
+        downloads.add(ft);
         ft.sendInitialBytesRequest();
     }
+
     public void addFile(Peer peer, FileDescriptor fd) {
         addFile(new FileTransfer(peer, fd));
     }
+
 
     /**
      * Read the provided chunk of the provided file, and send FILE_BYTES_RESPONSE to the peer
      */
     public void readFile(FilePacket packet) {
-        executor.execute(new ReadWorker(packet));
+        executor.execute(packet::sendBytesResponse);
     }
-
     /**
      * Write the provided chunk to the provided file, and send another FILE_BYTES_REQUEST if necessary
      * @param content   the actual bytes to write, encoded in base 64
@@ -72,8 +73,12 @@ public class ReadWriteManager {
         AtomicReference<Long> totalDone = new AtomicReference<>(0L);
 
         StringBuilder inProgress = new StringBuilder();
-        transfers.forEach(ft -> {
+        downloads.forEach(ft -> {
             float completion = ft.getCompletion();
+            if (completion == 0) {
+                ft.sendInitialBytesRequest();
+            }
+
             totalDone.updateAndGet(v -> v + (long) (completion / 100 * ft.fileDescriptor.fileSize));
             totalWaiting.updateAndGet(v -> v + ft.fileDescriptor.fileSize);
 
@@ -128,7 +133,10 @@ public class ReadWriteManager {
                       .ok(res -> {
                           // If the write isn't finished, send another request
                           if (res) {
-                              cancelFile(packet);
+                              downloads.remove(packet.transfer);
+                              if (downloads.isEmpty()) {
+                                  PeerServer.log().info("All downloads complete!");
+                              }
                               PeerServer.log().fine(packet.peer().getForeignName() + ": received all bytes for " + packet.pathName() + ": file transfer successful");
                           } else {
                               packet.sendBytesRequest();
@@ -141,41 +149,43 @@ public class ReadWriteManager {
         }
     }
 
-    private static class ReadWorker implements Runnable {
-        private final FilePacket packet;
-        ReadWorker(FilePacket packet) {
-            this.packet = packet;
-        }
-
-        @Override
-        public void run() {
-            packet.  sendBytesResponse();
-        }
-    }
-
     private void updateFile(FilePacket packet) {
-        transfers.forEach(ft -> {
+        downloads.forEach(ft -> {
             if (ft.equals(packet.transfer)) {
                 ft.updatePacket(packet);
             }
         });
     }
 
-    private void cancelFile(FilePacket packet) {
-        if (!transfers.remove(packet.transfer)) {
-            PeerServer.log().warning("tried to remove " + packet.transfer + " but was not found");
-        }
+    public void cancelFile(FileDescriptor fd) {
+        downloads.stream()
+                 .filter(transfer -> transfer.fileDescriptor.equals(fd))
+                 .findFirst()
+                 .ifPresent(this::cancelFile);
+    }
 
-        if (transfers.isEmpty()) {
-            PeerServer.log().info("All downloads complete!");
+    private void cancelFile(FilePacket packet) {
+        cancelFile(packet.transfer);
+    }
+
+    private void cancelFile(FileTransfer transfer) {
+        PeerServer.fsManager().cancelFileLoader(transfer);
+
+        if (!downloads.remove(transfer)) {
+            PeerServer.log().warning("tried to remove " + transfer + " but was not found");
+        } else {
+            PeerServer.log().info("Removed download of " + transfer.pathName() + ".");
+            if (downloads.isEmpty()) {
+                PeerServer.log().info("All downloads complete!");
+            }
         }
     }
 
     private void cancelPeerFiles(Peer peer) {
-        Stream<FileTransfer> toRemove = transfers.stream().filter(ft -> ft.peer.equals(peer));
+        Stream<FileTransfer> toRemove = downloads.stream().filter(ft -> ft.peer == peer);
         // Clear any file transfers associated with this peer
         toRemove.forEach(ft -> {
-            transfers.remove(ft);
+            downloads.remove(ft);
             PeerServer.fsManager().cancelFileLoader(ft)
                     .ok(res -> {
                         if (res) {

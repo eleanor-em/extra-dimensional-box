@@ -57,7 +57,7 @@ class UDPConnectionHandler extends ConnectionHandler {
                     connectedPeer.get().receiveMessage(packetData);
                 } else {
                     // Otherwise, send CONNECTION_REFUSED
-                    Message message = new ConnectionRefused(getActivePeers());
+                    Message message = new ConnectionRefused("connection list full");
                     byte[] responseBuffer = message.networkEncode().getBytes(StandardCharsets.UTF_8);
                     packet.setData(responseBuffer);
                     packet.setLength(responseBuffer.length);

@@ -136,6 +136,19 @@ public abstract class Maybe<V> implements ThrowingSupplier<V, IllegalStateExcept
     }
 
     /**
+     * Decide control flow based on the structure of the Maybe.
+     *
+     * @param some the operation to perform on the contained value if there is one
+     * @param none the operation to perform if there is no contained value
+     */
+    public <E extends Exception> void matchT(ThrowingConsumer<? super V, ? extends E> some, ThrowingRunnable<? extends E> none)
+            throws E {
+        unsafeMatch(
+                some::accept,
+                none::run);
+    }
+
+    /**
      * Applies the mapping function if there is a contained value, returning the result in a Maybe.
      * This is guaranteed to produce a Maybe of the same structure.
      *

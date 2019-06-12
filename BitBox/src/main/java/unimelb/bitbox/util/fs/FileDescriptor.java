@@ -5,14 +5,10 @@ import unimelb.bitbox.util.network.IJSONData;
 import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.JSONException;
 
-import javax.print.DocFlavor;
-import java.io.File;
-
 /**
  * Additional information about a given file.
  */
 public class FileDescriptor implements IJSONData {
-    // TODO: Add method to return a JSON representation with the pathname
     /**
      * Timestamp of the last modification time of the file.
      */

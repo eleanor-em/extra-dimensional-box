@@ -45,7 +45,7 @@ import java.util.function.Predicate;
  *
  * @author Aaron Harwood
  * @author Andrew Linxi Wang (contributions to Windows compatibility)
- * @author Eleanor McMurtry (improvements to error reporting, fix modify loader, remove old failed transfers)
+ * @author Eleanor McMurtry (bug fixes, error reporting improvements, synchronization optimisation)
  */
 public final class FileSystemManager extends Thread {
     /**
@@ -250,7 +250,7 @@ public final class FileSystemManager extends Thread {
     public void writeFile(String pathName, ByteBuffer src, long position) throws IOException {
         pathName = separatorsToSystem(pathName);
         String fullPathName = root + FileSystems.getDefault().getSeparator() + pathName;
-        FileManagerException.check(loadingFiles.containsKey(fullPathName), "File " + pathName + " does not exist");
+        FileManagerException.check(loadingFiles.containsKey(fullPathName), "file loader for " + pathName + " not open");
         loadingFiles.get(fullPathName).okT(loader -> loader.writeFile(src, position));
     }
 
@@ -329,7 +329,7 @@ public final class FileSystemManager extends Thread {
     private Result<IOException, Boolean> check(String pathName, ThrowingFunction<? super FileLoader, Boolean, ? extends IOException> f) {
         return Result.of(() -> {
             String fullPathName = root + FileSystems.getDefault().getSeparator() + separatorsToSystem(pathName);
-            FileManagerException.check(loadingFiles.containsKey(fullPathName), "file loader not found");
+            FileManagerException.check(loadingFiles.containsKey(fullPathName), "file loader for " + pathName + " not open");
             return loadingFiles.get(fullPathName).map(loader -> {
                 try {
                     boolean result = f.apply(loader);
@@ -376,6 +376,7 @@ public final class FileSystemManager extends Thread {
                 "Unexpected content for " + pathName);
         loadingFiles.add(fullPathName, new FileDescriptor(fullPathName, lastModified, md5, newFileSize));
     }
+
     public void modifyFileLoader(FileDescriptor fd) throws IOException {
         modifyFileLoader(fd.pathName, fd.md5, fd.lastModified, fd.fileSize);
     }
@@ -401,9 +402,7 @@ public final class FileSystemManager extends Thread {
             return false;
         });
     }
-    public Result<IOException, Boolean> cancelFileLoader(FileDescriptor fd) {
-        return cancelFileLoader(fd.pathName);
-    }
+
     public Result<IOException, Boolean> cancelFileLoader(FileTransfer ft) {
         return cancelFileLoader(ft.pathName());
     }

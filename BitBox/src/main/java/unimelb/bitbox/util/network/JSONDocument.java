@@ -56,8 +56,10 @@ public class JSONDocument {
     public JSONDocument append(String key, Iterable<?> val) {
         JSONArray list = new JSONArray();
         for (Object o : val){
-            if(o instanceof JSONDocument){
+            if (o instanceof JSONDocument){
                 list.add(((JSONDocument)o).obj);
+            } else if (o instanceof IJSONData) {
+                list.add(((IJSONData) o).toJSON().obj);
             } else {
                 list.add(o);
             }
@@ -94,7 +96,9 @@ public class JSONDocument {
         other.obj.forEach(obj::put);
         return this;
     }
-
+    public JSONDocument join(IJSONData other) {
+        return join(other.toJSON());
+    }
     public boolean isEmpty() {
         return obj.isEmpty();
     }

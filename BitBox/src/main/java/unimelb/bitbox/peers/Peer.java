@@ -1,7 +1,6 @@
 package unimelb.bitbox.peers;
 
 import unimelb.bitbox.messages.Message;
-import unimelb.bitbox.messages.MessageType;
 import unimelb.bitbox.messages.ReceivedMessage;
 import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.network.HostPort;
@@ -14,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 enum PeerState {
@@ -29,6 +29,10 @@ enum PeerState {
  * this queue. The IncomingConnectionTCP relays messages to the ServerThread's queue.
  */
 public abstract class Peer {
+    // Identification number
+    private static AtomicInteger numPeers = new AtomicInteger();
+    private final int id;
+
     // Data
     private final String name;
     private PeerType type;
@@ -130,6 +134,7 @@ public abstract class Peer {
         PeerServer.log().fine("Peer created: " + name + " @ " + host + ":" + port);
         this.name = name;
         this.type = type;
+        id = numPeers.incrementAndGet();
 
         localHostPort = new HostPort(host, port);
         hostPort = localHostPort;
@@ -167,6 +172,9 @@ public abstract class Peer {
     public final void sendMessage(Message message) {
         sendMessage(message, () -> {});
     }
+    public final void sendMessage(Message message, Runnable onSent) {
+        sendMessageInternal(message, onSent);
+    }
 
     /**
      * Send a message to this peer, then close the peer.
@@ -175,9 +183,6 @@ public abstract class Peer {
         sendMessage(message, this::close);
     }
 
-    private void sendMessage(Message message, Runnable onSent) {
-        sendMessageInternal(message, onSent);
-    }
 
     private void sendMessageInternal(Message message, Runnable onSent) {
         if (state.get() == PeerState.CLOSED) {
@@ -189,7 +194,7 @@ public abstract class Peer {
         }
 
         message.setFriendlyName(name + "-" + PeerServer.hostPort());
-        PeerServer.log().fine(getForeignName() + " sent: " + message.getCommand().map(MessageType::toString).orElse("<UNKNOWN>"));
+        PeerServer.log().fine(getForeignName() + " sent: " + message.getSummary());
         outConn.addMessage(new OutgoingMessage(message.networkEncode(), onSent));
     }
 
@@ -229,12 +234,6 @@ public abstract class Peer {
         }
 
         return name + " @ " + address;
-    }
-
-    @Override
-    public boolean equals(Object other) {
-        return other instanceof Peer && ((Peer) other).hostPort.fuzzyEquals(hostPort)
-                                     && ((Peer) other).name.equals(name);
     }
 }
 

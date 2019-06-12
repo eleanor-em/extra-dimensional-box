@@ -5,10 +5,7 @@ import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.util.concurrency.DelayedInitialiser;
 import unimelb.bitbox.util.config.CfgValue;
 import unimelb.bitbox.util.functional.algebraic.Maybe;
-import unimelb.bitbox.util.network.HostPort;
-import unimelb.bitbox.util.network.ISocket;
-import unimelb.bitbox.util.network.TCPSocket;
-import unimelb.bitbox.util.network.UDPSocket;
+import unimelb.bitbox.util.network.*;
 
 import java.io.IOException;
 import java.net.DatagramSocket;
@@ -18,7 +15,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-public abstract class ConnectionHandler {
+public abstract class ConnectionHandler implements IJSONData {
     // Settings
     private static final int PEER_RETRY_TIME = 60;
     private static final String DEFAULT_NAME = "Anonymous";
@@ -84,13 +81,16 @@ public abstract class ConnectionHandler {
         peerAddresses.removeIf(addr -> tryPeer(addr).isJust());
     }
 
-    Collection<HostPort> getOutgoingAddresses() {
-        synchronized (peers) {
-            return peers.stream()
-                    .filter(Peer::getOutgoing)
-                    .map(Peer::getHostPort)
-                    .collect(Collectors.toList());
-        }
+    /**
+     * Returns a JSONDocument containing a field "peers" with a list of all active peers' HostPorts.
+     */
+    public JSONDocument toJSON() {
+        JSONDocument doc = new JSONDocument();
+        doc.append("peers", peers.stream()
+                                .filter(Peer::isActive)
+                                .map(Peer::getHostPort)
+                                .collect(Collectors.toList()));
+        return doc;
     }
 
     // TODO: Make this wait for the actual connection to exist

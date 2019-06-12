@@ -40,7 +40,7 @@ class TCPConnectionHandler extends ConnectionHandler {
                     // if not, write a CONNECTION_REFUSED message and close the connection
                     try (BufferedWriter out = new BufferedWriter(
                             new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8))) {
-                        out.write(new ConnectionRefused(getActivePeers()).networkEncode());
+                        out.write(new ConnectionRefused("connection list full").networkEncode());
                         out.flush();
                         PeerServer.log().fine("Sending CONNECTION_REFUSED");
                     } catch (IOException e) {

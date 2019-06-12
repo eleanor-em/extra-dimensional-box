@@ -69,7 +69,7 @@ public class MessageProcessor implements Runnable  {
             throws JSONException {
         Maybe<Message> parsedResponse = Maybe.nothing();
 
-        // Look up some data for later: these are used for multiple cases
+        // Look up the data for each handler. These are only used if required for the specific handler
         Result<JSONException, String> pathName = document.getString("pathName");
         Result<JSONException, FileDescriptor> fileDescriptor = pathName.andThen(name ->
                                                                         document.getJSON("fileDescriptor")
@@ -81,13 +81,12 @@ public class MessageProcessor implements Runnable  {
                                                                           length.andThen(len ->
                                                                           Result.value(new FilePacket(peer, fd, pos, len))
                                                                           )));
+        Result<JSONException, String> content = document.getString("content");
         Result<JSONException, HostPort> hostPort = document.getJSON("hostPort")
                                                            .andThen(HostPort::fromJSON);
 
         switch (command) {
-            /*
-             * File and directory requests
-             */
+            /* Trivial requests */
             case FILE_CREATE_REQUEST:
                 peer.sendMessage(new FileCreateResponse(fileDescriptor.get(), peer));
                 break;
@@ -100,18 +99,13 @@ public class MessageProcessor implements Runnable  {
             case FILE_DELETE_REQUEST:
                 peer.sendMessage(new FileDeleteResponse(fileDescriptor.get(), peer));
                 break;
-
             case DIRECTORY_CREATE_REQUEST:
                 peer.sendMessage(new DirectoryCreateResponse(pathName.get(), peer));
                 break;
-
             case DIRECTORY_DELETE_REQUEST:
                 peer.sendMessage(new DirectoryDeleteResponse(pathName.get(), peer));
                 break;
-
-            /*
-             * File and directory responses
-             */
+            /* Trivial responses */
             case FILE_CREATE_RESPONSE:
                 parsedResponse = Maybe.just(new FileCreateResponse(fileDescriptor.get(), peer));
                 break;
@@ -127,41 +121,41 @@ public class MessageProcessor implements Runnable  {
             case DIRECTORY_DELETE_RESPONSE:
                 parsedResponse = Maybe.just(new DirectoryDeleteResponse(pathName.get(), peer));
                 break;
+            case HANDSHAKE_RESPONSE:
+                parsedResponse = Maybe.just(new HandshakeResponse(peer, hostPort.get()));
+                break;
 
+            // Write the received bytes, if we're downloading the file
             case FILE_BYTES_RESPONSE:
-                final String content = document.getString("content").get();
                 final FileBytesResponse response = new FileBytesResponse(packet.get());
                 parsedResponse = Maybe.just(response);
 
-                if (document.getBoolean("status").get()) {
-                    PeerServer.rwManager().writeFile(packet.get(), content);
-                } else if (PeerServer.fsManager().fileLoading(fileDescriptor.get())) {
-                    if (document.getBoolean("retry").orElse(false)) {
-                        // Let's try to read the bytes again!
-                        PeerServer.log().fine("Retrying byte request for " + pathName);
+                if (PeerServer.fsManager().fileLoading(fileDescriptor.get())) {
+                    if (document.getBoolean("status").get()) {
+                        PeerServer.rwManager().writeFile(packet.get(), content.get());
+                    } else if (document.getBoolean("retry").orElse(false)) {
+                        // If the request failed for a random reason, let's request the bytes again!
+                        PeerServer.log().fine("retrying byte request for " + pathName);
                         peer.sendMessage(FileBytesRequest.retry(response));
                     } else {
-                        PeerServer.fsManager().cancelFileLoader(fileDescriptor.get());
+                        // If the request failed for a permanent reason, just give up for now
+                        PeerServer.rwManager().cancelFile(fileDescriptor.get());
                     }
                 }
                 break;
 
-            /*
-             * Handshake request and responses
-             */
+            // If we get a handshake request, check this is a new connection
             case HANDSHAKE_REQUEST:
-                PeerServer.log().fine("Received connection request from " + hostPort.get());
+                PeerServer.log().fine("received connection request from " + hostPort.get());
 
-                if (PeerServer.connection().getOutgoingAddresses().contains(hostPort.get())) {
-                    PeerServer.log().warning("Already connected to " + hostPort.get());
+                if (PeerServer.connection().getPeer(hostPort.get())
+                                           .map(existing -> peer != existing)
+                                           .orElse(false)) {
+                    PeerServer.log().warning("already connected to " + hostPort.get());
                     peer.close();
                 } else {
                     peer.sendMessage(new HandshakeResponse(peer, hostPort.get()));
                 }
-                break;
-
-            case HANDSHAKE_RESPONSE:
-                parsedResponse = Maybe.just(new HandshakeResponse(peer, hostPort.get()));
                 break;
 
             case CONNECTION_REFUSED:
@@ -169,7 +163,7 @@ public class MessageProcessor implements Runnable  {
                     // why did they send this to us..?
                     invalidProtocolResponse(peer, "unexpected CONNECTION_REFUSED");
                 }
-                PeerServer.log().warning("Connection refused: " + document.getString("message").get());
+                PeerServer.log().warning("connection refused: " + document.getString("message").get());
                 peer.close();
 
                 // now try to connect to the provided peer list
@@ -185,8 +179,7 @@ public class MessageProcessor implements Runnable  {
                 break;
 
             case INVALID_PROTOCOL:
-                // crap.
-                PeerServer.log().severe("Invalid protocol response from "
+                PeerServer.log().severe("invalid protocol response from "
                         + peer.getForeignName() + ": " + document.getString("message").get());
                 peer.close();
                 break;

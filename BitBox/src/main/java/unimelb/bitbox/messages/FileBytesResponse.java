@@ -37,6 +37,7 @@ public class FileBytesResponse extends Response {
 
         String reply = PeerServer.fsManager().readFile(fileDescriptor.md5, position, length)
                                  .matchThen(error -> {
+                                          // If reading caused an error, we can probably retry later
                                           PeerServer.log().warning(peer + ": failed reading bytes of file " + pathName +
                                                                 " at [" + position + "/" + fileDescriptor.fileSize + "]: "
                                                                 + error.getMessage());
@@ -47,11 +48,17 @@ public class FileBytesResponse extends Response {
                                                   return SUCCESS;
                                               },
                                               () -> {
+                                                  // If the file was missing, there's no point retrying
                                                   shouldRetry.set(false);
                                                   return "file not found";
                                               }));
 
         boolean successful = reply.equals(SUCCESS);
+        if (successful) {
+            // Don't tell the peer to retry a successful request
+            shouldRetry.set(false);
+        }
+
         document.append("content", content.get());
         document.append("message", reply);
         document.append("status", successful);
