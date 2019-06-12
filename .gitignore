@@ -1,4 +1,11 @@
+# IntelliJ stuff
+*.idea*
+
+# Config details
+peerlist
+clientlist
 *share*
+
 # Compiled class file
 *.class
 

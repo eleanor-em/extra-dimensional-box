@@ -193,7 +193,7 @@ public abstract class ConnectionHandler implements IJSONData {
         } finally {
             if (active.get()) {
                 PeerServer.log().fine("Restarting accept thread");
-                if (socket.get().map(ISocket::isClosed).fromMaybe(false)) {
+                if (socket.get().map(ISocket::isClosed).orElse(false)) {
                     socket.reset();
                 }
                 executor.submit(this::acceptConnectionsPersistent);

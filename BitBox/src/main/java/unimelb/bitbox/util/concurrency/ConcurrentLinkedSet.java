@@ -19,17 +19,15 @@ public class ConcurrentLinkedSet<E> {
     private final Condition notEmpty = lock.newCondition();
 
     public boolean add(E item) {
-        try {
-            lock.lock();
-            boolean result = set.add(item);
+        lock.lock();
+        boolean result = set.add(item);
 
-            if (result) {
-                notEmpty.signal();
-            }
-            return result;
-        } finally {
+        if (result) {
+            notEmpty.signal();
+        } else {
             lock.unlock();
         }
+        return result;
     }
 
     public boolean remove(E item) {
