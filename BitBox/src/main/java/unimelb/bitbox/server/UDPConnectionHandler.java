@@ -77,6 +77,7 @@ class UDPConnectionHandler extends ConnectionHandler {
         if (hasPeer(peerHostPort)) {
             return Maybe.nothing();
         }
+
         addPeerAddress(peerHostPort);
 
 
@@ -86,8 +87,14 @@ class UDPConnectionHandler extends ConnectionHandler {
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length, new InetSocketAddress(peerHostPort.hostname, peerHostPort.port));
         Peer peer = new PeerUDP(name, PeerType.OUTGOING, awaitUDPSocket(), packet);
         peer.sendMessage(new HandshakeRequest());
-
         addPeer(peer);
-        return Maybe.just(peer);
+
+        try {
+            if (peer.awaitActivation()) {
+                return Maybe.just(peer);
+            }
+        } catch (InterruptedException ignored) {}
+
+        return Maybe.nothing();
     }
 }

@@ -36,6 +36,7 @@ public class KeepAlive {
         while (true) {
             try {
                 Runnable task = completionService.take().get();
+                PeerServer.log().warning("task " + task + " terminated");
 
                 if (cancelledTasks.remove(task)) {
                     watchers.remove(task);

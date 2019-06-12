@@ -76,8 +76,14 @@ class TCPConnectionHandler extends ConnectionHandler {
 
             addPeer(peer);
 
-            PeerServer.log().fine("Connected to peer " + name + " @ " + peerHostPort);
-            return Maybe.just(peer);
+            try {
+                if (peer.awaitActivation()) {
+                    PeerServer.log().fine("Connected to peer " + name + " @ " + peerHostPort);
+                    return Maybe.just(peer);
+                }
+            } catch (InterruptedException ignored) {}
+
+            return Maybe.nothing();
         } catch (IOException e) {
             PeerServer.log().warning("Connection to peer `" + peerHostPort + "` failed: " + e.getMessage());
             e.printStackTrace();

@@ -93,7 +93,6 @@ public abstract class ConnectionHandler implements IJSONData {
         return doc;
     }
 
-    // TODO: Make this wait for the actual connection to exist
     public boolean clientTryPeer(HostPort hostPort){
         if (canStorePeer()) {
             return tryPeer(hostPort).map(peer -> {

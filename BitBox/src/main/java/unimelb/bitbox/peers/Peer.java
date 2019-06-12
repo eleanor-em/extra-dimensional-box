@@ -13,8 +13,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 enum PeerState {
     WAIT_FOR_REQUEST,
@@ -29,10 +31,6 @@ enum PeerState {
  * this queue. The IncomingConnectionTCP relays messages to the ServerThread's queue.
  */
 public abstract class Peer {
-    // Identification number
-    private static AtomicInteger numPeers = new AtomicInteger();
-    private final int id;
-
     // Data
     private final String name;
     private PeerType type;
@@ -43,6 +41,18 @@ public abstract class Peer {
     private final AtomicReference<PeerState> state = new AtomicReference<>();
     private final OutgoingConnection outConn;
     private final List<Runnable> onClose = Collections.synchronizedList(new ArrayList<>());
+    private final Lock activationLock = new ReentrantLock();
+    private final Condition activated = activationLock.newCondition();
+
+    public boolean awaitActivation() throws InterruptedException {
+        try {
+            activationLock.lock();
+            activated.await();
+            return isActive();
+        } finally {
+            activationLock.unlock();
+        }
+    }
 
     // Handles outgoing/incoming connection threads
     private static final ExecutorService executor = Executors.newCachedThreadPool();
@@ -86,11 +96,16 @@ public abstract class Peer {
         // Don't do anything if we're not waiting to be activated.
         if (state.compareAndSet(PeerState.WAIT_FOR_RESPONSE, PeerState.ACTIVE)
                 || state.compareAndSet(PeerState.WAIT_FOR_REQUEST, PeerState.ACTIVE)) {
-            PeerServer.log().fine("Activating " + getForeignName());
+            try {
+                activationLock.lock();
+                PeerServer.log().fine("Activating " + getForeignName());
 
-            // Add to our tracker
-            KnownPeerTracker.addAddress(localHostPort, hostPort);
-            KnownPeerTracker.notifyPeerCount(PeerServer.getPeerCount());
+                // Add to our tracker
+                KnownPeerTracker.addAddress(localHostPort, hostPort);
+                KnownPeerTracker.notifyPeerCount(PeerServer.getPeerCount());
+            } finally {
+                activated.signalAll();
+            }
         }
     }
 
@@ -134,7 +149,6 @@ public abstract class Peer {
         PeerServer.log().fine("Peer created: " + name + " @ " + host + ":" + port);
         this.name = name;
         this.type = type;
-        id = numPeers.incrementAndGet();
 
         localHostPort = new HostPort(host, port);
         hostPort = localHostPort;
@@ -151,14 +165,20 @@ public abstract class Peer {
         if (state.get() == PeerState.CLOSED) {
             return;
         }
-        state.set(PeerState.CLOSED);
 
-        PeerServer.log().warning("Connection to peer `" + getForeignName() + "` closed.");
-        PeerServer.connection().closeConnection(this);
-        synchronized (onClose) {
-            onClose.forEach(Runnable::run);
+        try {
+            activationLock.lock();
+            state.set(PeerState.CLOSED);
+
+            PeerServer.log().warning("Connection to peer `" + getForeignName() + "` closed.");
+            PeerServer.connection().closeConnection(this);
+            synchronized (onClose) {
+                onClose.forEach(Runnable::run);
+            }
+            closeInternal();
+        } finally {
+            activated.signalAll();
         }
-        closeInternal();
     }
 
     /**
@@ -172,9 +192,6 @@ public abstract class Peer {
     public final void sendMessage(Message message) {
         sendMessage(message, () -> {});
     }
-    public final void sendMessage(Message message, Runnable onSent) {
-        sendMessageInternal(message, onSent);
-    }
 
     /**
      * Send a message to this peer, then close the peer.
@@ -183,6 +200,9 @@ public abstract class Peer {
         sendMessage(message, this::close);
     }
 
+    private void sendMessage(Message message, Runnable onSent) {
+        sendMessageInternal(message, onSent);
+    }
 
     private void sendMessageInternal(Message message, Runnable onSent) {
         if (state.get() == PeerState.CLOSED) {
