@@ -1,13 +1,14 @@
 package unimelb.bitbox.client;
 
+import functional.algebraic.Maybe;
+import functional.algebraic.Result;
+import functional.combinator.Combinators;
 import unimelb.bitbox.client.responses.ClientResponse;
 import unimelb.bitbox.client.responses.ServerException;
 import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.config.CfgValue;
 import unimelb.bitbox.util.crypto.Crypto;
 import unimelb.bitbox.util.crypto.SSHPublicKey;
-import unimelb.bitbox.util.functional.algebraic.Maybe;
-import unimelb.bitbox.util.functional.algebraic.Result;
 import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.JSONException;
 
@@ -26,7 +27,7 @@ import java.util.concurrent.Executors;
 public class ClientServer implements Runnable {
     // Config values
     private static final CfgValue<Integer> clientPort = CfgValue.createInt("clientPort");
-    private static final CfgValue<String> authorizedKeys = CfgValue.create("authorized_keys");
+    private static final CfgValue<String> authorizedKeys = CfgValue.createString("authorized_keys");
 
     // Data used by the class
     private final Collection<SSHPublicKey> keys = new HashSet<>();
@@ -65,7 +66,7 @@ public class ClientServer implements Runnable {
         try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
              BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
             String message;
-            while ((message = in.readLine()) != null) {
+            while (Maybe.of(message = in.readLine()).isJust()) {
                 // Read a message, and pass it to the handler
                 JSONDocument response = handleMessage(message, client);
                 // Check the status of the response and report the error if it failed
@@ -104,11 +105,11 @@ public class ClientServer implements Runnable {
             return generateFailResponse(e.getMessage());
         }
 
-        Result<ServerException, JSONDocument> decrypted = document.containsKey("payload")
+        Result<JSONDocument, ServerException> decrypted = document.containsKey("payload")
                 ? client.bindKey(key -> Crypto.decryptMessage(key, document)).mapError(ServerException::new)
                 : Result.value(document);
 
-        Result<ServerException, JSONDocument> response = decrypted.andThen(doc ->
+        Result<JSONDocument, ServerException> response = decrypted.andThen(doc ->
                 doc.getString("command")
                    .mapError(ServerException::new)
                    .andThen(command -> "AUTH_REQUEST".equals(command)
@@ -119,10 +120,10 @@ public class ClientServer implements Runnable {
             response = response.map(responseDocument ->
                                     client.mapKey(key -> Crypto.encryptMessage(key, responseDocument)
                                     // Check for encryption errors
-                                    .consumeError(err -> generateFailResponse("failed encrypting response: " + err.getMessage()))));
+                                    .matchThen(Combinators::id, err -> generateFailResponse("failed encrypting response: " + err.getMessage()))));
         }
 
-        return response.consumeError(ClientServer::generateFailResponse);
+        return response.matchThen(Combinators::id, ClientServer::generateFailResponse);
     }
 
     /**
@@ -146,7 +147,7 @@ public class ClientServer implements Runnable {
     /**
      * Generate an authentication response from the given request and client, or an error if the process fails.
      */
-    private Result<ServerException, JSONDocument> generateAuthResponse(JSONDocument request, ClientConnection client) {
+    private Result<JSONDocument, ServerException> generateAuthResponse(JSONDocument request, ClientConnection client) {
         return request.getString("identity")
                 .map(ident -> {
                     client.setIdent(ident);
@@ -169,19 +170,18 @@ public class ClientServer implements Runnable {
                                         KnownClientTracker.addClient(client);
                                         return Crypto.encryptSecretKey(key, publicKey.getKey());
                                     })
-                                    .matchThen(err -> {
-                                                err.printStackTrace();
-                                                response.append("status", false);
-                                                response.append("message", "error encrypting key: " + err);
-                                                return response;
-                                            },
-                                            encryptedKey -> {
+                                    .matchThen(encryptedKey -> {
                                                 response.append("AES128", encryptedKey);
                                                 response.append("status", true);
                                                 response.append("message", "public key found");
                                                 return response;
-                                            }))
-                            .fromMaybe(() -> {
+                                            }, err -> {
+                                        err.printStackTrace();
+                                        response.append("status", false);
+                                        response.append("message", "error encrypting key: " + err);
+                                        return response;
+                                    }))
+                            .orElse(() -> {
                                 response.append("status", false);
                                 response.append("message", "public key not found");
                                 return response;

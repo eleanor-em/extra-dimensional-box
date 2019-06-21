@@ -1,8 +1,8 @@
 package unimelb.bitbox.util.crypto;
 
 
-import unimelb.bitbox.util.functional.algebraic.Either;
-import unimelb.bitbox.util.functional.combinator.Combinators;
+import functional.algebraic.Either;
+import functional.combinator.Combinators;
 import unimelb.bitbox.util.network.JSONException;
 
 import javax.crypto.BadPaddingException;
@@ -11,6 +11,9 @@ import javax.crypto.NoSuchPaddingException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 
+/**
+ * An exception that can occur during cryptographic operations.
+ */
 public class CryptoException extends Exception {
     private final Either<JSONException, Exception> exception;
 
@@ -34,6 +37,9 @@ public class CryptoException extends Exception {
         exception = Either.right(e);
     }
 
+    /**
+     * Returns the exception that caused this exception.
+     */
     public Exception getCause() {
         return exception.matchThen(Combinators::id, Combinators::id);
     }

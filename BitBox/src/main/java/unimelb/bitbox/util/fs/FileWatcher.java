@@ -1,18 +1,27 @@
 package unimelb.bitbox.util.fs;
 
 
-import unimelb.bitbox.util.functional.algebraic.Maybe;
+import functional.algebraic.Maybe;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * A thread that watches a file for changes, and runs an action whenever a change occurs.
+ */
 public class FileWatcher extends Thread {
     private final File file;
     private final Runnable action;
     private final int timeout;
 
+    /**
+     * Create the thread.
+     * @param file the file to watch
+     * @param action the action to perform
+     * @param timeoutMilliseconds how long each poll should wait
+     */
     public FileWatcher(File file, Runnable action, int timeoutMilliseconds) {
         this.file = file;
         this.action = action;
@@ -24,7 +33,7 @@ public class FileWatcher extends Thread {
         try (WatchService watcher = FileSystems.getDefault().newWatchService()) {
             // If there was no parent, take the root path
             Path path = Maybe.of(file.toPath().getParent())
-                             .fromMaybe(Paths.get(""));
+                             .orElse(Paths.get(""));
             path.register(watcher, StandardWatchEventKinds.ENTRY_MODIFY);
             while (true) {
                 try {

@@ -1,8 +1,13 @@
 package unimelb.bitbox.util.network;
 
+import functional.algebraic.Maybe;
+
 import java.sql.Timestamp;
 import java.util.Date;
 
+/**
+ * Pairs an address with a timestamp.
+ */
 public class TimestampedAddress {
     private final String address;
     private String timestamp;
@@ -12,7 +17,10 @@ public class TimestampedAddress {
         timestamp = "[" + new Timestamp(new Date().getTime()) + "] ";
     }
 
-    public static TimestampedAddress parse(String line) {
+    /**
+     * Produces a timestamp that matches the given input.
+     */
+    public static Maybe<TimestampedAddress> parse(String line) {
         try {
             String date = line.split("\\[")[1].split("]")[0];
             while (date.length() < 23) {
@@ -23,9 +31,9 @@ public class TimestampedAddress {
             date = "[" + date + "] ";
             TimestampedAddress addr = new TimestampedAddress(line.split("] ")[1]);
             addr.timestamp = date;
-            return addr;
+            return Maybe.just(addr);
         } catch (ArrayIndexOutOfBoundsException e) {
-            return null;
+            return Maybe.nothing();
         }
     }
 

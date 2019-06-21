@@ -1,6 +1,6 @@
 package unimelb.bitbox.client.responses;
 
-import unimelb.bitbox.util.functional.algebraic.Result;
+import functional.algebraic.Result;
 import unimelb.bitbox.util.network.HostPort;
 import unimelb.bitbox.util.network.JSONDocument;
 
@@ -12,7 +12,7 @@ public abstract class ClientResponse {
 
     ClientResponse() {}
 
-    public static Result<ServerException, JSONDocument> getResponse(String command, JSONDocument document) {
+    public static Result<JSONDocument, ServerException> getResponse(String command, JSONDocument document) {
         switch (command) {
             case "LIST_PEERS_REQUEST":
                 return Result.value(new ListPeersResponse().response);

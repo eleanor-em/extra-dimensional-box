@@ -6,7 +6,7 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
-public class RandomAccessChannel implements AutoCloseable {
+class RandomAccessChannel implements AutoCloseable {
     private final RandomAccessFile raf;
     private final FileChannel channel;
     private boolean closed = false;
@@ -41,9 +41,6 @@ public class RandomAccessChannel implements AutoCloseable {
     @Override
     public void close() throws IOException {
         if (!closed) {
-            if (channel == null || raf == null) {
-                throw new IOException("RandomAccessChannel not initialised correctly");
-            }
             channel.close();
             raf.close();
             closed = true;

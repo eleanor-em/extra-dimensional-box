@@ -1,7 +1,8 @@
 package unimelb.bitbox.client.requests;
 
+import functional.algebraic.Maybe;
+import functional.algebraic.Result;
 import org.apache.commons.cli.CommandLine;
-import unimelb.bitbox.util.functional.algebraic.Result;
 import unimelb.bitbox.util.network.JSONDocument;
 
 /**
@@ -15,18 +16,19 @@ public class ClientRequestProtocol {
      * @param opts the command line options
      * @return the generated message, or an error if there was one
      */
-    public static Result<ClientArgsException, JSONDocument> generateMessage(CommandLine opts) {
-        String command = opts.getOptionValue("c");
-        if (command == null) {
+    public static Result<JSONDocument, ClientArgsException> generateMessage(CommandLine opts) {
+        Maybe<String> maybeCommand = Maybe.of(opts.getOptionValue("c"));
+        if (!maybeCommand.isJust()) {
              return Result.error(new ClientArgsException("missing command line option: -c"));
         }
+        String command = maybeCommand.get();
 
         try {
             // Store the peer address or an error for later
-            Result<ClientArgsException, String> peerAddress =
-                    opts.getOptionValue("p") == null
-                    ? Result.error(new ClientArgsException("missing command line option: -p"))
-                    : Result.value(opts.getOptionValue("p"));
+            Result<String, ClientArgsException> peerAddress =
+                    Maybe.of(opts.getOptionValue("p")).isJust()
+                    ? Result.value(opts.getOptionValue("p"))
+                    : Result.error(new ClientArgsException("missing command line option: -p"));
 
             switch (command) {
                 case "list_peers":

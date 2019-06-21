@@ -1,5 +1,8 @@
 package unimelb.bitbox.app;
 
+import functional.algebraic.Maybe;
+import functional.algebraic.Result;
+import functional.combinator.Combinators;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
@@ -11,8 +14,7 @@ import unimelb.bitbox.client.requests.ClientArgsException;
 import unimelb.bitbox.client.requests.ClientRequestProtocol;
 import unimelb.bitbox.util.crypto.Crypto;
 import unimelb.bitbox.util.crypto.CryptoException;
-import unimelb.bitbox.util.functional.algebraic.ChainedEither;
-import unimelb.bitbox.util.functional.algebraic.Result;
+import unimelb.bitbox.util.functional.ChainedEither;
 import unimelb.bitbox.util.network.HostPort;
 import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.JSONException;
@@ -53,8 +55,7 @@ public class ClientApp {
 
     public static void main(String[] args) {
         ServerConnection.initialise(args)
-                        .match(err -> System.out.println(err.getMessage()),
-                               connection -> {
+                        .match(connection -> {
             // Create streams
             try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(connection.socket.getOutputStream()));
                  BufferedReader in = new BufferedReader(new InputStreamReader(connection.socket.getInputStream()))) {
@@ -63,13 +64,13 @@ public class ClientApp {
                 out.flush();
 
                 // Wait for authentication response
-                String responseText = in.readLine();
-                if (responseText == null) {
+                Maybe<String> maybeResponse = Maybe.of(in.readLine());
+                if (!maybeResponse.isJust()) {
                     System.out.println("No response");
                     return;
                 }
                 // Parse the response
-                Result.of(() -> new AuthResponseParser(responseText))
+                Result.of(() -> new AuthResponseParser(maybeResponse.get()))
                         // Check response for errors, and decrypt it
                         .andThen(response -> response.isError()
                                 ? Result.error(new ClientError("Authentication failure: " + response.getMessage()))
@@ -103,7 +104,7 @@ public class ClientApp {
                                                 .mapError(ClientError::new);
                                     }
                                 })
-                                .consumeError(ClientError::getMessage))
+                                .matchThen(Combinators::id, ClientError::getMessage))
                         .collapse(System.out::println);
             } catch (IOException e) {
                 System.out.println("Error reading/writing socket: " + e.getMessage());
@@ -115,7 +116,7 @@ public class ClientApp {
                     System.out.println("Error closing socket: " + e.getMessage());
                 }
             }
-        });
+        }, err -> System.out.println(err.getMessage()));
     }
 
     /**
@@ -146,25 +147,25 @@ public class ClientApp {
          * @return a Result containing either the connection object, or an error
          */
         @SuppressWarnings("StaticMethodOnlyUsedInOneClass")
-        static Result<ClientArgsException, ServerConnection> initialise(String[] args) {
+        static Result<ServerConnection, ClientArgsException> initialise(String[] args) {
             // Parse the command line options
             return Result.of(() -> new DefaultParser().parse(generateCLIOptions(), args))
                     .or(Result.error(new ClientArgsException("failed to parse command line options")))
                     .map(ArgsData::new)
                     // Get the identity
-                    .peek(data -> data.getFromOpts("i").ok(ident -> data.ident = ident))
+                    .peek(data -> data.getFromOpts("i").ifOk(ident -> data.ident = ident))
                     // Get the server name
                     .peek(data -> data.getFromOpts("s")
                             // Translate to HostPort
                             .andThen(addr -> HostPort.fromAddress(addr)
                             .mapError(ClientArgsException::new)
-                            .ok(hp -> data.hostPort = hp)))
+                            .ifOk(hp -> data.hostPort = hp)))
                     // Generate the request
-                    .peek(data -> ClientRequestProtocol.generateMessage(data.opts).ok(req -> data.request = req))
+                    .peek(data -> ClientRequestProtocol.generateMessage(data.opts).ifOk(req -> data.request = req))
                     // Create the socket
-                    .ok(data -> Result.of(() -> new Socket(data.hostPort.hostname, data.hostPort.port))
+                    .ifOk(data -> Result.of(() -> new Socket(data.hostPort.hostname, data.hostPort.port))
                                       .mapError(e -> new ClientArgsException("failed to create socket: " + e.getMessage()))
-                                      .ok(sock -> data.socket = sock))
+                                      .ifOk(sock -> data.socket = sock))
                     // Create the resulting object
                     .andThen(data -> Result.of(() -> new ServerConnection(data))
                     .mapError(e -> new ClientArgsException("failed reading private key: " + e.getMessage())));
@@ -190,10 +191,10 @@ public class ClientApp {
          */
         private static class ArgsData {
             final CommandLine opts;
-            String ident = null;
-            public HostPort hostPort = null;
-            public JSONDocument request = null;
-            public Socket socket = null;
+            String ident;
+            public HostPort hostPort;
+            public JSONDocument request;
+            public Socket socket;
 
             ArgsData(CommandLine opts) {
                 this.opts = opts;
@@ -202,7 +203,7 @@ public class ClientApp {
             /**
              * Looks up the key in the command line arguments, and returns the value, or an error if the option was not provided.
              */
-            Result<ClientArgsException, String> getFromOpts(String key) {
+            Result<String, ClientArgsException> getFromOpts(String key) {
                 if (!opts.hasOption(key)) {
                     return Result.error(new ClientArgsException("missing command line option: -" + key));
                 }
@@ -217,7 +218,7 @@ public class ClientApp {
  */
 class AuthResponseParser {
     private final boolean status;
-    private byte[] key = null;
+    private Maybe<byte[]> key = Maybe.nothing();
     private final String message;
 
     /**
@@ -234,7 +235,7 @@ class AuthResponseParser {
             this.message = doc.getString("message").get();
             if (status) {
                 String keyVal = doc.getString("AES128").get();
-                key = Base64.getDecoder().decode(keyVal);
+                key = Maybe.just(Base64.getDecoder().decode(keyVal));
             }
         } catch (JSONException e) {
             throw new ClientError(e);
@@ -245,8 +246,11 @@ class AuthResponseParser {
      * Attempt to decrypt the parsed key using the given private key.
      * @return a Result containing either the decrypted secret key, or an error.
      */
-    Result<ClientError, SecretKey> decryptKey(PrivateKey privateKey) {
-        return Crypto.decryptSecretKey(key, privateKey).mapError(ClientError::new);
+    Result<SecretKey, ClientError> decryptKey(PrivateKey privateKey) {
+        if (!key.isJust()) {
+            return Result.error(new ClientError("key not loaded"));
+        }
+        return Crypto.decryptSecretKey(key.get(), privateKey).mapError(ClientError::new);
     }
 
     /**

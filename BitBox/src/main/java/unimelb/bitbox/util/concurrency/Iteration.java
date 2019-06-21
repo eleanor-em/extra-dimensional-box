@@ -4,6 +4,9 @@ import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.function.Consumer;
 
+/**
+ * A collection of iteration utilities.
+ */
 public class Iteration {
     /**
      * Attempt to iterate over the collection. If concurrent modification occurs, we abandon the attempt.

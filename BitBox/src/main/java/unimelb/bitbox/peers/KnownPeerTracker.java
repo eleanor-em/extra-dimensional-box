@@ -1,5 +1,6 @@
 package unimelb.bitbox.peers;
 
+import functional.algebraic.Maybe;
 import unimelb.bitbox.util.concurrency.Iteration;
 import unimelb.bitbox.util.network.HostPort;
 import unimelb.bitbox.util.network.TimestampedAddress;
@@ -34,15 +35,17 @@ class KnownPeerTracker {
             reader.readLine();
             reader.readLine();
             reader.readLine();
-            String record = reader.readLine();
-            if (record == null) {
+            Maybe<String> maybeRecord = Maybe.of(reader.readLine());
+            if (!maybeRecord.isJust()) {
                 return;
             }
+            String record = maybeRecord.get();
 
             maxConcurrent.set(Integer.parseInt(record.split(": ")[0]));
             lastModifiedTimestamp.set(record.split("\\(")[1].split("\\)")[0]);
-            while ((line = reader.readLine()) != null) {
-                loaded.add(TimestampedAddress.parse(line));
+            while (Maybe.of(line = reader.readLine()).isJust()) {
+                TimestampedAddress.parse(line)
+                                  .consume(loaded::add);
             }
         } catch (FileNotFoundException ignored) {
             // This is fine, the file just might not exist yet

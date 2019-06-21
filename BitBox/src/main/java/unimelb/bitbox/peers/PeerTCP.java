@@ -1,5 +1,6 @@
 package unimelb.bitbox.peers;
 
+import functional.algebraic.Maybe;
 import unimelb.bitbox.messages.Message;
 import unimelb.bitbox.server.PeerServer;
 
@@ -34,7 +35,7 @@ public class PeerTCP extends Peer {
     private void receiveMessages() {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
             String message;
-            while ((message = in.readLine()) != null) {
+            while (Maybe.of(message = in.readLine()).isJust()) {
                 receiveMessage(message);
             }
         } catch (IOException e) {

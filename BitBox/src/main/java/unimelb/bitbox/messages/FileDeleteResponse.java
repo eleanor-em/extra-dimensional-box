@@ -22,9 +22,7 @@ public class FileDeleteResponse extends Response {
     void onSent() {
         // Try cancelling the file loader first
         String reply = PeerServer.fsManager().cancelFileLoader(fd.pathName)
-                  .matchThen(
-                      err -> "there was a problem deleting the file: " + err.getMessage(),
-                      res -> {
+                  .matchThen(res -> {
                           if (!res) {
                               // if the file wasn't already loading, check that it's a safe pathname
                               if (!PeerServer.fsManager().isSafePathName(fd.pathName)) {
@@ -40,7 +38,7 @@ public class FileDeleteResponse extends Response {
                               }
                           }
                           return SUCCESS;
-                      });
+                      }, err -> "there was a problem deleting the file: " + err.getMessage());
 
         boolean successful = reply.equals(SUCCESS);
         if (successful) {

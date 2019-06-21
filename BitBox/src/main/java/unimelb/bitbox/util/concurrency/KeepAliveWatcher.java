@@ -2,6 +2,9 @@ package unimelb.bitbox.util.concurrency;
 
 import java.util.concurrent.Future;
 
+/**
+ * A class that watches a {@link KeepAlive} task.
+ */
 public class KeepAliveWatcher {
     Future<?> future;
     private final Runnable task;
@@ -12,6 +15,9 @@ public class KeepAliveWatcher {
         KeepAlive.watchers.put(task, this);
     }
 
+    /**
+     * Cancels the task.
+     */
     public void cancel() {
         KeepAlive.cancelledTasks.add(task);
         KeepAlive.watchers.remove(task);

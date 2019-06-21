@@ -35,7 +35,7 @@ public class ReadWriteManager {
             FileTransfer existing = it.next();
             if (existing.pathName().equals(ft.pathName())) {
                 // If the existing transfer is for an older version, cancel it. Otherwise, cancel the new transfer
-                if (existing.fileDescriptor.lastModified < ft.fileDescriptor.lastModified) {
+                if (existing.fileDescriptor.lastModified() < ft.fileDescriptor.lastModified()) {
                     PeerServer.fsManager().cancelFileLoader(existing);
                     it.remove();
                 } else {
@@ -79,8 +79,8 @@ public class ReadWriteManager {
                 ft.sendInitialBytesRequest();
             }
 
-            totalDone.updateAndGet(v -> v + (long) (completion / 100 * ft.fileDescriptor.fileSize));
-            totalWaiting.updateAndGet(v -> v + ft.fileDescriptor.fileSize);
+            totalDone.updateAndGet(v -> v + (long) (completion / 100 * ft.fileDescriptor.fileSize()));
+            totalWaiting.updateAndGet(v -> v + ft.fileDescriptor.fileSize());
 
             inProgress.append(String.format("In progress (%04.1f%% complete): %s\n", completion, ft.pathName()));
         });
@@ -118,11 +118,11 @@ public class ReadWriteManager {
                 ByteBuffer decoded = ByteBuffer.wrap(Base64.getDecoder().decode(content));
                 packet.writeData(decoded);
                 PeerServer.log().fine(packet.peer().getForeignName() + ": wrote bytes to " + packet.pathName() +
-                        " at position: [" + packet.position + "/" + packet.fd().fileSize + "]");
+                        " at position: [" + packet.position + "/" + packet.fd().fileSize() + "]");
             }
             catch (IOException e){
                 PeerServer.log().warning(packet.peer().getForeignName() + ": error writing bytes to " + packet.pathName() +
-                        " at position: [" + packet.position + "/" + packet.fd().fileSize + "]: " + e.getMessage());
+                        " at position: [" + packet.position + "/" + packet.fd().fileSize() + "]: " + e.getMessage());
                 cancelFile(packet);
                 return;
             }
@@ -130,7 +130,7 @@ public class ReadWriteManager {
 
             // Check if more bytes are needed
             PeerServer.fsManager().checkWriteComplete(packet.fd())
-                      .ok(res -> {
+                      .ifOk(res -> {
                           // If the write isn't finished, send another request
                           if (res) {
                               downloads.remove(packet.transfer);
@@ -142,7 +142,7 @@ public class ReadWriteManager {
                               packet.sendBytesRequest();
                           }
                       })
-                      .err(err -> {
+                      .ifErr(err -> {
                           cancelFile(packet);
                           PeerServer.log().warning(packet.peer().getForeignName() + ": error checking write status for " + packet.pathName() + ": " + err.getClass().getName() + ": " + err.getMessage());
                       });
@@ -187,12 +187,12 @@ public class ReadWriteManager {
         toRemove.forEach(ft -> {
             downloads.remove(ft);
             PeerServer.fsManager().cancelFileLoader(ft)
-                    .ok(res -> {
+                    .ifOk(res -> {
                         if (res) {
                             PeerServer.log().fine(ft.peer.getForeignName() + ": cancelling transfer of " + ft.pathName());
                         }
                     })
-                    .err(err -> PeerServer.log().warning(ft.peer.getForeignName() + ": failed cancelling file loader: "+ err.getMessage()));
+                    .ifErr(err -> PeerServer.log().warning(ft.peer.getForeignName() + ": failed cancelling file loader: "+ err.getMessage()));
         });
     }
 }

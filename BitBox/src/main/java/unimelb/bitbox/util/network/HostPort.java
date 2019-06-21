@@ -1,28 +1,40 @@
 package unimelb.bitbox.util.network;
 
+import functional.algebraic.Result;
 import unimelb.bitbox.server.PeerServer;
-import unimelb.bitbox.util.functional.algebraic.Result;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 /**
- * Like the one Aaron gave us, except it actually does error checking. Amazing!
+ * A class to store a host and port together.
  */
-public class HostPort {
+public class HostPort implements IJSONData {
+    /**
+     * The hostname stored
+     */
     public final String hostname;
+    /**
+     * The port stored
+     */
     public final int port;
 
     private final HostPort alias;
 
-    public static Result<JSONException, HostPort> fromJSON(JSONDocument doc) {
-        Result<JSONException, String> host = doc.getString("host");
-        Result<JSONException, Long> port = doc.getLong("port");
+    /**
+     * Create a HostPort object from a {@link JSONDocument}.
+     */
+    public static Result<HostPort, JSONException> fromJSON(JSONDocument doc) {
+        Result<String, JSONException> host = doc.getString("host");
+        Result<Long, JSONException> port = doc.getLong("port");
 
         return host.andThen(hostVal -> port.map(portVal -> new HostPort(hostVal, portVal)));
     }
 
-    public static Result<HostPortParseException, HostPort> fromAddress(String address) {
+    /**
+     * Create a HostPort object from a string of the form `host:port`.
+     */
+    public static Result<HostPort, HostPortParseException> fromAddress(String address) {
         address = address.replace("/", "");
         if (!address.contains(":")) {
             return Result.error(new HostPortParseException("malformed host-port: " + address));
@@ -67,9 +79,16 @@ public class HostPort {
               : fromAlias(hostname, port);
     }
 
+    /**
+     * Return the address described by this HostPort in `host:port` form.
+     */
     public String asAddress() {
         return toString();
     }
+
+    /**
+     * Return the address described by this HostPort in `host:port` form, after network resolution has been performed.
+     */
     public String asAliasedAddress() {
         return alias.toString();
     }
@@ -84,6 +103,7 @@ public class HostPort {
         return (rhs instanceof HostPort) && (rhs.toString().equals(toString()));
     }
 
+    @Override
     public JSONDocument toJSON() {
         JSONDocument doc = new JSONDocument();
         doc.append("host", hostname);
@@ -98,6 +118,9 @@ public class HostPort {
         return alias.equals(hostPort.alias);
     }
 
+    /**
+     * Returns whether the network resolution gave a different result.
+     */
     public boolean isAliased() {
         return alias != this;
     }

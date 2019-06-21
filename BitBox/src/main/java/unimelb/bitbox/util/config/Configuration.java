@@ -1,8 +1,8 @@
 package unimelb.bitbox.util.config;
 
+import functional.algebraic.Maybe;
 import unimelb.bitbox.util.concurrency.LazyInitialiser;
 import unimelb.bitbox.util.fs.FileWatcher;
-import unimelb.bitbox.util.functional.algebraic.Maybe;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -23,8 +23,8 @@ import java.util.logging.Logger;
  * String[] peers = Configuration.getConfigurationValue("peers").split(",");
  * }
  * </pre>
- * @author aaron
- *
+ * @author Aaron Harwood
+ * @author Eleanor McMurtry
  */
 public class Configuration {
 	static Logger log = Logger.getLogger(Configuration.class.getName());
@@ -67,10 +67,15 @@ public class Configuration {
         return properties;
     }
 
-    public static boolean contains(String key) {
-        return properties.get().containsKey(key);
+    static boolean missingKey(String key) {
+        return !properties.get().containsKey(key);
     }
 
+    /**
+     * Looks up the key in the configuration settings.
+     * @param key the key to look up
+     * @return the value, or Maybe.nothing() if it's not present
+     */
     public static Maybe<String> getConfigurationValue(String key) {
         return Maybe.of(properties.get().getProperty(key)).map(String::trim);
     }

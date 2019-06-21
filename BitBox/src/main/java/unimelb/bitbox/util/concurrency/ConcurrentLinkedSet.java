@@ -18,6 +18,11 @@ public class ConcurrentLinkedSet<E> {
     private final Lock lock = new ReentrantLock();
     private final Condition notEmpty = lock.newCondition();
 
+    /**
+     * Adds an item to the set.
+     * @param item the item to add
+     * @return whether the item was successfully added (i.e. false if the item was already present)
+     */
     public boolean add(E item) {
         lock.lock();
         boolean result = set.add(item);
@@ -30,6 +35,11 @@ public class ConcurrentLinkedSet<E> {
         return result;
     }
 
+    /**
+     * Removes an item from the set.
+     * @param item the item to remove
+     * @return whether the item was present
+     */
     public boolean remove(E item) {
         try {
             lock.lock();
@@ -39,6 +49,11 @@ public class ConcurrentLinkedSet<E> {
         }
     }
 
+    /**
+     * Removes all elements that satisfy a predicate.
+     * @param pred the predicate to use
+     * @return whether any elements were removed
+     */
     public boolean removeIf(Predicate<E> pred) {
         try {
             lock.lock();
@@ -48,6 +63,11 @@ public class ConcurrentLinkedSet<E> {
         }
     }
 
+    /**
+     * Returns the first item of the set. Blocks until the set is non-empty.
+     * @return the first item of the set
+     * @throws InterruptedException if the thread was interrupted while blocked
+     */
     public E take() throws InterruptedException {
         try {
             lock.lock();

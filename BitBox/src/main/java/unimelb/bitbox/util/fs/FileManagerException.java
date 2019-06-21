@@ -2,6 +2,9 @@ package unimelb.bitbox.util.fs;
 
 import java.io.IOException;
 
+/**
+ * An exception that can be caused by the file manager.
+ */
 public class FileManagerException extends IOException {
     FileManagerException(String cause) { super(cause); }
 

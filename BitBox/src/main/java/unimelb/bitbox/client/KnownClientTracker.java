@@ -1,5 +1,6 @@
 package unimelb.bitbox.client;
 
+import functional.algebraic.Maybe;
 import unimelb.bitbox.util.concurrency.Iteration;
 
 import java.io.*;
@@ -30,7 +31,7 @@ class KnownClientTracker {
             reader.readLine();
             reader.readLine();
 
-            while ((line = reader.readLine()) != null) {
+            while (Maybe.of(line = reader.readLine()).isJust()) {
                 // Format is [timestamp] address
                 String date = line.split("]")[0].substring(1);
                 String rest = line.split("]")[1];

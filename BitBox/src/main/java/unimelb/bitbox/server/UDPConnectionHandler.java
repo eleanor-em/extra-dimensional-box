@@ -1,12 +1,12 @@
 package unimelb.bitbox.server;
 
+import functional.algebraic.Maybe;
 import unimelb.bitbox.messages.ConnectionRefused;
 import unimelb.bitbox.messages.HandshakeRequest;
 import unimelb.bitbox.messages.Message;
 import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.peers.PeerType;
 import unimelb.bitbox.peers.PeerUDP;
-import unimelb.bitbox.util.functional.algebraic.Maybe;
 import unimelb.bitbox.util.network.HostPort;
 import unimelb.bitbox.util.network.UDPSocket;
 

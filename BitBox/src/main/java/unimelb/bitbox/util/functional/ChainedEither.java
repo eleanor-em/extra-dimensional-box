@@ -1,28 +1,25 @@
-package unimelb.bitbox.util.functional.algebraic;
+package unimelb.bitbox.util.functional;
 
-import unimelb.bitbox.util.functional.combinator.Combinators;
+import functional.algebraic.Either;
+import functional.combinator.Combinators;
 
 import java.util.function.Consumer;
 
 public class ChainedEither<A extends T, B extends T, C extends T, T> {
-    private Either<A, Either<B, C>> val = null;
+    private final Either<A, Either<B, C>> val;
 
-    private ChainedEither() {}
+    private ChainedEither(Either<A, Either<B, C>> val) {
+        this.val = val;
+    }
 
     public static <A extends T, B extends T, C extends T, T> ChainedEither<A, B, C, T> left(A val) {
-        ChainedEither<A, B, C, T> res = new ChainedEither<>();
-        res.val = Either.left(val);
-        return res;
+        return new ChainedEither<>(Either.left(val));
     }
     public static <A extends T, B extends T, C extends T, T> ChainedEither<A, B, C, T> middle(B val) {
-        ChainedEither<A, B, C, T> res = new ChainedEither<>();
-        res.val = Either.right(Either.left(val));
-        return res;
+        return new ChainedEither<>(Either.right(Either.left(val)));
     }
     public static <A extends T, B extends T, C extends T, T> ChainedEither<A, B, C, T> right(C val) {
-        ChainedEither<A, B, C, T> res = new ChainedEither<>();
-        res.val = Either.right(Either.right(val));
-        return res;
+        return new ChainedEither<>(Either.right(Either.right(val)));
     }
 
     public T resolve() {

@@ -1,7 +1,8 @@
 package unimelb.bitbox.util.crypto;
 
+import functional.algebraic.Result;
+import org.jetbrains.annotations.NotNull;
 import unimelb.bitbox.util.concurrency.LazyInitialiser;
-import unimelb.bitbox.util.functional.algebraic.Result;
 import unimelb.bitbox.util.network.JSONDocument;
 
 import javax.crypto.*;
@@ -24,7 +25,7 @@ public class Crypto {
     /**
      * Generates a secret AES key.
      */
-    public static Result<CryptoException, SecretKey> generateSecretKey() {
+    public static Result<SecretKey, CryptoException> generateSecretKey() {
         try {
             KeyGenerator generator = KeyGenerator.getInstance("AES");
             generator.init(AES_KEY_BITS);
@@ -39,7 +40,7 @@ public class Crypto {
     /**
      * Encrypts the provided secret key with the provided public key, and returns a base-64 encoding of the ciphertext.
      */
-    public static Result<CryptoException, String> encryptSecretKey(SecretKey secretKey, PublicKey publicKey) {
+    public static Result<String, CryptoException> encryptSecretKey(SecretKey secretKey, PublicKey publicKey) {
         try {
             Cipher encipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
             encipher.init(Cipher.PUBLIC_KEY, publicKey);
@@ -65,8 +66,7 @@ public class Crypto {
      * @param privateKey the private key to use for decryption
      * @return the decrypted secret key
      */
-    public static Result<CryptoException, SecretKey> decryptSecretKey(byte[] key, PrivateKey privateKey) {
-        assert key != null;
+    public static Result<SecretKey, CryptoException> decryptSecretKey(@NotNull byte[] key, @NotNull PrivateKey privateKey) {
         try {
             Cipher decipher = Cipher.getInstance("RSA/ECB/NoPadding");
             decipher.init(Cipher.PRIVATE_KEY, privateKey);
@@ -90,10 +90,9 @@ public class Crypto {
      * Decrypts a received message of the form {"payload":"CIPHERTEXT"}.
      * Returns the decrypted ciphertext.
      */
-    public static Result<CryptoException, JSONDocument> decryptMessage(SecretKey secretKey, JSONDocument message){
+    public static Result<JSONDocument, CryptoException> decryptMessage(SecretKey secretKey, JSONDocument message){
         return message.getString("payload")
-               .matchThen(err -> Result.error(new CryptoException(err)),
-                          payload -> {
+               .matchThen(payload -> {
                               try {
                                   Cipher cipher = Cipher.getInstance("AES/ECB/NoPadding");
                                   cipher.init(Cipher.DECRYPT_MODE, secretKey);
@@ -112,7 +111,7 @@ public class Crypto {
                               } catch (IllegalBlockSizeException e) {
                                   return Result.error(new CryptoException(e));
                               }
-                          });
+                          }, err -> Result.error(new CryptoException(err)));
     }
 
     /**
@@ -130,7 +129,7 @@ public class Crypto {
      * Encrypts a prepared message that has been networkEncoded in JSON.
      * Returns a JSON message ready to be sent of the form {"payload":"CIPHERTEXT"}.
      */
-    public static Result<CryptoException, JSONDocument> encryptMessage(SecretKey secretKey, JSONDocument message) {
+    public static Result<JSONDocument, CryptoException> encryptMessage(SecretKey secretKey, JSONDocument message) {
         try {
             Cipher cipher = Cipher.getInstance("AES/ECB/NoPadding");
             cipher.init(Cipher.ENCRYPT_MODE, secretKey);

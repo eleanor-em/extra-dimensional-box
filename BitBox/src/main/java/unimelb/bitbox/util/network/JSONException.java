@@ -1,8 +1,8 @@
 package unimelb.bitbox.util.network;
 
 
+import functional.algebraic.Maybe;
 import org.json.simple.parser.ParseException;
-import unimelb.bitbox.util.functional.algebraic.Maybe;
 
 /**
  * Thrown in case of a malformed response from a peer.

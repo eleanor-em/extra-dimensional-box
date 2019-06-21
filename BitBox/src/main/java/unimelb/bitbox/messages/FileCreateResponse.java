@@ -57,14 +57,13 @@ public class FileCreateResponse extends Response {
         if (successful) {
             // Check if this file is already elsewhere on disk
             PeerServer.fsManager().checkShortcut(fd)
-                      .match(err -> PeerServer.log().severe(peer.getForeignName() + ": error checking shortcut for " + fd.pathName),
-                          res -> {
+                      .match(res -> {
                           if (!res) {
                               PeerServer.log().fine(peer.getForeignName() + ": file " + fd.pathName +
                                       " not available locally. Send a FILE_BYTES_REQUEST");
                               PeerServer.rwManager().addFile(peer, fd);
                           }
-                      });
+                      }, err -> PeerServer.log().severe(peer.getForeignName() + ": error checking shortcut for " + fd.pathName));
         }
     }
 }

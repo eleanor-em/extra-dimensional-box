@@ -1,6 +1,6 @@
 package unimelb.bitbox.client;
 
-import unimelb.bitbox.util.functional.algebraic.Result;
+import functional.algebraic.Result;
 import unimelb.bitbox.util.network.JSONDocument;
 
 import javax.crypto.SecretKey;
@@ -15,7 +15,7 @@ class ClientConnection {
     private boolean authenticated = false;
     private boolean sentKey = false;
     private String ident;
-    private SecretKey key = null;
+    private SecretKey key;
 
     private boolean anonymous = true;
 
@@ -73,7 +73,6 @@ class ClientConnection {
     void authenticate(SecretKey key) {
         if (!anonymous) {
             authenticated = true;
-            assert key != null;
             this.key = key;
         }
     }
@@ -83,7 +82,7 @@ class ClientConnection {
      * @param op the operation
      * @return a Result representing the operation's outcome, or a failure response if the client is not authenticated
      */
-    <E extends Exception> Result<E, JSONDocument> bindKey(Function<? super SecretKey, ? extends Result<E, JSONDocument>> op) {
+    <E extends Exception> Result<JSONDocument, E> bindKey(Function<? super SecretKey, ? extends Result<JSONDocument, E>> op) {
         if (authenticated) {
             return op.apply(key);
         }

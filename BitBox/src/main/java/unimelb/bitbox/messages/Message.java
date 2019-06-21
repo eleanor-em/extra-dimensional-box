@@ -1,7 +1,7 @@
 package unimelb.bitbox.messages;
 
+import functional.algebraic.Result;
 import unimelb.bitbox.server.PeerServer;
-import unimelb.bitbox.util.functional.algebraic.Result;
 import unimelb.bitbox.util.network.IJSONData;
 import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.JSONException;
@@ -24,7 +24,7 @@ public abstract class Message implements IJSONData {
         document.appendIfMissing("friendlyName", name);
     }
 
-    public Result<JSONException, MessageType> getCommand() {
+    public Result<MessageType, JSONException> getCommand() {
         return document.getString("command")
                        .andThen(MessageType::fromString);
     }
@@ -39,7 +39,7 @@ public abstract class Message implements IJSONData {
 
     public final void reportErrors() {
         document.getBoolean("status")
-                .ok(status -> {
+                .ifOk(status -> {
                     if (!status) {
                         Result.of(() -> {
                             String command = getCommand().get().name();
@@ -47,7 +47,7 @@ public abstract class Message implements IJSONData {
                             if (!message.contains("already exists")) {
                                 PeerServer.log().warning("Sending failed " + command + ": " + message);
                             }
-                        }).err(e -> PeerServer.log().warning("Malformed message: " + e.getMessage()));
+                        }).ifErr(e -> PeerServer.log().warning("Malformed message: " + e.getMessage()));
                     }
                 });
     }

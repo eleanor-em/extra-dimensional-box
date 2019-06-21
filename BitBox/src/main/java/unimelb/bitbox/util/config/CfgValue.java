@@ -1,6 +1,6 @@
 package unimelb.bitbox.util.config;
 
-import unimelb.bitbox.util.functional.algebraic.Maybe;
+import functional.algebraic.Maybe;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -8,19 +8,36 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+/**
+ * An exeption that may be thrown while parsing a configuration file.
+ */
 class ConfigException extends RuntimeException {
     private final Maybe<Exception> cause;
 
+    /**
+     * Occurs when a key is missing.
+     * @param key the key we tried to find
+     */
     ConfigException(String key) {
         super("Error parsing configuration value `" + key + "`: key not found");
         cause = Maybe.nothing();
     }
 
+    /**
+     * Occurs when we tried to load an enum of type ?, but it was not an enum.
+     * @param key the key we tried to find
+     * @param type the type of the alleged enum
+     */
     ConfigException(String key, Class<?> type) {
         super("Error parsing configuration value `" + key + ": type " + type.getName() + " is not an enum");
         cause = Maybe.nothing();
     }
 
+    /**
+     * Generic constructor for other cases.
+     * @param key the key we tried to find
+     * @param cause the error that caused the exceptino
+     */
     ConfigException(String key, Exception cause) {
         super("Error parsing configuration value `" + key + "`: " + cause.getMessage());
         this.cause = Maybe.just(cause);
@@ -36,6 +53,11 @@ class ConfigException extends RuntimeException {
     }
 }
 
+/**
+ * Represents a value that is to be loaded from a configuration file.
+ * Automatically updates when the file is modified.
+ * @param <T> the ttype of the value
+ */
 public class CfgValue<T> {
     private final String propertyName;
     private final Function<? super String, T> converter;
@@ -47,24 +69,50 @@ public class CfgValue<T> {
 
     private final List<Consumer<T>> actions = Collections.synchronizedList(new ArrayList<>());
 
-    public static CfgValue<String> create(String propertyName) {
+    /**
+     * Create a String-typed config value.
+     * @param propertyName the key to look up in the config file
+     * @return the created config value
+     */
+    public static CfgValue<String> createString(String propertyName) {
         CfgValue<String> ret = new CfgValue<>(propertyName);
         ret.cached = ret.strValue;
         return ret;
     }
+
+    /**
+     * Create an Integer-typed config value.
+     * @param propertyName the key to look up in the config file
+     * @return the created config value
+     */
     public static CfgValue<Integer> createInt(String propertyName) {
         return new CfgValue<>(propertyName, Integer::parseInt);
     }
+
+    /**
+     * Create a Long-typed config value.
+     * @param propertyName the key to look up in the config file
+     * @return the created config value
+     */
     public static CfgValue<Long> createLong(String propertyName) {
         return new CfgValue<>(propertyName, Long::parseLong);
     }
+
+
+    /**
+     * Create a generically-typed config value.
+     * @param propertyName the key to look up in the config file
+     * @param converter a function that converts a String to a T
+     * @param <T> the type to store
+     * @return the created config value
+     */
     public static <T> CfgValue<T> create(String propertyName, Function<? super String, T> converter) {
         return new CfgValue<>(propertyName, converter);
     }
 
     private CfgValue(String propertyName) {
         this.propertyName = propertyName;
-        if (!Configuration.contains(propertyName)) {
+        if (Configuration.missingKey(propertyName)) {
             throw new ConfigException(propertyName);
         }
         Configuration.getConfigurationValue(propertyName)
@@ -75,9 +123,11 @@ public class CfgValue<T> {
         converter = str -> (T) str;
         update();
     }
+
+    // Package-private for inheriting classes etc.
     CfgValue(String propertyName, Function<? super String, T> converter) {
         this.propertyName = propertyName;
-        if (!Configuration.contains(propertyName)) {
+        if (Configuration.missingKey(propertyName)) {
             throw new ConfigException(propertyName);
         }
 
@@ -101,6 +151,10 @@ public class CfgValue<T> {
         }
     }
 
+    /**
+     * Gets the value of this configuration value, updating it if necessary.
+     * @return the value
+     */
     public T get() {
         if (hasChanged()) {
             Configuration.log.fine("Configuation value `" + propertyName + "` changed");
@@ -123,9 +177,18 @@ public class CfgValue<T> {
         return !Configuration.getConfigurationValue(propertyName).map(str -> str.equals(strValue)).orElse(false);
     }
 
+    /**
+     * Sets an action to be run when the CfgValue changes.
+     * @param action the action to run, which accepts the new value
+     */
     public void setOnChanged(Consumer<T> action) {
         actions.add(action);
     }
+
+    /**
+     * Sets an action to be run when the CfgValue changes.
+     * @param action the action to run
+     */
     public void setOnChanged(Runnable action) {
         setOnChanged(ignored -> action.run());
     }

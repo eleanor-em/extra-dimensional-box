@@ -1,11 +1,11 @@
 package unimelb.bitbox.server;
 
+import functional.algebraic.Maybe;
+import functional.algebraic.Result;
 import org.jetbrains.annotations.NotNull;
 import unimelb.bitbox.messages.*;
 import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.util.fs.FileDescriptor;
-import unimelb.bitbox.util.functional.algebraic.Maybe;
-import unimelb.bitbox.util.functional.algebraic.Result;
 import unimelb.bitbox.util.network.FilePacket;
 import unimelb.bitbox.util.network.HostPort;
 import unimelb.bitbox.util.network.JSONDocument;
@@ -46,7 +46,7 @@ public class MessageProcessor implements Runnable  {
         try {
             JSONDocument doc = JSONDocument.parse(text).get();
             String command = doc.getString("command").get();
-            Result<JSONException, String> friendlyName = doc.getString("friendlyName");
+            Result<String, JSONException> friendlyName = doc.getString("friendlyName");
 
             // if we got a friendly name, log it
             String logMessage = message.peer.getForeignName() + " received: " + command
@@ -70,19 +70,19 @@ public class MessageProcessor implements Runnable  {
         Maybe<Message> parsedResponse = Maybe.nothing();
 
         // Look up the data for each handler. These are only used if required for the specific handler
-        Result<JSONException, String> pathName = document.getString("pathName");
-        Result<JSONException, FileDescriptor> fileDescriptor = pathName.andThen(name ->
+        Result<String, JSONException> pathName = document.getString("pathName");
+        Result<FileDescriptor, JSONException> fileDescriptor = pathName.andThen(name ->
                                                                         document.getJSON("fileDescriptor")
                                                                                 .andThen(fd -> FileDescriptor.fromJSON(name, fd)));
-        Result<JSONException, Long> position = document.getLong("position");
-        Result<JSONException, Long> length = document.getLong("length");
-        Result<JSONException, FilePacket> packet = fileDescriptor.andThen(fd ->
+        Result<Long, JSONException> position = document.getLong("position");
+        Result<Long, JSONException> length = document.getLong("length");
+        Result<FilePacket, JSONException> packet = fileDescriptor.andThen(fd ->
                                                                           position.andThen(pos ->
                                                                           length.andThen(len ->
                                                                           Result.value(new FilePacket(peer, fd, pos, len))
                                                                           )));
-        Result<JSONException, String> content = document.getString("content");
-        Result<JSONException, HostPort> hostPort = document.getJSON("hostPort")
+        Result<String, JSONException> content = document.getString("content");
+        Result<HostPort, JSONException> hostPort = document.getJSON("hostPort")
                                                            .andThen(HostPort::fromJSON);
 
         switch (command) {
@@ -167,10 +167,10 @@ public class MessageProcessor implements Runnable  {
                 peer.close();
 
                 // now try to connect to the provided peer list
-                Result<JSONException, List<JSONDocument>> peers = document.getArray("peers");
+                Result<List<JSONDocument>, JSONException> peers = document.getArray("peers");
                 for (JSONDocument peerHostPort : peers.get()) {
                     HostPort.fromJSON(peerHostPort)
-                            .ok(address -> {
+                            .ifOk(address -> {
                                 PeerServer.connection().addPeerAddress(address);
                                 PeerServer.log().fine("Added peer `" + address + "`");
                             });

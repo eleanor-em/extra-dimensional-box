@@ -1,14 +1,16 @@
 package unimelb.bitbox.util.network;
 
+import functional.algebraic.Result;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-import unimelb.bitbox.util.functional.algebraic.Result;
 
 import java.util.ArrayList;
 import java.util.List;
 
+// TODO: Make this type-safe. (It can be done! Instead of overloaded `append`, have more specific methods, and store
+//  the type as well as the key in the hashmap.)
 public class JSONDocument {
     private JSONObject obj = new JSONObject();
 
@@ -16,7 +18,7 @@ public class JSONDocument {
     public JSONDocument(JSONObject obj) {
         this.obj = obj;
     }
-    public static Result<JSONException, JSONDocument> parse(String json) {
+    public static Result<JSONDocument, JSONException> parse(String json) {
         try {
             JSONParser parser = new JSONParser();
             JSONObject obj = (JSONObject) parser.parse(json);
@@ -107,7 +109,7 @@ public class JSONDocument {
         return obj.containsKey(key);
     }
 
-    private <T> Result<JSONException, T> get(String key) {
+    private <T> Result<T, JSONException> get(String key) {
         if (!containsKey(key)) {
             return Result.error(new JSONException("Field `" + key + "` missing"));
         }
@@ -124,28 +126,28 @@ public class JSONDocument {
         }
     }
 
-    public Result<JSONException, Long> getLong(String key) {
+    public Result<Long, JSONException> getLong(String key) {
         return get(key).andThen(val -> val instanceof Long
                 ? get(key)
                 : Result.error(new JSONException("wrong type for field " + key)));
     }
-    public Result<JSONException, String> getString(String key) {
+    public Result<String, JSONException> getString(String key) {
         return get(key).andThen(val -> val instanceof String
                 ? get(key)
                 : Result.error(new JSONException("wrong type for field " + key)));
     }
-    public Result<JSONException, Boolean> getBoolean(String key) {
+    public Result<Boolean, JSONException> getBoolean(String key) {
         return get(key).andThen(val -> val instanceof Boolean
                 ? get(key)
                 : Result.error(new JSONException("wrong type for field " + key)));
     }
-    public Result<JSONException, JSONDocument> getJSON(String key) {
+    public Result<JSONDocument, JSONException> getJSON(String key) {
         return get(key).andThen(val -> val instanceof JSONDocument
                 ? get(key)
                 : Result.error(new JSONException("wrong type for field " + key)));
     }
 
-    public <T> Result<JSONException, List<T>> getArray(String key) {
+    public <T> Result<List<T>, JSONException> getArray(String key) {
         if (!containsKey(key)) {
             return Result.error(new JSONException("Field `" + key + "` missing"));
         }

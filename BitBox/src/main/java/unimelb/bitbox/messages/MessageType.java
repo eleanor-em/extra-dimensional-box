@@ -1,6 +1,6 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.util.functional.algebraic.Result;
+import functional.algebraic.Result;
 import unimelb.bitbox.util.network.JSONException;
 
 public enum MessageType {
@@ -21,7 +21,7 @@ public enum MessageType {
     DIRECTORY_DELETE_REQUEST,
     DIRECTORY_DELETE_RESPONSE;
 
-    public static Result<JSONException, MessageType> fromString(String str) {
+    public static Result<MessageType, JSONException> fromString(String str) {
         return Result.ofRuntime(() -> valueOf(str))
                      .mapError(ignored -> new JSONException("command not recognised"));
     }

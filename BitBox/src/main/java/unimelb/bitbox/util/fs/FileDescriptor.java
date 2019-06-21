@@ -1,6 +1,7 @@
 package unimelb.bitbox.util.fs;
 
-import unimelb.bitbox.util.functional.algebraic.Result;
+import functional.algebraic.Maybe;
+import functional.algebraic.Result;
 import unimelb.bitbox.util.network.IJSONData;
 import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.JSONException;
@@ -9,19 +10,38 @@ import unimelb.bitbox.util.network.JSONException;
  * Additional information about a given file.
  */
 public class FileDescriptor implements IJSONData {
-    /**
-     * Timestamp of the last modification time of the file.
-     */
-    public long lastModified = 0L;
-    /**
-     * The MD5 hash of the file's content.
-     */
-    public String md5 = null;
-    /**
-     * The size of the file in bytes.
-     */
-    public long fileSize = 0L;
+    private class InternalFD {
+        /**
+         * Timestamp of the last modification time of the file.
+         */
+        public final long lastModified;
+        /**
+         * The MD5 hash of the file's content.
+         */
+        public final String md5;
+        /**
+         * The size of the file in bytes.
+         */
+        public final long fileSize;
+
+        private InternalFD(long lastModified, String md5, long fileSize) {
+            this.lastModified = lastModified;
+            this.md5 = md5;
+            this.fileSize = fileSize;
+        }
+    }
     public String pathName;
+    public long lastModified() {
+        return data.get().lastModified;
+    }
+    public String md5() {
+        return data.get().md5;
+    }
+    public long fileSize() {
+        return data.get().fileSize;
+    }
+
+    private final Maybe<InternalFD> data;
 
     private final boolean isDirectory;
 
@@ -33,10 +53,13 @@ public class FileDescriptor implements IJSONData {
      */
     public FileDescriptor(String pathName, long lastModified, String md5, long fileSize) {
         this.pathName = pathName;
-        this.lastModified = lastModified;
-        this.md5 = md5;
-        this.fileSize = fileSize;
+        data = Maybe.just(new InternalFD(lastModified, md5, fileSize));
         isDirectory = false;
+    }
+    private FileDescriptor(String pathName) {
+        isDirectory = true;
+        this.pathName = pathName;
+        data = Maybe.nothing();
     }
 
     static FileDescriptor directory(String pathName) {
@@ -47,11 +70,17 @@ public class FileDescriptor implements IJSONData {
             return new FileDescriptor(newPathName);
         }
 
-        return new FileDescriptor(newPathName, src.lastModified, src.md5, src.fileSize);
+        return new FileDescriptor(newPathName, src.data.get().lastModified, src.data.get().md5, src.data.get().fileSize);
     }
 
+    /**
+     * Produces a FileDescriptor from the given {@link JSONDocument}.
+     * @param pathName the file's name
+     * @param doc the document to parse
+     * @return the file descriptor, or a parsing error
+     */
     @SuppressWarnings({"CodeBlock2Expr"})
-    public static Result<JSONException, FileDescriptor> fromJSON(String pathName, JSONDocument doc) {
+    public static Result<FileDescriptor, JSONException> fromJSON(String pathName, JSONDocument doc) {
         return doc.getLong("lastModified").andThen(lastModified -> {
             return doc.getLong("fileSize").andThen(fileSize -> {
                 return doc.getString("md5").andThen(md5 -> {
@@ -61,17 +90,16 @@ public class FileDescriptor implements IJSONData {
         });
     }
 
-    private FileDescriptor(String pathName) {
-        isDirectory = true;
-        this.pathName = pathName;
-    }
-
     @Override
     public JSONDocument toJSON() {
+        if (isDirectory) {
+            return new JSONDocument();
+        }
+
         JSONDocument doc = new JSONDocument();
-        doc.append("lastModified", lastModified);
-        doc.append("md5", md5);
-        doc.append("fileSize", fileSize);
+        doc.append("lastModified", data.get().lastModified);
+        doc.append("md5", data.get().md5);
+        doc.append("fileSize", data.get().fileSize);
         return doc;
     }
 
@@ -86,8 +114,10 @@ public class FileDescriptor implements IJSONData {
             FileDescriptor other = (FileDescriptor) rhs;
 
             return pathName.equals(other.pathName)
-                    && ((other.isDirectory == isDirectory)
-                         || (other.lastModified == lastModified && md5.equals(other.md5) && fileSize == other.fileSize));
+                    && ((other.isDirectory && isDirectory)
+                         || (other.data.get().lastModified == data.get().lastModified
+                          && data.get().md5.equals(other.data.get().md5)
+                          && data.get().fileSize == other.data.get().fileSize));
         }
 
         return false;

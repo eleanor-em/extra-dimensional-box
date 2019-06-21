@@ -3,12 +3,22 @@ package unimelb.bitbox.util.network;
 import java.io.IOException;
 import java.net.DatagramSocket;
 
+/**
+ * A UDP implementation of {@link ISocket}.
+ */
 public class UDPSocket implements ISocket {
     private final DatagramSocket socket;
 
+    /**
+     * Initialises the socket with infinite timeout.
+     */
     public UDPSocket(int port) throws IOException {
         this(port, 0);
     }
+
+    /**
+     * This constructor indicates how long a new connection should wait before considered a failure.
+     */
     public UDPSocket(int port, int timeout) throws IOException {
         socket = new DatagramSocket(port);
         socket.setSoTimeout(timeout);

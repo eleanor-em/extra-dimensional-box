@@ -55,7 +55,7 @@ class OutgoingConnectionUDP extends OutgoingConnection {
                 udpSocket.send(packet);
                 message.onSent.run();
             } catch (IOException e) {
-                PeerServer.log().severe("Error sending packet to UDP socket: " + e.getMessage());
+                PeerServer.log().severe("Error sending packet to UDP socket: ".toString() + e.getMessage());
             } catch (InterruptedException e) {
                 PeerServer.log().fine("thread interrupted: " + e.getMessage());
             }

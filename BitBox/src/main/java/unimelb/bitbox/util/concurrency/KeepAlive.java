@@ -1,12 +1,15 @@
 package unimelb.bitbox.util.concurrency;
 
+import functional.algebraic.Maybe;
 import unimelb.bitbox.server.PeerServer;
-import unimelb.bitbox.util.functional.algebraic.Maybe;
 
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.*;
 
+/**
+ * A service that continually runs a task, restarting it if it fails.
+ */
 public class KeepAlive {
     private static final ExecutorService executor = Executors.newCachedThreadPool();
     private static final CompletionService<Runnable> completionService = new ExecutorCompletionService<>(executor);
@@ -14,6 +17,11 @@ public class KeepAlive {
     static final Set<Runnable> cancelledTasks = ConcurrentHashMap.newKeySet();
     static final Map<Runnable, KeepAliveWatcher> watchers = new ConcurrentHashMap<>();
 
+    /**
+     * Submits a task.
+     * @param task the task to submit
+     * @return an object that can be used to cancel the task
+     */
     public static KeepAliveWatcher submit(Runnable task) {
         return new KeepAliveWatcher(submitInternal(task), task);
     }

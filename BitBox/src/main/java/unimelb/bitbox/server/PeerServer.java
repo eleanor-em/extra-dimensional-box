@@ -1,5 +1,6 @@
 package unimelb.bitbox.server;
 
+import functional.algebraic.Maybe;
 import unimelb.bitbox.client.ClientServer;
 import unimelb.bitbox.messages.*;
 import unimelb.bitbox.peers.Peer;
@@ -8,7 +9,6 @@ import unimelb.bitbox.util.concurrency.KeepAlive;
 import unimelb.bitbox.util.config.CfgDependent;
 import unimelb.bitbox.util.config.CfgEnumValue;
 import unimelb.bitbox.util.config.CfgValue;
-import unimelb.bitbox.util.config.Configuration;
 import unimelb.bitbox.util.fs.FileDescriptor;
 import unimelb.bitbox.util.fs.FileSystemEvent;
 import unimelb.bitbox.util.fs.FileSystemManager;
@@ -32,7 +32,7 @@ public class PeerServer implements FileSystemObserver {
     /* Configuration values */
     private final CfgValue<Long> udpBlockSize = CfgValue.createLong("udpBlockSize");
     private final CfgValue<Long> blockSize = CfgValue.createLong("blockSize");
-    private final CfgValue<String> advertisedName = CfgValue.create("advertisedName");
+    private final CfgValue<String> advertisedName = CfgValue.createString("advertisedName");
     private final CfgValue<Integer> tcpPort = CfgValue.createInt("port");
     private final CfgValue<Integer> udpPort = CfgValue.createInt("udpPort");
     private final CfgEnumValue<ConnectionMode> mode = new CfgEnumValue<>("mode", ConnectionMode.class);
@@ -111,28 +111,25 @@ public class PeerServer implements FileSystemObserver {
 
     /* Singleton implementation */
 
-    private static PeerServer INSTANCE = null;
+    private static Maybe<PeerServer> INSTANCE = Maybe.nothing();
 
     public static void initialise() throws IOException {
-        if (INSTANCE != null) {
+        if (INSTANCE.isJust()) {
             throw new RuntimeException("PeerServer initialised twice");
         }
         new PeerServer();
     }
 
     public static PeerServer get() {
-        if (INSTANCE == null) {
-            throw new RuntimeException("No peer server exists");
-        }
-        return INSTANCE;
+        return INSTANCE.get();
     }
 
     private PeerServer() throws IOException {
-        INSTANCE = this;
+        INSTANCE = Maybe.just(this);
         log.setLevel(Level.FINER);
 
         // Create the file system manager
-        CfgValue<String> path = CfgValue.create("path");
+        CfgValue<String> path = CfgValue.createString("path");
         path.setOnChanged(() -> log.warning("Path was changed in config, but will not be updated until restart"));
         fileSystemManager = new FileSystemManager(path.get());
 

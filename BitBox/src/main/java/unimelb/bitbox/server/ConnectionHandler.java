@@ -1,16 +1,19 @@
 package unimelb.bitbox.server;
 
+import functional.algebraic.Maybe;
 import unimelb.bitbox.messages.Message;
 import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.util.concurrency.DelayedInitialiser;
 import unimelb.bitbox.util.config.CfgValue;
-import unimelb.bitbox.util.functional.algebraic.Maybe;
 import unimelb.bitbox.util.network.*;
 
 import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.ServerSocket;
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -60,11 +63,10 @@ public abstract class ConnectionHandler implements IJSONData {
 
     private void addPeerAddress(String address) {
         HostPort.fromAddress(address)
-                .match(ignored -> PeerServer.log().warning("Tried to add invalid address `" + address + "`"),
-                       peerHostPort -> {
+                .match(peerHostPort -> {
                            PeerServer.log().fine("Adding address " + address + " to connection list");
                            addPeerAddress(peerHostPort);
-                       });
+                       }, ignored -> PeerServer.log().warning("Tried to add invalid address `" + address + "`"));
     }
     void addPeerAddress(HostPort peerHostPort) {
         peerAddresses.add(peerHostPort);
@@ -98,7 +100,7 @@ public abstract class ConnectionHandler implements IJSONData {
             return tryPeer(hostPort).map(peer -> {
                 peer.forceIncoming();
                 return true;
-            }).fromMaybe(false);
+            }).orElse(false);
         }
         return false;
     }

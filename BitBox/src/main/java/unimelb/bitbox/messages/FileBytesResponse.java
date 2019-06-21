@@ -35,14 +35,8 @@ public class FileBytesResponse extends Response {
         AtomicReference<String> content = new AtomicReference<>("");
         AtomicBoolean shouldRetry = new AtomicBoolean(true);
 
-        String reply = PeerServer.fsManager().readFile(fileDescriptor.md5, position, length)
-                                 .matchThen(error -> {
-                                          // If reading caused an error, we can probably retry later
-                                          PeerServer.log().warning(peer + ": failed reading bytes of file " + pathName +
-                                                                " at [" + position + "/" + fileDescriptor.fileSize + "]: "
-                                                                + error.getMessage());
-                                          return "failed to read bytes: " + error.getMessage();
-                                      }, maybeBuffer -> maybeBuffer.matchThen(
+        String reply = PeerServer.fsManager().readFile(fileDescriptor.md5(), position, length)
+                                 .matchThen(maybeBuffer -> maybeBuffer.matchThen(
                                               byteBuffer -> {
                                                   content.set(Base64.getEncoder().encodeToString(byteBuffer.array()));
                                                   return SUCCESS;
@@ -51,7 +45,14 @@ public class FileBytesResponse extends Response {
                                                   // If the file was missing, there's no point retrying
                                                   shouldRetry.set(false);
                                                   return "file not found";
-                                              }));
+                                              }),
+                                         error -> {
+                                             // If reading caused an error, we can probably retry later
+                                             PeerServer.log().warning(peer + ": failed reading bytes of file " + pathName +
+                                                     " at [" + position + "/" + fileDescriptor.fileSize() + "]: "
+                                                     + error.getMessage());
+                                             return "failed to read bytes: " + error.getMessage();
+                                         });
 
         boolean successful = reply.equals(SUCCESS);
         if (successful) {
