@@ -9,6 +9,8 @@ import java.util.function.Function;
 
 /**
  * Stores data about a client connection.
+ *
+ * @author Eleanor McMurtry
  */
 class ClientConnection {
     private final Socket socket;

@@ -8,6 +8,9 @@ import java.util.logging.Logger;
 
 /**
  * Class to initialise the peer-to-peer application.
+ *
+ * @author Aaron Harwood
+ * @author Eleanor McMurtry
  */
 public class PeerApp
 {

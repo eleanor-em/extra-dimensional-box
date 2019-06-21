@@ -10,6 +10,8 @@ import java.util.function.Supplier;
  * A value that is dependent on one or several configuration values.
  * Updates whenever the configuration value(s) change.
  * @param <T> the type of the value
+ *
+ * @author Eleanor McMurtry
  */
 public class CfgDependent<T> {
     private final LazyInitialiser<T> value;

@@ -6,6 +6,11 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
+/**
+ * Combines a RandomAccessFile with a FileChannel for ease of use.
+ *
+ * @author Eleanor McMurtry
+ */
 class RandomAccessChannel implements AutoCloseable {
     private final RandomAccessFile raf;
     private final FileChannel channel;

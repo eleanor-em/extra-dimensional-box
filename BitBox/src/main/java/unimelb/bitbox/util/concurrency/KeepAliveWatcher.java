@@ -4,6 +4,8 @@ import java.util.concurrent.Future;
 
 /**
  * A class that watches a {@link KeepAlive} task.
+ *
+ * @author Eleanor McMurtry
  */
 public class KeepAliveWatcher {
     Future<?> future;

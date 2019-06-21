@@ -6,6 +6,9 @@ import unimelb.bitbox.util.network.JSONDocument;
 
 /**
  * Parent class of requests sent by the Client to a Peer.
+ *
+ * @author Eleanor McMurtry
+ * @author Andrea Law
  */
 public abstract class ClientRequest implements IJSONData {
     private final JSONDocument document = new JSONDocument();

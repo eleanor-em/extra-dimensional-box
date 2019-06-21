@@ -15,8 +15,10 @@ import java.util.*;
 
 /**
  * A Merkle tree, using SHA-512.
- * Allows logarithmic insertion, deletion, lookup, proof generation, and proof verification.
+ * Allows logarithmic insertion, lookup, proof generation, and proof verification.
  * @param <E> the type to store; must implement {@link Serializable}
+ *
+ * @authoer Eleanor McMurtry
  */
 public class MerkleTree<E extends Serializable> {
     private static final int HASH_SIZE = 512;
@@ -49,21 +51,20 @@ public class MerkleTree<E extends Serializable> {
     /**
      * Adds the element to the tree.
      * @param element the element to add
+     * @return whether the element was successfully added
      */
-    public void add(E element) {
+    public boolean add(E element) {
         LeafNode<E> newLeaf = new LeafNode<>(element);
         if (root.isJust()) {
             InternalNode<E> node = root.get();
             for (int i = 0; i < HASH_SIZE; ++i) {
                 if (node.isLeaf()) {
-                    node.split(newLeaf, i);
-                    return;
+                    return node.split(newLeaf, i);
                 } else {
                     byte[] bits = node.getSkippedBits().get();
                     for (byte bit : bits) {
                         if (newLeaf.getBit(i) != bit) {
-                            node.split(newLeaf, i);
-                            return;
+                            return node.split(newLeaf, i);
                         } else {
                             ++i;
                         }
@@ -72,8 +73,10 @@ public class MerkleTree<E extends Serializable> {
                     node = left ? node.getLeft().get() : node.getRight().get();
                 }
             }
+            return false;
         } else {
             root = Maybe.just(new InternalNode<>(newLeaf));
+            return true;
         }
     }
 
@@ -187,6 +190,7 @@ public class MerkleTree<E extends Serializable> {
             nodes.add(root.get());
             StringBuilder ret = new StringBuilder();
 
+            // Breadth-first search
             while (!nodes.isEmpty()) {
                 InternalNode<E> node = nodes.remove(0);
                 ret.append(node.toString());
@@ -204,6 +208,9 @@ public class MerkleTree<E extends Serializable> {
         }
     }
 
+    /**
+     * Unit tests for the class.
+     */
     public static void main(String[] args) {
         int count = 1000000;
 
@@ -234,6 +241,7 @@ public class MerkleTree<E extends Serializable> {
 
         List<ProofNode> proof = tree.prove(last).get();
         proof.forEach(System.out::println);
+        System.out.println("Proof has " + proof.size() + " elements");
         assert tree.verify(last, proof);
 
         proof.remove(0);
@@ -267,6 +275,7 @@ class ProofNode {
     }
 }
 
+@FunctionalInterface
 interface IMerkleHashable {
     byte[] getHash();
 }
@@ -347,19 +356,19 @@ class InternalNode<E extends Serializable> implements IMerkleHashable {
         );
     }
 
-    public void split(LeafNode<E> element, int index) {
+    public boolean split(LeafNode<E> element, int index) {
         InternalNode<E> newNode = new InternalNode<>(element);
         newNode.parent = Maybe.just(this);
         InternalNode<E> oldNode = new InternalNode<>(this);
 
-        child.val.match(
+        return child.val.matchThen(
                 pair -> {
                     // Whether the new leaf node should be inserted on the left
                     boolean left = element.getBit(index) == 0;
 
                     // How many bits will be left over in the old node after the split
                     byte[] remainingBits;
-                    if (index - pair.index >= pair.bits.length) {
+                    if (index + 1 - pair.index > pair.bits.length) {
                         remainingBits = new byte[0];
                     } else {
                         // index + 1 because the splitting means that we already accounted for bits[index]
@@ -378,25 +387,30 @@ class InternalNode<E extends Serializable> implements IMerkleHashable {
                         child = CommonEither.left(new ChildNodePair<>(oldNode, newNode, ourBits, pair.index));
                     }
                     oldNode.calculateHashRecursively();
+                    return true;
                 },
                 leaf -> {
                     // If we are a leaf node, splitting is pretty easy because we can just compare
                     int compare = element.compare(leaf, index);
-                    assert compare != 0;
-                    // Compare returns the index of the first non-matching bit, plus 1
-                    int skipLength = Math.max(Math.abs(compare) - 1 - index, 0);
-
-                    byte[] bits = new byte[skipLength];
-                    for (int i = 0; i < skipLength; ++i) {
-                        bits[i] = (byte) element.getBit(index + i);
-                    }
-
-                    if (compare < 0) {
-                        child = CommonEither.left(new ChildNodePair<>(newNode, oldNode, bits, index));
+                    if (compare == 0) {
+                        return false;
                     } else {
-                        child = CommonEither.left(new ChildNodePair<>(oldNode, newNode, bits, index));
+                        // Compare returns the index of the first non-matching bit, plus 1
+                        int skipLength = Math.max(Math.abs(compare) - 1 - index, 0);
+
+                        byte[] bits = new byte[skipLength];
+                        for (int i = 0; i < skipLength; ++i) {
+                            bits[i] = (byte) element.getBit(index + i);
+                        }
+
+                        if (compare < 0) {
+                            child = CommonEither.left(new ChildNodePair<>(newNode, oldNode, bits, index));
+                        } else {
+                            child = CommonEither.left(new ChildNodePair<>(oldNode, newNode, bits, index));
+                        }
+                        calculateHashRecursively();
+                        return true;
                     }
-                    calculateHashRecursively();
                 }
         );
     }

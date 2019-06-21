@@ -20,6 +20,9 @@ import java.util.stream.Stream;
 /**
  * A ReadWriteThreadPool manages all the workers for reading file bytes and writing file bytes on this peer
  * in response to messages received from other peers.
+ *
+ * @author Andrea Law
+ * @author Eleanor McMurtry
  */
 public class ReadWriteManager {
     private final ExecutorService executor = Executors.newCachedThreadPool();

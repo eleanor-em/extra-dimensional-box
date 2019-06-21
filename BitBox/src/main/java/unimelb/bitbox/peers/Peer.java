@@ -18,6 +18,11 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * States a Peer can be in.
+ *
+ * @author Eleanor McMurtry
+ */
 enum PeerState {
     WAIT_FOR_REQUEST,
     WAIT_FOR_RESPONSE,
@@ -29,6 +34,9 @@ enum PeerState {
  * A Peer is a combination of an OutgoingConnection (used to write to the socket) and an IncomingConnectionTCP
  * (used to read from the socket). The OutgoingConnection has a BlockingQueue; messages to be sent should be placed in
  * this queue. The IncomingConnectionTCP relays messages to the ServerThread's queue.
+ *
+ * @author Eleanor McMurtry
+ * @author Andrea Law
  */
 public abstract class Peer {
     // Data

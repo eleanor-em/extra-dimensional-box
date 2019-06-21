@@ -11,6 +11,12 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * A UDP implementation of the {@link Peer}.
+ *
+ * @author Eleanor McMurtry
+ * @author Benjamin(Jingyi Li) Li
+ */
 public class PeerUDP extends Peer {
     private final RetryService.RetryServer retryServer = new RetryService.RetryServer(this);
 

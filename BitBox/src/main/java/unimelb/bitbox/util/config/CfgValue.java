@@ -9,7 +9,9 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * An exeption that may be thrown while parsing a configuration file.
+ * An exception that may be thrown while parsing a configuration file.
+ *
+ * @author Eleanor McMurtry
  */
 class ConfigException extends RuntimeException {
     private final Maybe<Exception> cause;

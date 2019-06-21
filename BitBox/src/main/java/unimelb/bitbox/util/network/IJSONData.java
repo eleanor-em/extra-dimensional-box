@@ -4,6 +4,8 @@ import org.jetbrains.annotations.Contract;
 
 /**
  * An object that can be converted to a {@link JSONDocument}.
+ *
+ * @author Eleanor McMurtry
  */
 @FunctionalInterface
 public interface IJSONData {

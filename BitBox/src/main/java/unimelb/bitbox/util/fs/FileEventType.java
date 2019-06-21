@@ -7,6 +7,8 @@ package unimelb.bitbox.util.fs;
  * <li>{@link #FILE_MODIFY}</li>
  * <li>{@link #DIRECTORY_CREATE}</li>
  * <li>{@link #DIRECTORY_DELETE}</li>
+ *
+ * @author Aaron Harwood
  */
 public enum FileEventType {
     /**

@@ -6,7 +6,11 @@ import unimelb.bitbox.util.fs.FileDescriptor;
 
 import java.io.IOException;
 
-
+/**
+ * FILE_MODIFY_RESPONSE message.
+ *
+ * @author Eleanor McMurtry
+ */
 public class FileModifyResponse extends Response {
     private static final String SUCCESS = "file loader ready";
     private final FileDescriptor fd;

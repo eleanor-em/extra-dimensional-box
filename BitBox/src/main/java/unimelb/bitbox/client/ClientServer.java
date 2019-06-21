@@ -23,6 +23,9 @@ import java.util.concurrent.Executors;
 
 /**
  * A Runnable object that serves Client connections.
+ *
+ * @author Eleanor McMurtry
+ * @author Andrea Law
  */
 public class ClientServer implements Runnable {
     // Config values

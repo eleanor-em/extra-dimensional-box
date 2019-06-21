@@ -7,13 +7,8 @@ import unimelb.bitbox.util.network.HostPort;
  * Generates the message content of CONNECT_PEER
  * to be sent by a Peer to a Client.
  *
- * Known issue in the design:
- * due to the design issue of Bitbox,
- * host name "localhost" may sometimes be stored as "127.0.0.1".<br/>
- *
- * For example, if a peer tries to connect to "localhost:8114" and
- * the peer was stored as "127.0.0.1:8114", the connection would succeed
- * given the existing constraints.
+ * @author Eleanor McMurtry
+ * @author Andrea Law
  */
 class ConnectPeerResponse extends ClientResponse {
 

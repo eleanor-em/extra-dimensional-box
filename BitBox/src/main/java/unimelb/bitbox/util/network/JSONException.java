@@ -6,6 +6,8 @@ import org.json.simple.parser.ParseException;
 
 /**
  * Thrown in case of a malformed response from a peer.
+ *
+ * @author Eleanor McMurtry
  */
 public class JSONException extends Exception {
     private final Maybe<ParseException> cause;

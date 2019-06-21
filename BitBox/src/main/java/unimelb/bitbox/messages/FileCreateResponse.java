@@ -6,6 +6,12 @@ import unimelb.bitbox.util.fs.FileDescriptor;
 
 import java.io.IOException;
 
+/**
+ * FILE_CREATE_RESPONSE message.
+ *
+ * @author Eleanor McMurtry
+ * @author Andrea Law
+ */
 public class FileCreateResponse extends Response {
     private static final String SUCCESS = "file loader ready";
     private final FileDescriptor fd;

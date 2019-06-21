@@ -11,6 +11,8 @@ import java.nio.ByteBuffer;
 
 /**
  * A single packet in a file transfer.
+ *
+ * @author Eleanor McMurtry
  */
 public class FilePacket {
     /**

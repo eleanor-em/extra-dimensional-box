@@ -13,6 +13,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * A class to track the peers we've met.
+ *
+ * @author Eleanor McMurtry
+ */
 class KnownPeerTracker {
     private static final List<TimestampedAddress> addresses = Collections.synchronizedList(new ArrayList<>());
     private static final String PEER_LIST_FILE = "peerlist";

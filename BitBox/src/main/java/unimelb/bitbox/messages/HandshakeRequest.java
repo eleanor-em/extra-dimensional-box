@@ -2,6 +2,11 @@ package unimelb.bitbox.messages;
 
 import unimelb.bitbox.server.PeerServer;
 
+/**
+ * HANDSHAKE_REQUEST message.
+ *
+ * @author Eleanor McMurtry
+ */
 public class HandshakeRequest extends Message {
     public HandshakeRequest() {
         super("HANDSHAKE");

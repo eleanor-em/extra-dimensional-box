@@ -7,6 +7,8 @@ import java.util.Date;
 
 /**
  * Pairs an address with a timestamp.
+ *
+ * @author Eleanor McMurtry
  */
 public class TimestampedAddress {
     private final String address;

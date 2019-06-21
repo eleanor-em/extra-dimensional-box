@@ -8,6 +8,11 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * A TCP implementation of the {@link Peer}.
+ *
+ * @author Eleanor McMurtry
+ */
 public class PeerTCP extends Peer {
     private final Socket socket;
 
@@ -47,6 +52,11 @@ public class PeerTCP extends Peer {
     }
 }
 
+/**
+ * The outgoing part of the connection for a TCP peer.
+ *
+ * @author Eleanor McMurtry
+ */
 class OutgoingConnectionTCP extends OutgoingConnection {
     private final Socket socket;
 

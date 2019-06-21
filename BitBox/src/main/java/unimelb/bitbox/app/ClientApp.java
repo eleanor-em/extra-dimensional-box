@@ -28,7 +28,8 @@ import java.security.Security;
 import java.util.Base64;
 
 /**
- * Class to initialise the Bitbox Client
+ * Class to initialise the Bitbox Client.
+ * @author Eleanor McMurtry
  */
 public class ClientApp {
     /**

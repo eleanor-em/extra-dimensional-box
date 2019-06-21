@@ -17,6 +17,11 @@ import java.net.InetSocketAddress;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * UDP implementation of {@link ConnectionHandler}.
+ *
+ * @author Eleanor McMurtry
+ */
 class UDPConnectionHandler extends ConnectionHandler {
     private static final int UDP_MAX_PACKET = 65507;
 

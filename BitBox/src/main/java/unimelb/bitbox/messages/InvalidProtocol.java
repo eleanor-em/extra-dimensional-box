@@ -3,6 +3,11 @@ package unimelb.bitbox.messages;
 import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.server.PeerServer;
 
+/**
+ * INVALID_PROTOCOL message.
+ *
+ * @author Eleanor McMurtry
+ */
 public class InvalidProtocol extends Message {
     public InvalidProtocol(Peer peer, String message) {
         super("INVALID");

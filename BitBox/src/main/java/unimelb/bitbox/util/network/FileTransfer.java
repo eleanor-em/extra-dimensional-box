@@ -8,6 +8,8 @@ import unimelb.bitbox.util.fs.FileDescriptor;
 
 /**
  * Represents a file that is being transferred.
+ *
+ * @author Eleanor McMurtry
  */
 public class FileTransfer {
     /**

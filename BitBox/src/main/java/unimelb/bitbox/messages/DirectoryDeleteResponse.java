@@ -4,6 +4,11 @@ import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.fs.FileManagerException;
 
+/**
+ * DIRECTORY_DELETE_RESPONSE message.
+ *
+ * @author Eleanor McMurtry
+ */
 public class DirectoryDeleteResponse extends Response {
     private static final String SUCCESS = "directory deleted";
     private final String pathName;

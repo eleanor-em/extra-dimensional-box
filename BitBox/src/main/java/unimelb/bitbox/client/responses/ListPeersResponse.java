@@ -7,6 +7,9 @@ import java.util.stream.Collectors;
 /**
  * Generates the message content of LIST_PEERS
  * to be sent by a Peer to a Client.
+ *
+ * @author Eleanor McMurtry
+ * @author Andrea Law
  */
 class ListPeersResponse extends ClientResponse {
 

@@ -5,6 +5,8 @@ import java.net.ServerSocket;
 
 /**
  * A TCP implementation of {@link ISocket}.
+ *
+ * @author Eleanor McMurtry
  */
 public class TCPSocket implements ISocket {
     private final ServerSocket socket;

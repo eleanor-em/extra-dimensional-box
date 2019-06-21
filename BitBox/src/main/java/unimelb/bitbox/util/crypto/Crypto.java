@@ -12,6 +12,8 @@ import java.util.Base64;
 
 /**
  * Contains utility methods for working with the cryptography library.
+ *
+ * @author Eleanor McMurtry
  */
 // We need to be specific about the types of keys we accept
 @SuppressWarnings("TypeMayBeWeakened")

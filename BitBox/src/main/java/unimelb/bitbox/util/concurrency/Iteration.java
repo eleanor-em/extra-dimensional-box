@@ -6,6 +6,9 @@ import java.util.function.Consumer;
 
 /**
  * A collection of iteration utilities.
+ *
+ *
+ * @author Eleanor McMurtry
  */
 public class Iteration {
     /**

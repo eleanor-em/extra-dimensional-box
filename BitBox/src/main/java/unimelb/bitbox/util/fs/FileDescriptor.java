@@ -8,6 +8,9 @@ import unimelb.bitbox.util.network.JSONException;
 
 /**
  * Additional information about a given file.
+ *
+ * @author Aaron Harwood
+ * @author Eleanor McMurtry
  */
 public class FileDescriptor implements IJSONData {
     private class InternalFD {

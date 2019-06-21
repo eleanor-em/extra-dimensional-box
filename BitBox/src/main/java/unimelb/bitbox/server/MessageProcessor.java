@@ -17,6 +17,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * The message processor collects messages from the various PeerConnections, and then responds appropriately.
+ *
+ * @author Eleanor McMurtry
  */
 public class MessageProcessor implements Runnable  {
     private final BlockingQueue<ReceivedMessage> messages = new LinkedBlockingQueue<>();

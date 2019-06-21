@@ -11,6 +11,8 @@ import java.util.concurrent.Executors;
 
 /**
  * Tracks the clients that we have received connections from.
+ *
+ * @author Eleanor McMurtry
  */
 class KnownClientTracker {
     private static final List<String> clients = Collections.synchronizedList(new ArrayList<>());

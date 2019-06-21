@@ -5,6 +5,12 @@ import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.fs.FileDescriptor;
 import unimelb.bitbox.util.fs.FileManagerException;
 
+/**
+ * FILE_DELETE_RESPONSE message.
+ *
+ * @author Benjamin(Jingyi Li) Li
+ * @author Eleanor McMurtry
+ */
 public class FileDeleteResponse extends Response {
     private static final String SUCCESS = "File deleted";
     private final FileDescriptor fd;

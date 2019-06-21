@@ -4,6 +4,8 @@ import java.io.IOException;
 
 /**
  * An exception that can be caused by the file manager.
+ *
+ * @author Eleanor McMurtry
  */
 public class FileManagerException extends IOException {
     FileManagerException(String cause) { super(cause); }

@@ -45,7 +45,7 @@ import java.util.function.Predicate;
  *
  * @author Aaron Harwood
  * @author Andrew Linxi Wang (contributions to Windows compatibility)
- * @author Eleanor McMurtry (bug fixes, error reporting improvements, synchronization optimisation)
+ * @author Eleanor McMurtry
  */
 public final class FileSystemManager extends Thread {
     /**

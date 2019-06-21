@@ -3,6 +3,11 @@ package unimelb.bitbox.messages;
 import functional.algebraic.Result;
 import unimelb.bitbox.util.network.JSONException;
 
+/**
+ * The different types of message.
+ *
+ * @author Eleanor McMurtry
+ */
 public enum MessageType {
     INVALID_PROTOCOL,
     CONNECTION_REFUSED,
@@ -21,6 +26,10 @@ public enum MessageType {
     DIRECTORY_DELETE_REQUEST,
     DIRECTORY_DELETE_RESPONSE;
 
+    /**
+     * Convert a String to a MessageType.
+     * @return the MessageType or a parsing exception
+     */
     public static Result<MessageType, JSONException> fromString(String str) {
         return Result.ofRuntime(() -> valueOf(str))
                      .mapError(ignored -> new JSONException("command not recognised"));

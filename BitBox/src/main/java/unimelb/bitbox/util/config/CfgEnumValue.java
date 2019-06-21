@@ -7,6 +7,8 @@ import java.util.Map;
  * A {@link CfgValue} that is an enumeration type.
  * Needs a specialisation the conversion from String to Enum is a bit awkward.
  * @param <T>
+ *
+ * @author Eleanor McMurtry
  */
 public class CfgEnumValue<T extends Enum<T>> extends CfgValue<T> {
     private static final Map<String, String> actualValues = new HashMap<>();

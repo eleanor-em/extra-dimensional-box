@@ -5,6 +5,11 @@ import functional.combinator.Combinators;
 
 import java.util.function.Consumer;
 
+/**
+ * A three-way {@link Either} where each type inherits from a common base clase.
+ *
+ * @author Eleanor McMurtry
+ */
 public class ChainedEither<A extends T, B extends T, C extends T, T> {
     private final Either<A, Either<B, C>> val;
 

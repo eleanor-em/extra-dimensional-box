@@ -6,6 +6,9 @@ import unimelb.bitbox.util.network.JSONDocument;
 
 /**
  * Parent class of responses to client requests
+ *
+ * @author Eleanor McMurtry
+ * @author Andrea Law
  */
 public abstract class ClientResponse {
     protected JSONDocument response = new JSONDocument();

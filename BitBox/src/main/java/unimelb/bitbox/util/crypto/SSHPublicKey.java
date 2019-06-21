@@ -17,6 +17,9 @@ import java.util.regex.Pattern;
  * Loads a ssh-keygen public key from a string, and stores the relevant data.
  *
  * Based on code by stackoverflow user Taras: https://stackoverflow.com/a/54600720/4672696
+ *
+ * @author Eleanor McMurtry
+ * @author Taras
  */
 public class SSHPublicKey {
     private static final int VALUE_LENGTH = 4;

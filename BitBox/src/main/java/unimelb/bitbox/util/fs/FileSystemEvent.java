@@ -10,6 +10,8 @@ import java.nio.file.FileSystems;
  * <li>{@link #pathName}</li>
  * <li>{@link #event}</li>
  * <li>{@link #fileDescriptor}</li>
+ *
+ * @author Aaron Harwood
  */
 public class FileSystemEvent {
     /**

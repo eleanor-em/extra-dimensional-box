@@ -4,6 +4,9 @@ import functional.algebraic.Either;
 
 import java.util.function.Function;
 
+/**
+ * An {@link Either} where each element extends a base class.
+ */
 public class CommonEither<L extends I, R extends I, I> {
     public final Either<L, R> val;
 

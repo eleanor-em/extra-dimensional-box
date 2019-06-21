@@ -3,6 +3,11 @@ package unimelb.bitbox.messages;
 import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.fs.FileDescriptor;
 
+/**
+ * FILE_BYTES_REQUEST message.
+ *
+ * @author Eleanor McMurtry
+ */
 public class FileBytesRequest extends Message {
     public static FileBytesRequest retry(FileBytesResponse response) {
         return new FileBytesRequest(response.pathName, response.fileDescriptor, response.position);

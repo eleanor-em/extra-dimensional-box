@@ -8,6 +8,8 @@ import java.util.function.Supplier;
 /**
  * Represents an attribute that can be initialised any time, but isn't on creation.
  * @param <T> the type of the attribute
+ *
+ * @author Eleanor McMurtry
  */
 public class LazyInitialiser<T> {
     private final Supplier<? extends T> supplier;

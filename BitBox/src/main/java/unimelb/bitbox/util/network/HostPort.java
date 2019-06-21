@@ -8,6 +8,8 @@ import java.net.UnknownHostException;
 
 /**
  * A class to store a host and port together.
+ *
+ * @author Eleanor McMurtry
  */
 public class HostPort implements IJSONData {
     /**

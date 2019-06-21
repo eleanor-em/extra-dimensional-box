@@ -1,5 +1,10 @@
 package unimelb.bitbox.messages;
 
+/**
+ * DIRECTORY_DELETE_REQUEST message.
+ *
+ * @author Eleanor McMurtry
+ */
 public class DirectoryDeleteRequest extends Message {
     public DirectoryDeleteRequest(String pathName) {
         super("DIRECTORY_DELETE:" + pathName);

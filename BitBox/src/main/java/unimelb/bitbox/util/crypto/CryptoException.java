@@ -13,6 +13,8 @@ import java.security.NoSuchAlgorithmException;
 
 /**
  * An exception that can occur during cryptographic operations.
+ *
+ * @author Eleanor McMurtry
  */
 public class CryptoException extends Exception {
     private final Either<JSONException, Exception> exception;

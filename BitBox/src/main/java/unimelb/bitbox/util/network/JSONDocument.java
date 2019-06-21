@@ -9,6 +9,12 @@ import org.json.simple.parser.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Represents a JSON object.
+ *
+ * @author Aaron Harwood
+ * @author Eleanor McMurtry
+ */
 // TODO: Make this type-safe. (It can be done! Instead of overloaded `append`, have more specific methods, and store
 //  the type as well as the key in the hashmap.)
 public class JSONDocument {

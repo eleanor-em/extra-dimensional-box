@@ -18,6 +18,12 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+/**
+ * Handles the connections to the various peers.
+ *
+ * @author Eleanor McMurtry
+ * @author Andrea Law
+ */
 public abstract class ConnectionHandler implements IJSONData {
     // Settings
     private static final int PEER_RETRY_TIME = 60;

@@ -2,6 +2,8 @@ package unimelb.bitbox.util.network;
 
 /**
  * A utility class with network conversion operations.
+ *
+ * @author Eleanor McMurtry
  */
 public class Conversion {
     /**

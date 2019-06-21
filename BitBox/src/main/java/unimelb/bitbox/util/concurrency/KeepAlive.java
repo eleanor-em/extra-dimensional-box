@@ -9,6 +9,8 @@ import java.util.concurrent.*;
 
 /**
  * A service that continually runs a task, restarting it if it fails.
+ *
+ * @author Eleanor McMurtry
  */
 public class KeepAlive {
     private static final ExecutorService executor = Executors.newCachedThreadPool();
@@ -49,6 +51,7 @@ public class KeepAlive {
                 if (cancelledTasks.remove(task)) {
                     watchers.remove(task);
                 } else {
+                    // TODO: pretty sure this doesn't work -- EM
                     PeerServer.log().warning("resubmitting task " + task);
                     Maybe.of(watchers.get(task))
                             .match(watcher -> watcher.future = submitInternal(task),

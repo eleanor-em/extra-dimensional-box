@@ -17,6 +17,11 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * TCP implementation of {@link ConnectionHandler}.
+ *
+ * @author Eleanor McMurtry
+ */
 class TCPConnectionHandler extends ConnectionHandler {
     @Override
     void acceptConnections() throws IOException {

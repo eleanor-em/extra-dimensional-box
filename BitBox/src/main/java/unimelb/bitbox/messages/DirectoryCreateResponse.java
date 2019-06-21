@@ -4,6 +4,11 @@ import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.fs.FileManagerException;
 
+/**
+ * DIRECTORY_CREATE_RESPONSE message.
+ *
+ * @author Eleanor McMurtry
+ */
 public class DirectoryCreateResponse extends Response {
     private static final String SUCCESS = "directory created";
     private final String pathName;

@@ -8,6 +8,8 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Represents an attribute that will eventually be initialised, but may not be immediately.
  * @param <T> the type of the attribute
+ *
+ * @author Eleanor McMurtry
  */
 public class DelayedInitialiser<T> {
     private CountDownLatch latch = new CountDownLatch(1);

@@ -2,6 +2,8 @@ package unimelb.bitbox.client.responses;
 
 /**
  * An exception that can occur while generating a response.
+ *
+ * @author Eleanor McMurtry
  */
 public class ServerException extends Exception {
     public ServerException(Exception cause) { super(cause); }

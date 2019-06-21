@@ -22,12 +22,21 @@ import java.util.logging.Logger;
 
 /**
  * A connection can use either TCP or UDP.
+ *
+ * @author Eleanor McMurtry
  */
 enum ConnectionMode {
     TCP,
     UDP
 }
 
+/**
+ * The central class to hold various values.
+ *
+ * @author Eleanor McMurtry
+ * @author Andrea Law
+ * @author Benjamin(Jingyi Li) Li
+ */
 public class PeerServer implements FileSystemObserver {
     /* Configuration values */
     private final CfgValue<Long> udpBlockSize = CfgValue.createLong("udpBlockSize");

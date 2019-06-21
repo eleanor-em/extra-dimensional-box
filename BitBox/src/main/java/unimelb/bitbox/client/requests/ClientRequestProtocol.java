@@ -7,6 +7,9 @@ import unimelb.bitbox.util.network.JSONDocument;
 
 /**
  * Process client commands into messages that can be sent to a Peer.
+ *
+ * @author Eleanor McMurtry
+ * @author Andrea Law
  */
 public class ClientRequestProtocol {
     private ClientRequestProtocol() {}

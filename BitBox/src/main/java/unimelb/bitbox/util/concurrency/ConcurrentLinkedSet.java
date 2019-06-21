@@ -9,8 +9,12 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 
 /**
- * A thread-safe Set that also maintains insertion order, and allows the first element to be retrieved.
+ * A thread-safe {@link Set} that also maintains insertion order, and allows the first element to be retrieved.
+ * Uses {@link LinkedHashSet} internally.
+ *
  * Only has the methods I actually need, to save time.
+ *
+ * @author Eleanor McMurtry
  */
 public class ConcurrentLinkedSet<E> {
     private final Set<E> set = new LinkedHashSet<>();

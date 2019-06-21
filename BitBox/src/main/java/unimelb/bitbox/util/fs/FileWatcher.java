@@ -10,6 +10,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * A thread that watches a file for changes, and runs an action whenever a change occurs.
+ *
+ * @author Eleanor McMurtry
  */
 public class FileWatcher extends Thread {
     private final File file;

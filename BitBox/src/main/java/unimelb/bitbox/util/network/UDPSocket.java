@@ -5,6 +5,8 @@ import java.net.DatagramSocket;
 
 /**
  * A UDP implementation of {@link ISocket}.
+ *
+ * @author Eleanor McMurtry
  */
 public class UDPSocket implements ISocket {
     private final DatagramSocket socket;

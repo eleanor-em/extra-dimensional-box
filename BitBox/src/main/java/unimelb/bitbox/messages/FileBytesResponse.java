@@ -8,6 +8,11 @@ import java.util.Base64;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * FILE_BYTES_RESPONSE message.
+ *
+ * @author Eleanor McMurtry
+ */
 public class FileBytesResponse extends Response {
     private static final String SUCCESS = "successful read";
     final FileDescriptor fileDescriptor;
