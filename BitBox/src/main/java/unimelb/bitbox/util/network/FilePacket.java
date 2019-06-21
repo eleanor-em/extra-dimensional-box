@@ -65,7 +65,7 @@ public class FilePacket {
      */
     public void sendBytesRequest() {
         long nextPosition = position + length;
-        transfer.peer.sendMessage(new FileBytesRequest(pathName(), fd(), nextPosition));
+        transfer.peer.sendMessage(new FileBytesRequest(fd(), nextPosition));
         float completion = (float) nextPosition / (float) fd().fileSize() * 100;
         String completionPercent = String.format("%.1f", completion);
         PeerServer.log().info("Downloading " + shortPathName() + " (" + completionPercent + "% complete, total "

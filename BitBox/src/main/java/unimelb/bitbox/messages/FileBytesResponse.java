@@ -29,8 +29,7 @@ public class FileBytesResponse extends Response {
 
         // Prepare the message
         document.append("command", MessageType.FILE_BYTES_RESPONSE);
-        document.append("fileDescriptor", fileDescriptor.toJSON());
-        document.append("pathName", pathName);
+        document.join(fileDescriptor.toJSON());
         document.append("length", length);
         document.append("position", position);
     }

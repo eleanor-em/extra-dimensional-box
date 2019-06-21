@@ -21,8 +21,7 @@ public class FileCreateResponse extends Response {
         fd = fileDescriptor;
 
         document.append("command", MessageType.FILE_CREATE_RESPONSE);
-        document.append("fileDescriptor", fileDescriptor);
-        document.append("pathName", fd.pathName);
+        document.join(fileDescriptor.toJSON());
     }
 
     private String generateFileLoader() {

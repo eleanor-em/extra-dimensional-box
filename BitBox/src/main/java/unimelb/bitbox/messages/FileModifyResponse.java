@@ -20,8 +20,7 @@ public class FileModifyResponse extends Response {
         fd = fileDescriptor;
 
         document.append("command", MessageType.FILE_MODIFY_RESPONSE);
-        document.append("fileDescriptor", fileDescriptor);
-        document.append("pathName", fd.pathName);
+        document.join(fileDescriptor.toJSON());
     }
 
     @Override

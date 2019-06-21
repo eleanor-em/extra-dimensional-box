@@ -8,10 +8,9 @@ import unimelb.bitbox.util.fs.FileDescriptor;
  * @author Eleanor McMurtry
  */
 public class FileCreateRequest extends Message {
-    public FileCreateRequest(FileDescriptor fd) {
-        super("FILE_CREATE:" + fd);
+    public FileCreateRequest(FileDescriptor fileDescriptor) {
+        super("FILE_CREATE:" + fileDescriptor);
         document.append("command", MessageType.FILE_CREATE_REQUEST);
-        document.append("fileDescriptor", fd);
-        document.append("pathName", fd.pathName);
+        document.join(fileDescriptor.toJSON());
     }
 }

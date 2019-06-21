@@ -68,7 +68,7 @@ public class FileTransfer {
     }
 
     public void sendInitialBytesRequest() {
-        peer.sendMessage(new FileBytesRequest(fileDescriptor.pathName, fileDescriptor, 0));
+        peer.sendMessage(new FileBytesRequest(fileDescriptor, 0));
         PeerServer.log().info("Beginning download of " + fileDescriptor.pathName
                               + " (" + Conversion.humanFileSize(fileDescriptor.fileSize()) + ")");
         PeerServer.log().fine(peer.getForeignName() + ": sent FILE_BYTES_REQUEST for " +

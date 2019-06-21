@@ -169,7 +169,7 @@ public class MessageProcessor implements Runnable  {
                 peer.close();
 
                 // now try to connect to the provided peer list
-                Result<List<JSONDocument>, JSONException> peers = document.getArray("peers");
+                Result<List<JSONDocument>, JSONException> peers = document.getJSONArray("peers");
                 for (JSONDocument peerHostPort : peers.get()) {
                     HostPort.fromJSON(peerHostPort)
                             .ifOk(address -> {

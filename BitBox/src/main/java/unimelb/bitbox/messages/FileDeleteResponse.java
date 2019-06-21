@@ -20,8 +20,7 @@ public class FileDeleteResponse extends Response {
         fd = fileDescriptor;
 
         document.append("command", MessageType.FILE_DELETE_RESPONSE);
-        document.append("fileDescriptor", fileDescriptor);
-        document.append("pathName", fd.pathName);
+        document.join(fileDescriptor.toJSON());
     }
 
     @Override

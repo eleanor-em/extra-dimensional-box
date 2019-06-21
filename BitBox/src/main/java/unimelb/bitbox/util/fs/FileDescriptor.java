@@ -93,22 +93,29 @@ public class FileDescriptor implements IJSONData {
         });
     }
 
+    /**
+     * @return a document with structure {
+     *     "pathName": pathName,
+     *     "fileDescriptor": {
+     *         ...
+     *     }
+     * }
+     */
     @Override
     public JSONDocument toJSON() {
-        if (isDirectory) {
-            return new JSONDocument();
-        }
-
         JSONDocument doc = new JSONDocument();
-        doc.append("lastModified", data.get().lastModified);
-        doc.append("md5", data.get().md5);
-        doc.append("fileSize", data.get().fileSize);
-        return doc;
+        if (!isDirectory)  {
+            doc.append("fileDescriptor", new JSONDocument()
+                    .append("lastModified", lastModified())
+                    .append("fileSize", fileSize())
+                    .append("md5", md5()));
+        }
+        return doc.append("pathName", pathName);
     }
 
     @Override
     public String toString() {
-        return pathName + ": " + toJSON();
+        return encode();
     }
 
     @Override

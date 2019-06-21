@@ -15,8 +15,6 @@ import java.util.List;
  * @author Aaron Harwood
  * @author Eleanor McMurtry
  */
-// TODO: Make this type-safe. (It can be done! Instead of overloaded `append`, have more specific methods, and store
-//  the type as well as the key in the hashmap.)
 public class JSONDocument {
     private JSONObject obj = new JSONObject();
 
@@ -153,7 +151,7 @@ public class JSONDocument {
                 : Result.error(new JSONException("wrong type for field " + key)));
     }
 
-    public <T> Result<List<T>, JSONException> getArray(String key) {
+    private <T> Result<List<T>, JSONException> getArray(String key) {
         if (!containsKey(key)) {
             return Result.error(new JSONException("Field `" + key + "` missing"));
         }
@@ -176,6 +174,15 @@ public class JSONDocument {
         } catch (ClassCastException ignored) {
             return Result.error(new JSONException("List field `" + key + "` contains value of wrong type"));
         }
+    }
+    public Result<List<JSONDocument>, JSONException> getJSONArray(String key) {
+        return this.<JSONDocument>getArray(key).andThen(list -> {
+            if (list.size() == 0 || list.get(0) != null) {
+                return Result.value(list);
+            } else {
+                return Result.error(new JSONException("wrong type for field " + key));
+            }
+        });
     }
 
     public String networkEncode() { return this + "\n"; }
