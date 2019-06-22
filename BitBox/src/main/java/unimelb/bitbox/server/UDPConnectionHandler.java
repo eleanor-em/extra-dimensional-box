@@ -89,17 +89,23 @@ class UDPConnectionHandler extends ConnectionHandler {
         String name = getAnyName();
 
         byte[] buffer = new byte[UDP_MAX_PACKET];
-        DatagramPacket packet = new DatagramPacket(buffer, buffer.length, new InetSocketAddress(peerHostPort.hostname, peerHostPort.port));
-        Peer peer = new PeerUDP(name, PeerType.OUTGOING, awaitUDPSocket(), packet);
-        peer.sendMessage(new HandshakeRequest());
-        addPeer(peer);
-
         try {
-            if (peer.awaitActivation()) {
-                return Maybe.just(peer);
-            }
-        } catch (InterruptedException ignored) {}
+            DatagramPacket packet = new DatagramPacket(buffer, buffer.length, new InetSocketAddress(peerHostPort.hostname, peerHostPort.port));
+            Peer peer = new PeerUDP(name, PeerType.OUTGOING, awaitUDPSocket(), packet);
+            peer.sendMessage(new HandshakeRequest());
+            addPeer(peer);
 
+            try {
+                if (peer.awaitActivation()) {
+                    PeerServer.log().fine("Connected to peer " + name + " @ " + peerHostPort);
+                    return Maybe.just(peer);
+                } else {
+                    PeerServer.log().fine("Failed to connect to peer " + name + " @ " + peerHostPort);
+                }
+            } catch (InterruptedException ignored) {}
+        } catch (IllegalArgumentException ignored) {
+            // Occurs if the address in DatagramPacket's constructor fails to resolve
+        }
         return Maybe.nothing();
     }
 }

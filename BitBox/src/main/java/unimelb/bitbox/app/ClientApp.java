@@ -6,10 +6,6 @@ import functional.combinator.Combinators;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.openssl.PEMKeyPair;
-import org.bouncycastle.openssl.PEMParser;
-import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import unimelb.bitbox.client.requests.ClientArgsException;
 import unimelb.bitbox.client.requests.ClientRequestProtocol;
 import unimelb.bitbox.util.crypto.Crypto;
@@ -22,9 +18,7 @@ import unimelb.bitbox.util.network.JSONException;
 import javax.crypto.SecretKey;
 import java.io.*;
 import java.net.Socket;
-import java.security.KeyPair;
 import java.security.PrivateKey;
-import java.security.Security;
 import java.util.Base64;
 
 /**
@@ -179,12 +173,7 @@ public class ClientApp {
             socket = data.socket;
             ident = data.ident;
             request = data.request;
-
-            Security.addProvider(new BouncyCastleProvider());
-            PEMParser pemParser = new PEMParser(new FileReader(new File(PRIVATE_KEY_FILE)));
-            JcaPEMKeyConverter converter = new JcaPEMKeyConverter().setProvider("BC");
-            KeyPair kp = converter.getKeyPair((PEMKeyPair) pemParser.readObject());
-            privateKey = kp.getPrivate();
+            privateKey = Crypto.getRSAPrivateKey(PRIVATE_KEY_FILE).get();
         }
 
         /**

@@ -78,21 +78,20 @@ class TCPConnectionHandler extends ConnectionHandler {
             String name = getAnyName();
             Peer peer = new PeerTCP(name, socket, PeerType.OUTGOING);
             peer.sendMessage(new HandshakeRequest());
-
             addPeer(peer);
 
             try {
                 if (peer.awaitActivation()) {
                     PeerServer.log().fine("Connected to peer " + name + " @ " + peerHostPort);
                     return Maybe.just(peer);
+                } else {
+                    PeerServer.log().fine("Failed to connect to peer " + name + " @ " + peerHostPort);
                 }
             } catch (InterruptedException ignored) {}
-
-            return Maybe.nothing();
         } catch (IOException e) {
             PeerServer.log().warning("Connection to peer `" + peerHostPort + "` failed: " + e.getMessage());
-            e.printStackTrace();
-            return Maybe.nothing();
         }
+
+        return Maybe.nothing();
     }
 }

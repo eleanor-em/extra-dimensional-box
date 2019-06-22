@@ -52,7 +52,7 @@ class OutgoingConnectionUDP extends OutgoingConnection {
 
     @Override
     public void run() {
-        while (!udpSocket.isClosed() && isActive()) {
+        while (!udpSocket.isClosed()) {
             try {
                 OutgoingMessage message = takeMessage();
                 byte[] buffer = message.networkEncoded().getBytes(StandardCharsets.UTF_8);

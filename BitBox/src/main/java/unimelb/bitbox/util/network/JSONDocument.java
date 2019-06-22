@@ -162,7 +162,7 @@ public class JSONDocument {
             return Result.error(new JSONException("Field `" + key + "` of wrong type"));
         }
         try {
-            ArrayList<T> res = new ArrayList<>();
+            List<T> res = new ArrayList<>();
             for (Object o : jsonArray) {
                 if (o instanceof JSONObject) {
                     res.add((T) new JSONDocument((JSONObject) o));
@@ -177,6 +177,15 @@ public class JSONDocument {
     }
     public Result<List<JSONDocument>, JSONException> getJSONArray(String key) {
         return this.<JSONDocument>getArray(key).andThen(list -> {
+            if (list.size() == 0 || list.get(0) != null) {
+                return Result.value(list);
+            } else {
+                return Result.error(new JSONException("wrong type for field " + key));
+            }
+        });
+    }
+    public Result<List<String>, JSONException> getStringArray(String key) {
+        return this.<String>getArray(key).andThen(list -> {
             if (list.size() == 0 || list.get(0) != null) {
                 return Result.value(list);
             } else {
