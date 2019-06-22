@@ -1,12 +1,19 @@
 package unimelb.bitbox.util.crypto;
 
 import functional.algebraic.Result;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.openssl.PEMKeyPair;
+import org.bouncycastle.openssl.PEMParser;
+import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.jetbrains.annotations.NotNull;
 import unimelb.bitbox.util.concurrency.LazyInitialiser;
 import unimelb.bitbox.util.network.JSONDocument;
 
 import javax.crypto.*;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.security.*;
 import java.util.Base64;
 
@@ -24,16 +31,30 @@ public class Crypto {
 
     private Crypto() {}
 
+    public static SecretKey parseKey(String solution) {
+        return new SecretKeySpec(Base64.getDecoder().decode(solution), "AES");
+    }
+
+    public static Result<PrivateKey, IOException> getRSAPrivateKey(String filename) {
+        return Result.of(() -> {
+            Security.addProvider(new BouncyCastleProvider());
+            PEMParser pemParser = new PEMParser(new FileReader(new File(filename)));
+            JcaPEMKeyConverter converter = new JcaPEMKeyConverter().setProvider("BC");
+            KeyPair kp = converter.getKeyPair((PEMKeyPair) pemParser.readObject());
+            return kp.getPrivate();
+        });
+    }
+
     /**
      * Generates a secret AES key.
      */
-    public static Result<SecretKey, CryptoException> generateSecretKey() {
+    public static SecretKey generateSecretKey() {
         try {
             KeyGenerator generator = KeyGenerator.getInstance("AES");
             generator.init(AES_KEY_BITS);
-            return Result.value(generator.generateKey());
+            return generator.generateKey();
         } catch (NoSuchAlgorithmException e) {
-            return Result.error(new CryptoException(e));
+            throw new RuntimeException(e);
         }
     }
 
@@ -86,6 +107,10 @@ public class Crypto {
         } catch (IllegalBlockSizeException e) {
             return Result.error(new CryptoException(e));
         }
+    }
+
+    public static Result<SecretKey, CryptoException> decryptSecretKey(@NotNull String key, @NotNull PrivateKey privateKey) {
+        return decryptSecretKey(Base64.getDecoder().decode(key), privateKey);
     }
 
     /**

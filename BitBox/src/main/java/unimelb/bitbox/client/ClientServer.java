@@ -12,6 +12,7 @@ import unimelb.bitbox.util.crypto.SSHPublicKey;
 import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.JSONException;
 
+import javax.crypto.SecretKey;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -167,24 +168,23 @@ public class ClientServer implements Runnable {
                                 .findFirst());
                     }
 
-                    return matchedKey.map(publicKey -> Crypto.generateSecretKey()
-                                    .andThen(key -> {
-                                        client.authenticate(key);
-                                        KnownClientTracker.addClient(client);
-                                        return Crypto.encryptSecretKey(key, publicKey.getKey());
-                                    })
-                                    .matchThen(encryptedKey -> {
-                                                response.append("AES128", encryptedKey);
-                                                response.append("status", true);
-                                                response.append("message", "public key found");
-                                                return response;
-                                            }, err -> {
-                                        err.printStackTrace();
-                                        response.append("status", false);
-                                        response.append("message", "error encrypting key: " + err);
-                                        return response;
-                                    }))
-                            .orElse(() -> {
+                    return matchedKey.map(publicKey -> {
+                        SecretKey key = Crypto.generateSecretKey();
+                        client.authenticate(key);
+                        KnownClientTracker.addClient(client);
+                        return Crypto.encryptSecretKey(key, publicKey.getKey())
+                                .matchThen(encryptedKey -> {
+                                    response.append("AES128", encryptedKey);
+                                    response.append("status", true);
+                                    response.append("message", "public key found");
+                                    return response;
+                                }, err -> {
+                                    err.printStackTrace();
+                                    response.append("status", false);
+                                    response.append("message", "error encrypting key: " + err);
+                                    return response;
+                                });
+                    }).orElse(() -> {
                                 response.append("status", false);
                                 response.append("message", "public key not found");
                                 return response;

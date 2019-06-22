@@ -46,8 +46,9 @@ public class PeerTCP extends Peer {
         } catch (IOException e) {
             if (!isClosed()) {
                 PeerServer.log().severe("Error reading from socket: " + e.getMessage());
-                close();
             }
+        } finally {
+            close();
         }
     }
 }
@@ -67,7 +68,7 @@ class OutgoingConnectionTCP extends OutgoingConnection {
     @Override
     public void run() {
         try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8))) {
-            while (!socket.isClosed() && isActive()) {
+            while (!socket.isClosed()) {
                 OutgoingMessage message = takeMessage();
                 out.write(message.message);
                 out.flush();

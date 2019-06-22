@@ -4,6 +4,8 @@ import functional.algebraic.Maybe;
 import functional.combinator.Curried;
 import org.jetbrains.annotations.NotNull;
 import unimelb.bitbox.util.functional.CommonEither;
+import unimelb.bitbox.util.network.IJSONData;
+import unimelb.bitbox.util.network.JSONDocument;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -18,7 +20,7 @@ import java.util.*;
  * Allows logarithmic insertion, lookup, proof generation, and proof verification.
  * @param <E> the type to store; must implement {@link Serializable}
  *
- * @authoer Eleanor McMurtry
+ * @author Eleanor McMurtry
  */
 public class MerkleTree<E extends Serializable> {
     private static final int HASH_SIZE = 512;
@@ -81,6 +83,20 @@ public class MerkleTree<E extends Serializable> {
     }
 
     /**
+     * Adds each element of a {@link Collection} to the tree.
+     * @return if the tree was modified
+     */
+    public boolean addAll(Collection<E> elements) {
+        boolean success = false;
+        for (E element : elements) {
+            if (add(element)) {
+                success = true;
+            }
+        }
+        return success;
+    }
+
+    /**
      * @return whether the element is in the tree
      */
     public boolean contains(E element) {
@@ -120,7 +136,7 @@ public class MerkleTree<E extends Serializable> {
      * @param element the element to check
      * @return a proof that the element is in the tree, or Maybe.nothing() if it isn't
      */
-    public Maybe<List<ProofNode>> prove(E element) {
+    public Maybe<MerkleProof> prove(E element) {
         if (root.isJust()) {
             InternalNode<E> node = root.get();
             LeafNode<E> leaf = new LeafNode<>(element);
@@ -129,7 +145,7 @@ public class MerkleTree<E extends Serializable> {
             for (int i = 0; i < HASH_SIZE; ++i) {
                 if (node.isLeaf()) {
                     if (node.leafEquals(leaf)) {
-                        return Maybe.just(proof);
+                        return Maybe.just(new MerkleProof(root.get().getHash(), proof));
                     } else {
                         return Maybe.nothing();
                     }
@@ -169,17 +185,43 @@ public class MerkleTree<E extends Serializable> {
      * @param proof the proof to check
      * @return whether the proof is valid
      */
-    public boolean verify(E element, List<ProofNode> proof) {
+    public boolean verify(E element, MerkleProof proof) {
         if (root.isJust()) {
             byte[] hash = MerkleTree.hash(element);
 
-            for (ProofNode node : proof) {
+            for (ProofNode node : proof.nodes) {
                 hash = node.hashWith(hash);
             }
             return Arrays.equals(hash, root.get().getHash());
         } else {
             return false;
         }
+    }
+
+    public void clear() {
+        root = Maybe.nothing();
+    }
+
+    public Set<E> asSet() {
+        Set<E> ret = new HashSet<>();
+
+        if (root.isJust()) {
+            List<InternalNode<E>> nodes = new LinkedList<>();
+            nodes.add(root.get());
+
+            // Breadth-first search
+            while (!nodes.isEmpty()) {
+                InternalNode<E> node = nodes.remove(0);
+
+                if (node.isLeaf()) {
+                    ret.add(node.getElement().get());
+                } else {
+                    nodes.addAll(node.getChildren().get().asList());
+                }
+            }
+        }
+
+        return ret;
     }
 
 
@@ -239,19 +281,17 @@ public class MerkleTree<E extends Serializable> {
         }
 
 
-        List<ProofNode> proof = tree.prove(last).get();
-        proof.forEach(System.out::println);
-        System.out.println("Proof has " + proof.size() + " elements");
+        MerkleProof proof = tree.prove(last).get();
         assert tree.verify(last, proof);
 
-        proof.remove(0);
+        proof.nodes.remove(0);
         assert !tree.verify(last, proof);
 
         System.out.println("Success!");
     }
 }
 
-class ProofNode {
+class ProofNode implements IJSONData {
     private final boolean left;
     private final byte[] hash;
 
@@ -272,6 +312,13 @@ class ProofNode {
         return "(" + (left ? "left:  " : "right: ")
                 + Base64.getEncoder().encodeToString(hash)
                 + ")";
+    }
+
+    @Override
+    public JSONDocument toJSON() {
+        return new JSONDocument()
+                    .append("left", left)
+                    .append("hash", Base64.getEncoder().encodeToString(hash));
     }
 }
 
@@ -328,6 +375,10 @@ class InternalNode<E extends Serializable> implements IMerkleHashable {
 
     public boolean isLeaf() {
         return child.val.isRight();
+    }
+
+    public Maybe<E> getElement() {
+        return child.val.matchThen(__ -> Maybe.nothing(), leaf -> Maybe.just(leaf.getElement()));
     }
 
     public Maybe<InternalNode<E>> getLeft() {
