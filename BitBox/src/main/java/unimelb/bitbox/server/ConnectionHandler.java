@@ -28,7 +28,7 @@ public abstract class ConnectionHandler implements IJSONData {
     // Settings
     private static final int PEER_RETRY_TIME = 60;
     private static final String DEFAULT_NAME = "Anonymous";
-    private static final CfgValue<Integer> maxIncomingConnections = CfgValue.createInt("maximumIncommingConnections");
+    private static final CfgValue<Integer> maxIncomingConnections = CfgValue.createInt("maximumIncomingConnections");
     final int port;
 
     // Objects for use by this class

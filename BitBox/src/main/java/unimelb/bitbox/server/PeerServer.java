@@ -1,7 +1,6 @@
 package unimelb.bitbox.server;
 
 import functional.algebraic.Maybe;
-import unimelb.bitbox.client.ClientServer;
 import unimelb.bitbox.messages.*;
 import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.peers.ReadWriteManager;
@@ -162,10 +161,6 @@ public class PeerServer implements FileSystemObserver {
         peersToConnect.setOnChanged(connection::addPeerAddressAll);
         connection.addPeerAddressAll(peersToConnect.get());
         connection.retryPeers();
-
-		// Create the server thread for the client
-		KeepAlive.submit(new ClientServer());
-		log.fine("Server thread started");
 
 		// Create the synchroniser thread
 		KeepAlive.submit(this::regularlySynchronise);
