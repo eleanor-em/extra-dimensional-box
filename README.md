@@ -3,6 +3,8 @@ This began as a university project (Distributed Systems project 2: team nutella)
 I've gone above and beyond the requirements, focusing on stability and massive parallelisation.
 Client functionality has been relegated to a separate branch. There is a work-in-progress permission group branch.
 
+### Pull requests welcome and encouraged!
+
 ## Credit
 The repository contains some code by Benjamin (Jingyi) Li, Andrea Law, Aaron Harwood, and Andrew Wang.
 
