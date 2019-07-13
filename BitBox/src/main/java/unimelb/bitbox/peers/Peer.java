@@ -1,14 +1,17 @@
 package unimelb.bitbox.peers;
 
+import functional.algebraic.Maybe;
+import functional.combinator.Curried;
 import unimelb.bitbox.messages.Message;
+import unimelb.bitbox.messages.MessageType;
 import unimelb.bitbox.messages.ReceivedMessage;
 import unimelb.bitbox.server.PeerServer;
+import unimelb.bitbox.util.crypto.Crypto;
+import unimelb.bitbox.util.crypto.SSHPublicKey;
 import unimelb.bitbox.util.network.HostPort;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+import javax.crypto.SecretKey;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -51,6 +54,9 @@ public abstract class Peer {
     private final List<Runnable> onClose = Collections.synchronizedList(new ArrayList<>());
     private final Lock activationLock = new ReentrantLock();
     private final Condition activated = activationLock.newCondition();
+    private Maybe<SSHPublicKey> key = Maybe.nothing();
+    private Maybe<SecretKey> challengeKey = Maybe.nothing();
+    private boolean authenticated = false;
 
     public boolean awaitActivation() throws InterruptedException {
         try {
@@ -94,10 +100,37 @@ public abstract class Peer {
     public void activate(HostPort hostPort) {
         // Update host information
         this.hostPort = hostPort;
-
-        // Trigger synchronisation
-        PeerServer.synchroniseFiles(this);
         activateInternal();
+    }
+
+    public void setKey(SSHPublicKey key) {
+        this.key = Maybe.just(key);
+        challengeKey = Maybe.just(Crypto.generateSecretKey());
+    }
+
+    public Maybe<String> getChallenge() {
+        return key.andThen(pubKey -> Crypto.encryptSecretKey(challengeKey.get(), pubKey.getKey())
+                                           .matchThen(Maybe::just, Curried.constant(Maybe.nothing())
+                           ));
+    }
+
+    public boolean authenticate(SecretKey response) {
+        authenticated = challengeKey.matchThen(
+                response::equals,
+                () -> false
+        );
+        if (authenticated) {
+            PeerServer.log().fine(this + ": authenticated key " + key.map(Object::toString).orElse("<missing>").trim());
+        } else {
+            PeerServer.log().fine(this + ": authentication error:\n"
+                                  + Base64.getEncoder().encodeToString(challengeKey.map(SecretKey::getEncoded).orElse(new byte[0])) + "\n"
+                                  + Base64.getEncoder().encodeToString(response.getEncoded()));
+        }
+        return authenticated;
+    }
+
+    public Maybe<SSHPublicKey> getKey() {
+        return key;
     }
 
     private void activateInternal() {
@@ -111,8 +144,10 @@ public abstract class Peer {
                 // Add to our tracker
                 KnownPeerTracker.addAddress(localHostPort, hostPort);
                 KnownPeerTracker.notifyPeerCount(PeerServer.getPeerCount());
+
             } finally {
                 activated.signalAll();
+                activationLock.unlock();
             }
         }
     }
@@ -217,13 +252,13 @@ public abstract class Peer {
             return;
         }
 
+        message.setFriendlyName(name + "-" + PeerServer.hostPort());
+        outConn.addMessage(new OutgoingMessage(message.networkEncode(), onSent));
+        PeerServer.log().fine(getForeignName() + " sent: " + message.toString());
+
         if (message.isRequest()) {
             requestSent(message);
         }
-
-        message.setFriendlyName(name + "-" + PeerServer.hostPort());
-        PeerServer.log().fine(getForeignName() + " sent: " + message.getSummary());
-        outConn.addMessage(new OutgoingMessage(message.networkEncode(), onSent));
     }
 
     /**
@@ -237,8 +272,11 @@ public abstract class Peer {
      * This method is called when a message has been received from this peer and successfully parsed.
      */
     public final void notify(Message message) {
-        activateInternal();
         if (!message.isRequest()) {
+            // If we got a message other than a handshake response, make sure we're active
+            if (message.getCommand().orElse(null) != MessageType.HANDSHAKE_RESPONSE) {
+                activateInternal();
+            }
             responseReceived(message);
         }
     }

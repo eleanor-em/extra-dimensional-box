@@ -1,6 +1,7 @@
 package unimelb.bitbox.util.config;
 
 import functional.algebraic.Maybe;
+import functional.throwing.ThrowingConsumer;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -69,7 +70,7 @@ public class CfgValue<T> {
     // This flag avoids infinite recursion in get()
     private boolean updated = false;
 
-    private final List<Consumer<T>> actions = Collections.synchronizedList(new ArrayList<>());
+    private final List<ThrowingConsumer<T, ?>> actions = Collections.synchronizedList(new ArrayList<>());
 
     /**
      * Create a String-typed config value.
@@ -166,7 +167,13 @@ public class CfgValue<T> {
                 // If we think we're out of date, we're now definitely up to date
                 updated = true;
                 synchronized (actions) {
-                    actions.forEach(action -> action.accept(cached));
+                    for (ThrowingConsumer<T, ?> action : actions) {
+                        try {
+                            action.accept(cached);
+                        } catch (Throwable t) {
+                            t.printStackTrace();
+                        }
+                    }
                     updated = false;
                 }
             }
@@ -184,6 +191,14 @@ public class CfgValue<T> {
      * @param action the action to run, which accepts the new value
      */
     public void setOnChanged(Consumer<T> action) {
+        actions.add(action::accept);
+    }
+
+    /**
+     * Sets an action to be run when the CfgValue changes.
+     * @param action the action to run, which accepts the new value
+     */
+    public <E extends Throwable> void setOnChangedT(ThrowingConsumer<T, E> action) {
         actions.add(action);
     }
 

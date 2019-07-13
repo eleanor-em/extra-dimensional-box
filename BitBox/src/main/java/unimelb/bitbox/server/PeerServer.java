@@ -2,6 +2,7 @@ package unimelb.bitbox.server;
 
 import functional.algebraic.Maybe;
 import unimelb.bitbox.client.ClientServer;
+import unimelb.bitbox.groups.GroupManager;
 import unimelb.bitbox.messages.*;
 import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.peers.ReadWriteManager;
@@ -52,6 +53,7 @@ public class PeerServer implements FileSystemObserver {
     private final FileSystemManager fileSystemManager;
     private final MessageProcessor processor = new MessageProcessor();
     private final ReadWriteManager rwManager = new ReadWriteManager();
+    private final GroupManager groupManager;
     private ConnectionHandler connection;
 
     /* Getters */
@@ -59,6 +61,7 @@ public class PeerServer implements FileSystemObserver {
         return get().fileSystemManager;
     }
     public static ReadWriteManager rwManager() { return get().rwManager; }
+    public static GroupManager groupManager() { return get().groupManager; }
 
     public static Logger log() {
         return get().log;
@@ -141,6 +144,8 @@ public class PeerServer implements FileSystemObserver {
         CfgValue<String> path = CfgValue.createString("path");
         path.setOnChanged(() -> log.warning("Path was changed in config, but will not be updated until restart"));
         fileSystemManager = new FileSystemManager(path.get());
+
+        groupManager = new GroupManager();
 
 		// Create the processor thread
         KeepAlive.submit(processor);

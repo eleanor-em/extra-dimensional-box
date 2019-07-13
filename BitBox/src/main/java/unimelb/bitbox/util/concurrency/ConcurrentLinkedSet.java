@@ -28,15 +28,17 @@ public class ConcurrentLinkedSet<E> {
      * @return whether the item was successfully added (i.e. false if the item was already present)
      */
     public boolean add(E item) {
-        lock.lock();
-        boolean result = set.add(item);
+        try {
+            lock.lock();
+            boolean result = set.add(item);
 
-        if (result) {
-            notEmpty.signal();
-        } else {
+            if (result) {
+                notEmpty.signal();
+            }
+            return result;
+        } finally {
             lock.unlock();
         }
-        return result;
     }
 
     /**
