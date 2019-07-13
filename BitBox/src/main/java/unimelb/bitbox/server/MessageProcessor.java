@@ -2,20 +2,15 @@ package unimelb.bitbox.server;
 
 import functional.algebraic.Maybe;
 import functional.algebraic.Result;
-import functional.combinator.Combinators;
-import functional.combinator.Curried;
 import org.jetbrains.annotations.NotNull;
 import unimelb.bitbox.messages.*;
 import unimelb.bitbox.peers.Peer;
-import unimelb.bitbox.util.crypto.Crypto;
-import unimelb.bitbox.util.crypto.SSHPublicKey;
 import unimelb.bitbox.util.fs.FileDescriptor;
 import unimelb.bitbox.util.network.FilePacket;
 import unimelb.bitbox.util.network.HostPort;
 import unimelb.bitbox.util.network.JSONDocument;
 import unimelb.bitbox.util.network.JSONException;
 
-import javax.crypto.SecretKey;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -92,14 +87,6 @@ public class MessageProcessor implements Runnable  {
         Result<HostPort, JSONException> hostPort = document.getJSON("hostPort")
                                                            .andThen(HostPort::fromJSON);
 
-        Maybe<SSHPublicKey> pubKey = document.getString("pubKey")
-                                              .andThen(keyString -> Result.of(() -> new SSHPublicKey(keyString)).mapError(e -> new JSONException(e.getMessage())))
-                                              .matchThen(Maybe::just, Curried.constant(Maybe.nothing()));
-        Maybe<String> challenge = document.getString("challenge").matchThen(Maybe::just, Curried.constant(Maybe.nothing()));
-        Maybe<SecretKey> solution = document.getString("solution")
-                                        .map(Crypto::parseKey)
-                                        .matchThen(Maybe::just, Curried.constant(Maybe.nothing()));
-
         switch (command) {
             /* Trivial requests */
             case FILE_CREATE_REQUEST:
@@ -140,14 +127,7 @@ public class MessageProcessor implements Runnable  {
                 parsedResponse = Maybe.just(new HandshakeResponse(peer, hostPort.get()));
 
                 if (peer.needsResponse()) {
-                    pubKey.match(peer::setKey, Combinators::noop);
                     peer.activate(hostPort.get());
-
-                    if (challenge.isJust()) {
-                        PeerServer.log().fine(peer + ": sending challenge solution");
-                        PeerServer.groupManager().solveChallenge(challenge.get())
-                                .ifOk(solved -> peer.sendMessage(new AuthenticateRequest(peer, solved)));
-                    }
 
                     PeerServer.log().fine(peer + ": sending synchronisation requests");
                     PeerServer.synchroniseFiles(peer);
@@ -184,24 +164,10 @@ public class MessageProcessor implements Runnable  {
                     peer.close();
                 } else {
                     PeerServer.log().fine("responding to " + hostPort.get());
-
-                    pubKey.match(peer::setKey, Combinators::noop);
                     peer.sendMessage(new HandshakeResponse(peer, hostPort.get()));
 
                     PeerServer.synchroniseFiles(peer);
                 }
-                break;
-
-            case AUTHENTICATE_REQUEST:
-                solution.match(key -> authenticate(peer, key), Combinators::noop);
-
-                if (challenge.isJust()) {
-                    peer.sendMessage(new AuthenticateResponse(peer, challenge.get()));
-                }
-                break;
-
-            case AUTHENTICATE_RESPONSE:
-                solution.match(key -> authenticate(peer, key), Combinators::noop);
                 break;
 
             case CONNECTION_REFUSED:
@@ -248,11 +214,5 @@ public class MessageProcessor implements Runnable  {
      */
     private void invalidProtocolResponse(@NotNull Peer peer, String message) {
         peer.sendMessageAndClose(new InvalidProtocol(peer, message));
-    }
-
-    private void authenticate(@NotNull Peer peer, SecretKey key) {
-        if (!peer.authenticate(key)) {
-            invalidProtocolResponse(peer, "authentication failure");
-        }
     }
 }

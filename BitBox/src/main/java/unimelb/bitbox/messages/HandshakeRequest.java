@@ -12,6 +12,5 @@ public class HandshakeRequest extends Message {
         super("HANDSHAKE");
         document.append("command", MessageType.HANDSHAKE_REQUEST);
         document.append("hostPort", PeerServer.hostPort().toJSON());
-        document.append("pubKey", PeerServer.groupManager().getPubKey().toString());
     }
 }

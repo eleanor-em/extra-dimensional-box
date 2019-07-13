@@ -1,6 +1,5 @@
 package unimelb.bitbox.messages;
 
-import functional.combinator.Combinators;
 import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.network.HostPort;
@@ -19,8 +18,6 @@ public class HandshakeResponse extends Response {
 
         document.append("command", MessageType.HANDSHAKE_RESPONSE);
         document.append("hostPort", PeerServer.hostPort().toJSON());
-        document.append("pubKey", PeerServer.groupManager().getPubKey().toString());
-        peer.getChallenge().match(challenge -> document.append("challenge", challenge), Combinators::noop);
     }
 
     @Override
