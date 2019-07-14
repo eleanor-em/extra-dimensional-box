@@ -81,8 +81,8 @@ public abstract class Peer {
     public boolean needsResponse() {
         return state.get() == PeerState.WAIT_FOR_RESPONSE;
     }
-    public boolean isClosed() {
-        return state.get() == PeerState.CLOSED;
+    boolean isOpen() {
+        return state.get() != PeerState.CLOSED;
     }
     public boolean isActive() {
         return state.get() == PeerState.ACTIVE;

@@ -129,7 +129,7 @@ class RetryService {
         }
 
         void retry() {
-            if (!peer.isClosed()) {
+            if (peer.isOpen()) {
                 if (retries == retryCount.get()) {
                     PeerServer.log().warning("peer " + peer + " timed out");
                     peer.close();

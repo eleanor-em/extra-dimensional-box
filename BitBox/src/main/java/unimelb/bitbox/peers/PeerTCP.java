@@ -44,7 +44,7 @@ public class PeerTCP extends Peer {
                 receiveMessage(message);
             }
         } catch (IOException e) {
-            if (!isClosed()) {
+            if (isOpen()) {
                 PeerServer.log().severe("Error reading from socket: " + e.getMessage());
             }
         } finally {
