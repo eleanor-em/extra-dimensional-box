@@ -10,9 +10,9 @@ The repository contains some code by Benjamin (Jingyi) Li, Andrea Law, Aaron Har
 
 
 ## Building instructions
-A simple `mvn package` should do the trick.
+A simple `mvn package` should do the trick to build the project. No tests yet, sorry!
 
-The main class is located at `unimelb.bitbox.app.PeerApp`.
+The main class is located at `unimelb.bitbox.app.PeerApp`. To run the jar, run `java -cp target/bitbox-0.0.1-SNAPSHOT.jar unimelb.bitbox.app.PeerApp` from the `BitBox` directory of the repository after building.
 
 Some sample config files are provided. Once the peer is tracking a folder, updates are sent and retrieved from all other connected peers.
 There are no command-line arguments.
