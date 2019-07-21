@@ -13,7 +13,7 @@ The repository contains some code by Benjamin (Jingyi) Li, Andrea Law, Aaron Har
 
 
 ## Building instructions
-A simple `mvn package` should do the trick to build the project. No tests yet, sorry!
+Uses Java 11. A simple `mvn package` should do the trick to build the project. No tests yet, sorry!
 
 The main class is located at `unimelb.bitbox.app.PeerApp`. To run the jar, run `java -cp target/bitbox-0.0.1-SNAPSHOT.jar unimelb.bitbox.app.PeerApp` from the `BitBox` directory of the repository after building.
 
