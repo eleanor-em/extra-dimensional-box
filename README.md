@@ -1,5 +1,8 @@
 # Extra-Dimensional Box
-This began as a university project (Distributed Systems project 2: team nutella).
+Extra-Dimensional Box is my fork of the BitBox system as designed by Aaron Harwood. BitBox is a protocol for a peer-to-peer file sharing service, where files in a `share` directory are replicated across each peer. More details regarding configuration will follow at some point. Promise.
+
+## Why though?
+This began as a university project (COMP90015 Distributed Systems project 2, Semester 1, 2019: team nutella).
 I've gone above and beyond the requirements, focusing on stability and massive parallelisation.
 Client functionality has been relegated to a separate branch. There is a work-in-progress permission group branch.
 
@@ -10,9 +13,9 @@ The repository contains some code by Benjamin (Jingyi) Li, Andrea Law, Aaron Har
 
 
 ## Building instructions
-A simple `mvn package` should do the trick.
+Uses Java 11. A simple `mvn package` should do the trick to build the project. No tests yet, sorry!
 
-The main class is located at `unimelb.bitbox.app.PeerApp`.
+The main class is located at `unimelb.bitbox.app.PeerApp`. To run the jar, run `java -cp target/bitbox-0.0.1-SNAPSHOT.jar unimelb.bitbox.app.PeerApp` from the `BitBox` directory of the repository after building.
 
 Some sample config files are provided. Once the peer is tracking a folder, updates are sent and retrieved from all other connected peers.
 There are no command-line arguments.
