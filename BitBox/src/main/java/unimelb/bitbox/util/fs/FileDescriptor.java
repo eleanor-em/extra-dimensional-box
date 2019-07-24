@@ -17,15 +17,15 @@ public class FileDescriptor implements IJSONData {
         /**
          * Timestamp of the last modification time of the file.
          */
-        public final long lastModified;
+        final long lastModified;
         /**
          * The MD5 hash of the file's content.
          */
-        public final String md5;
+        final String md5;
         /**
          * The size of the file in bytes.
          */
-        public final long fileSize;
+        final long fileSize;
 
         private InternalFD(long lastModified, String md5, long fileSize) {
             this.lastModified = lastModified;
@@ -33,7 +33,7 @@ public class FileDescriptor implements IJSONData {
             this.fileSize = fileSize;
         }
     }
-    public String pathName;
+    public final String pathName;
     public long lastModified() {
         return data.get().lastModified;
     }

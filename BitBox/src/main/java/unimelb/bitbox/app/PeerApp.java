@@ -19,7 +19,8 @@ public class PeerApp
     private PeerApp() {}
 
     public static void main (String[] args) {
-        if (Configuration.getConfigurationValue("logMode").orElse("production").equals("debug")) {
+        // We don't want to show all the detailed log information unless we're set to debug mode.
+        if (Configuration.getConfigurationValue("logMode").orElse("").equals("debug")) {
             System.setProperty("java.util.logging.SimpleFormatter.format",
                     "[%1$tc] %2$s %4$s: %5$s%n");
 

@@ -46,9 +46,9 @@ public class MessageProcessor implements Runnable  {
 		String text = message.text;
         // try to respond to the message
         try {
-            JSONDocument doc = JSONDocument.parse(text).get();
+            var doc = JSONDocument.parse(text).get();
             String command = doc.getString("command").get();
-            Result<String, JSONException> friendlyName = doc.getString("friendlyName");
+            var friendlyName = doc.getString("friendlyName");
 
             // if we got a friendly name, log it
             String logMessage = message.peer.getForeignName() + " received: " + command
@@ -72,20 +72,16 @@ public class MessageProcessor implements Runnable  {
         Maybe<Message> parsedResponse = Maybe.nothing();
 
         // Look up the data for each handler. These are only used if required for the specific handler
-        Result<String, JSONException> pathName = document.getString("pathName");
-        Result<FileDescriptor, JSONException> fileDescriptor = pathName.andThen(name ->
-                                                                        document.getJSON("fileDescriptor")
-                                                                                .andThen(fd -> FileDescriptor.fromJSON(name, fd)));
-        Result<Long, JSONException> position = document.getLong("position");
-        Result<Long, JSONException> length = document.getLong("length");
-        Result<FilePacket, JSONException> packet = fileDescriptor.andThen(fd ->
-                                                                          position.andThen(pos ->
-                                                                          length.andThen(len ->
-                                                                          Result.value(new FilePacket(peer, fd, pos, len))
-                                                                          )));
-        Result<String, JSONException> content = document.getString("content");
-        Result<HostPort, JSONException> hostPort = document.getJSON("hostPort")
-                                                           .andThen(HostPort::fromJSON);
+        var pathName = document.getString("pathName");
+        var fileDescriptor = pathName.andThen(name -> document.getJSON("fileDescriptor")
+                                                              .andThen(fd -> FileDescriptor.fromJSON(name, fd)));
+        var position = document.getLong("position");
+        var length = document.getLong("length");
+        var packet = fileDescriptor.andThen(fd ->
+              position.andThen(pos ->
+              length.map(len -> new FilePacket(peer, fd, pos, len))));
+        var content = document.getString("content");
+        var hostPort = document.getJSON("hostPort").andThen(HostPort::fromJSON);
 
         switch (command) {
             /* Trivial requests */
@@ -147,7 +143,7 @@ public class MessageProcessor implements Runnable  {
                         PeerServer.log().fine("retrying byte request for " + pathName);
                         peer.sendMessage(FileBytesRequest.retry(response));
                     } else {
-                        // If the request failed for a permanent reason, just give up for now
+                        // If the request faRiled for a permanent reason, just give up for now
                         PeerServer.rwManager().cancelFile(fileDescriptor.get());
                     }
                 }

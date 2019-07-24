@@ -1,11 +1,16 @@
 package unimelb.bitbox.peers;
 
+import functional.algebraic.Maybe;
 import unimelb.bitbox.messages.Message;
 import unimelb.bitbox.messages.MessageType;
 import unimelb.bitbox.messages.ReceivedMessage;
 import unimelb.bitbox.server.PeerServer;
 import unimelb.bitbox.util.network.HostPort;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -15,9 +20,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * States a Peer can be in.
@@ -39,10 +41,10 @@ enum PeerState {
  * @author Eleanor McMurtry
  * @author Andrea Law
  */
-public abstract class Peer {
+public class Peer {
     // Data
+    private final Socket socket;
     private final String name;
-    private PeerType type;
     private final HostPort localHostPort;
     private HostPort hostPort;
 
@@ -50,30 +52,15 @@ public abstract class Peer {
     private final AtomicReference<PeerState> state = new AtomicReference<>();
     private final OutgoingConnection outConn;
     private final List<Runnable> onClose = Collections.synchronizedList(new ArrayList<>());
-    private final Lock activationLock = new ReentrantLock();
-    private final Condition activated = activationLock.newCondition();
-
-    public boolean awaitActivation() throws InterruptedException {
-        try {
-            activationLock.lock();
-            activated.await();
-            return isActive();
-        } finally {
-            activationLock.unlock();
-        }
-    }
 
     // Handles outgoing/incoming connection threads
     private static final ExecutorService executor = Executors.newCachedThreadPool();
     private static final Set<Future<?>> threads = ConcurrentHashMap.newKeySet();
-    void submit(Runnable service) {
+    private void submit(Runnable service) {
         threads.add(executor.submit(service));
         onClose.add(() -> threads.forEach(t -> t.cancel(true)));
     }
 
-    public void forceIncoming() {
-        type = PeerType.INCOMING;
-    }
     void addCloseTask(Runnable task) {
         onClose.add(task);
     }
@@ -81,14 +68,8 @@ public abstract class Peer {
     public boolean needsResponse() {
         return state.get() == PeerState.WAIT_FOR_RESPONSE;
     }
-    boolean isOpen() {
-        return state.get() != PeerState.CLOSED;
-    }
     public boolean isActive() {
         return state.get() == PeerState.ACTIVE;
-    }
-    public boolean getOutgoing() {
-        return type == PeerType.OUTGOING;
     }
 
     // Activate the peer connection after a handshake is complete.
@@ -102,18 +83,11 @@ public abstract class Peer {
         // Don't do anything if we're not waiting to be activated.
         if (state.compareAndSet(PeerState.WAIT_FOR_RESPONSE, PeerState.ACTIVE)
                 || state.compareAndSet(PeerState.WAIT_FOR_REQUEST, PeerState.ACTIVE)) {
-            try {
-                activationLock.lock();
-                PeerServer.log().fine("Activating " + getForeignName());
+            PeerServer.log().fine("Activating " + getForeignName());
 
-                // Add to our tracker
-                KnownPeerTracker.addAddress(localHostPort, hostPort);
-                KnownPeerTracker.notifyPeerCount(PeerServer.getPeerCount());
-
-            } finally {
-                activated.signalAll();
-                activationLock.unlock();
-            }
+            // Add to our tracker
+            KnownPeerTracker.addAddress(localHostPort, hostPort);
+            KnownPeerTracker.notifyPeerCount(PeerServer.getPeerCount());
         }
     }
 
@@ -150,20 +124,22 @@ public abstract class Peer {
      * Construct a Peer.
      * @param name      the name to attach to this peer
      * @param type      whether the peer was an otugoing connection
-     * @param host      the hostname of the peer
-     * @param port      the port of the peer
      */
-    Peer(String name, PeerType type, String host, int port, OutgoingConnection outConn) {
+    public Peer(String name, Socket socket, PeerType type) {
+        var host = socket.getInetAddress().getHostAddress();
+        var port = socket.getPort();
+        this.socket = socket;
+        outConn = new OutgoingConnection(socket);
         PeerServer.log().fine("Peer created: " + name + " @ " + host + ":" + port);
         this.name = name;
-        this.type = type;
 
         localHostPort = new HostPort(host, port);
         hostPort = localHostPort;
 
         state.set(type == PeerType.OUTGOING ? PeerState.WAIT_FOR_RESPONSE : PeerState.WAIT_FOR_REQUEST);
-        this.outConn = outConn;
         submit(outConn);
+
+        submit(this::receiveMessages);
     }
 
     /**
@@ -174,25 +150,20 @@ public abstract class Peer {
             return;
         }
 
-        try {
-            activationLock.lock();
-            state.set(PeerState.CLOSED);
+        state.set(PeerState.CLOSED);
 
-            PeerServer.log().warning("Connection to peer `" + getForeignName() + "` closed.");
-            PeerServer.connection().closeConnection(this);
-            synchronized (onClose) {
-                onClose.forEach(Runnable::run);
-            }
-            closeInternal();
-        } finally {
-            activated.signalAll();
+        PeerServer.log().warning("Connection to peer `" + getForeignName() + "` closed.");
+        PeerServer.connection().closeConnection(this);
+        synchronized (onClose) {
+            onClose.forEach(Runnable::run);
+        }
+
+        try {
+            socket.close();
+        } catch (IOException e) {
+            PeerServer.log().severe("Error closing socket: " + e.getMessage());
         }
     }
-
-    /**
-     * An action to perform when the peer is closed.
-     */
-    abstract void closeInternal();
 
     /**
      * Send a message to this peer.
@@ -220,17 +191,21 @@ public abstract class Peer {
         message.setFriendlyName(name + "-" + PeerServer.hostPort());
         outConn.addMessage(new OutgoingMessage(message.networkEncode(), onSent));
         PeerServer.log().fine(getForeignName() + " sent: " + message.toString());
-
-        if (message.isRequest()) {
-            requestSent(message);
-        }
     }
 
-    /**
-     * This method is called when a message is received from this peer.
-     */
-    public void receiveMessage(String message) {
-        PeerServer.enqueueMessage(new ReceivedMessage(message, this));
+    private void receiveMessages() {
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+            String message;
+            while (Maybe.of(message = in.readLine()).isJust()) {
+                PeerServer.enqueueMessage(new ReceivedMessage(message, this));
+            }
+        } catch (IOException e) {
+            if (state.get() != PeerState.CLOSED) {
+                PeerServer.log().severe("Error reading from socket: " + e.getMessage());
+            }
+        } finally {
+            close();
+        }
     }
 
     /**
@@ -242,19 +217,8 @@ public abstract class Peer {
             if (message.getCommand().orElse(null) != MessageType.HANDSHAKE_RESPONSE) {
                 activateInternal();
             }
-            responseReceived(message);
         }
     }
-
-    /**
-     * Called when a request has been sent to this peer.
-     */
-    abstract void requestSent(Message request);
-
-    /**
-     * Called when a response has been received from this peer.
-     */
-    abstract void responseReceived(Message response);
 
     @Override
     public String toString() {
@@ -279,9 +243,5 @@ class OutgoingMessage {
     OutgoingMessage(String message, Runnable onSent) {
         this.message = message;
         this.onSent = onSent;
-    }
-
-    String networkEncoded() {
-        return message.trim() + "\n";
     }
 }

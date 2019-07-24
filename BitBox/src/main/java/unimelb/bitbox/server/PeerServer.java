@@ -6,7 +6,6 @@ import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.peers.ReadWriteManager;
 import unimelb.bitbox.util.concurrency.KeepAlive;
 import unimelb.bitbox.util.config.CfgDependent;
-import unimelb.bitbox.util.config.CfgEnumValue;
 import unimelb.bitbox.util.config.CfgValue;
 import unimelb.bitbox.util.fs.FileDescriptor;
 import unimelb.bitbox.util.fs.FileSystemEvent;
@@ -20,16 +19,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * A connection can use either TCP or UDP.
- *
- * @author Eleanor McMurtry
- */
-enum ConnectionMode {
-    TCP,
-    UDP
-}
-
-/**
  * The central class to hold various values.
  *
  * @author Eleanor McMurtry
@@ -38,13 +27,10 @@ enum ConnectionMode {
  */
 public class PeerServer implements FileSystemObserver {
     /* Configuration values */
-    private final CfgValue<Long> udpBlockSize = CfgValue.createLong("udpBlockSize");
     private final CfgValue<Long> blockSize = CfgValue.createLong("blockSize");
     private final CfgValue<String> advertisedName = CfgValue.createString("advertisedName");
-    private final CfgValue<Integer> tcpPort = CfgValue.createInt("port");
-    private final CfgValue<Integer> udpPort = CfgValue.createInt("udpPort");
-    private final CfgEnumValue<ConnectionMode> mode = new CfgEnumValue<>("mode", ConnectionMode.class);
-    private final CfgDependent<HostPort> hostPort = new CfgDependent<>(Arrays.asList(advertisedName, tcpPort, udpPort), this::calculateHostPort);
+    private final CfgValue<Integer> port = CfgValue.createInt("port");
+    private final CfgDependent<HostPort> hostPort = new CfgDependent<>(Arrays.asList(advertisedName, port), this::calculateHostPort);
 
     /* Objects used by the class */
     private final Logger log = Logger.getLogger(PeerServer.class.getName());
@@ -64,9 +50,7 @@ public class PeerServer implements FileSystemObserver {
     }
 
     public static long maxBlockSize() {
-        return get().mode.get() == ConnectionMode.TCP
-                ? get().blockSize.get()
-                : get().udpBlockSize.get();
+        return get().blockSize.get();
     }
     public static HostPort hostPort() {
         return get().hostPort.get();
@@ -146,15 +130,8 @@ public class PeerServer implements FileSystemObserver {
 		log.fine("Processor thread started");
 
         // Start the connection handler
-        setConnection(mode.get());
-        mode.setOnChanged(newMode -> {
-            connection.deactivate();
-            setConnection(newMode);
-        });
-        hostPort.setOnChanged(() -> {
-            connection.deactivate();
-            setConnection(mode.get());
-        });
+        connection = new ConnectionHandler();
+        hostPort.setOnChanged(this::resetConnection);
 
         // Connect to the peers in the config file
         CfgValue<String[]> peersToConnect = CfgValue.create("peers", val -> val.split(","));
@@ -183,16 +160,11 @@ public class PeerServer implements FileSystemObserver {
     }
 
     private HostPort calculateHostPort() {
-        int serverPort;
-        serverPort = mode.get() == ConnectionMode.TCP
-                     ? tcpPort.get()
-                     : udpPort.get();
-        return new HostPort(advertisedName.get(), serverPort);
+        return new HostPort(advertisedName.get(), port.get());
     }
 
-    private void setConnection(ConnectionMode mode) {
-        connection = mode == ConnectionMode.TCP
-                     ? new TCPConnectionHandler()
-                     : new UDPConnectionHandler();
+    private void resetConnection() {
+        connection.deactivate();
+        connection = new ConnectionHandler();
     }
 }
