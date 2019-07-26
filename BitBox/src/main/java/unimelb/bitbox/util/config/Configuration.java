@@ -1,86 +1,171 @@
 package unimelb.bitbox.util.config;
 
-import functional.algebraic.Maybe;
-import unimelb.bitbox.util.concurrency.LazyInitialiser;
-import unimelb.bitbox.util.fs.FileWatcher;
+import functional.algebraic.Result;
+import unimelb.bitbox.util.network.Conversion;
+import unimelb.bitbox.util.network.HostPort;
+import unimelb.bitbox.util.network.HostPortParseException;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.logging.Logger;
 
 /**
- * Simple wrapper for using Properties(). Example:
- * <pre>
- * {@code
- * int port = Integer.parseInt(Configuration.getConfigurationValue("port"));
- * String[] peers = Configuration.getConfigurationValue("peers").split(",");
- * }
- * </pre>
+ * Simple wrapper for using Properties().
+ *
  * @author Aaron Harwood
  * @author Eleanor McMurtry
  */
 public class Configuration {
-	static Logger log = Logger.getLogger(Configuration.class.getName());
-    // the configuration file is stored in the root of the class path as a .properties file
-    private static final String CONFIGURATION_FILE = "configuration.properties";
-    private static final File file = new File(CONFIGURATION_FILE);
-    private static final FileWatcher watcher = new FileWatcher(file, Configuration::updateValues, 1000);
-    private static final LazyInitialiser<Properties> properties = new LazyInitialiser<>(Configuration::loadProperties);
-    private static final AtomicLong modified = new AtomicLong();
-    private static final List<CfgValue<?>> watchedValues = Collections.synchronizedList(new ArrayList<>());
+    private static String mode;
+    private static String path;
+    private static int port;
+    private static int clientPort;
+    private static String advertisedName;
+    private static int maximumConnections;
+    private static int blockSize;
+    private static int syncInterval;
+    private static List<HostPort> peers;
 
-    static void updateValues() {
-        long nextModified = file.lastModified();
-        if (modified.getAndSet(nextModified) != nextModified) {
-            log.fine("Configuration file modified");
-            synchronized (watchedValues) {
-                loadProperties();
-                watchedValues.forEach(CfgValue::get);
-            }
-            log.fine("Updates done");
-        }
-    }
+    private static boolean initialised = false;
 
-    static void addValue(CfgValue<?> val) {
-        watchedValues.add(val);
-    }
-
-    // use static initializer to read the configuration file when the class is loaded
-    static {
-        watcher.start();
-    }
-
-    private static Properties loadProperties() {
+    private static Result<Properties, IOException> loadProperties(File file) {
         Properties properties = new Properties();
-        try (InputStream inputStream = new FileInputStream(CONFIGURATION_FILE)) {
-            properties.load(inputStream);
+        try (InputStream inputStream = new FileInputStream(file)) {
+            return Result.of(() -> {
+                properties.load(inputStream);
+                return properties;
+            });
         } catch (IOException e) {
-            log.warning("Could not read file " + CONFIGURATION_FILE);
+            return Result.error(e);
         }
-        return properties;
     }
 
-    static boolean missingKey(String key) {
-        return !properties.get().containsKey(key);
+
+    public static void load(String filename) throws ConfigException {
+        try {
+            var properties = loadProperties(new File(filename)).get();
+
+            mode = getOrThrow(properties, "mode");
+            path = getOrThrow(properties, "path");
+            port = getIntOrThrow(properties, "port");
+            clientPort = getIntOrThrow(properties, "clientPort");
+            advertisedName = getOrThrow(properties, "advertisedName");
+            maximumConnections = getIntOrThrow(properties, "maximumConnections");
+            blockSize = getIntOrThrow(properties, "blockSize");
+            syncInterval = getIntOrThrow(properties, "syncInterval");
+
+            String[] peersStrings = getOrThrow(properties, "peers").split(",");
+
+            peers = new ArrayList<>();
+            for (String s : peersStrings) {
+                s = s.trim();
+                if (!s.isEmpty()) {
+                    HostPort hp;
+                    try {
+                        hp = HostPort.fromAddress(s, port).get();
+                    } catch (HostPortParseException e) {
+                        throw ConfigException.formatError("peers", "not a valid address: " + s);
+                    }
+                    peers.add(hp);
+                }
+            }
+
+            initialised = true;
+        } catch (FileNotFoundException __) {
+            throw ConfigException.fileMissing();
+        } catch (IOException e) {
+            throw ConfigException.via(e);
+        }
     }
 
-    /**
-     * Looks up the key in the configuration settings.
-     * @param key the key to look up
-     * @return the value, or Maybe.nothing() if it's not present
-     */
-    public static Maybe<String> getConfigurationValue(String key) {
-        return Maybe.of(properties.get().getProperty(key)).map(String::trim);
+    private static String getOrThrow(Properties properties, String key) throws ConfigException {
+        var result = properties.getProperty(key);
+        if (key == null) {
+            throw ConfigException.keyMissing(key);
+        }
+        return result;
+    }
+    private static int getIntOrThrow(Properties properties, String key) throws ConfigException {
+        var result = getOrThrow(properties, key);
+        if (!Conversion.isInteger(result)) {
+            throw ConfigException.formatError(key, "not a valid integer: " + result);
+        }
+        return Integer.parseInt(result);
     }
 
     // private constructor to prevent initialization
     private Configuration() {
+    }
+
+    public static String getMode() {
+        if (!initialised) {
+            throw new IllegalStateException("Must initialise configuration first");
+        }
+        return mode;
+    }
+
+    public static String getPath() {
+        if (!initialised) {
+            throw new IllegalStateException("Must initialise configuration first");
+        }
+        return path;
+    }
+
+    public static String getAdvertisedName() {
+        if (!initialised) {
+            throw new IllegalStateException("Must initialise configuration first");
+        }
+        return advertisedName;
+    }
+
+    public static int getMaximumConnections() {
+        if (!initialised) {
+            throw new IllegalStateException("Must initialise configuration first");
+        }
+        return maximumConnections;
+    }
+
+    public static int getBlockSize() {
+        if (!initialised) {
+            throw new IllegalStateException("Must initialise configuration first");
+        }
+        return blockSize;
+    }
+
+    public static int getSyncInterval() {
+        if (!initialised) {
+            throw new IllegalStateException("Must initialise configuration first");
+        }
+        return syncInterval;
+    }
+
+    public static int getPort() {
+        if (!initialised) {
+            throw new IllegalStateException("Must initialise configuration first");
+        }
+        return port;
+    }
+
+    public static int getClientPort() {
+        if (!initialised) {
+            throw new IllegalStateException("Must initialise configuration first");
+        }
+        return clientPort;
+    }
+
+    public static List<HostPort> getPeers() {
+        if (!initialised) {
+            throw new IllegalStateException("Must initialise configuration first");
+        }
+        return Collections.unmodifiableList(peers);
+    }
+
+    public static HostPort getHostPort() {
+        if (!initialised) {
+            throw new IllegalStateException("Must initialise configuration first");
+        }
+        return new HostPort(advertisedName, port);
     }
 }

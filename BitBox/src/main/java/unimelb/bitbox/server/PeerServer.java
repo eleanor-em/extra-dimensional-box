@@ -1,20 +1,18 @@
 package unimelb.bitbox.server;
 
 import functional.algebraic.Maybe;
+import unimelb.bitbox.client.ClientServer;
 import unimelb.bitbox.messages.*;
 import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.peers.ReadWriteManager;
 import unimelb.bitbox.util.concurrency.KeepAlive;
-import unimelb.bitbox.util.config.CfgDependent;
-import unimelb.bitbox.util.config.CfgValue;
+import unimelb.bitbox.util.config.Configuration;
 import unimelb.bitbox.util.fs.FileDescriptor;
 import unimelb.bitbox.util.fs.FileSystemEvent;
 import unimelb.bitbox.util.fs.FileSystemManager;
 import unimelb.bitbox.util.fs.FileSystemObserver;
-import unimelb.bitbox.util.network.HostPort;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -26,12 +24,6 @@ import java.util.logging.Logger;
  * @author Benjamin(Jingyi Li) Li
  */
 public class PeerServer implements FileSystemObserver {
-    /* Configuration values */
-    private final CfgValue<Long> blockSize = CfgValue.createLong("blockSize");
-    private final CfgValue<String> advertisedName = CfgValue.createString("advertisedName");
-    private final CfgValue<Integer> port = CfgValue.createInt("port");
-    private final CfgDependent<HostPort> hostPort = new CfgDependent<>(Arrays.asList(advertisedName, port), this::calculateHostPort);
-
     /* Objects used by the class */
     private final Logger log = Logger.getLogger(PeerServer.class.getName());
     private final FileSystemManager fileSystemManager;
@@ -47,13 +39,6 @@ public class PeerServer implements FileSystemObserver {
 
     public static Logger log() {
         return get().log;
-    }
-
-    public static long maxBlockSize() {
-        return get().blockSize.get();
-    }
-    public static HostPort hostPort() {
-        return get().hostPort.get();
     }
     public static ConnectionHandler connection() {
         return get().connection;
@@ -121,9 +106,7 @@ public class PeerServer implements FileSystemObserver {
         log.setLevel(Level.FINER);
 
         // Create the file system manager
-        CfgValue<String> path = CfgValue.createString("path");
-        path.setOnChanged(() -> log.warning("Path was changed in config, but will not be updated until restart"));
-        fileSystemManager = new FileSystemManager(path.get());
+        fileSystemManager = new FileSystemManager(Configuration.getPath());
 
 		// Create the processor thread
         KeepAlive.submit(processor);
@@ -131,40 +114,30 @@ public class PeerServer implements FileSystemObserver {
 
         // Start the connection handler
         connection = new ConnectionHandler();
-        hostPort.setOnChanged(this::resetConnection);
 
         // Connect to the peers in the config file
-        CfgValue<String[]> peersToConnect = CfgValue.create("peers", val -> val.split(","));
-        peersToConnect.setOnChanged(connection::addPeerAddressAll);
-        connection.addPeerAddressAll(peersToConnect.get());
-        connection.retryPeers();
+        connection.addPeerAddressAll(Configuration.getPeers());
 
 		// Create the synchroniser thread
 		KeepAlive.submit(this::regularlySynchronise);
 		log.fine("Synchroniser thread started");
 
+		// Create the server thread
+        KeepAlive.submit(ClientServer::run);
+        log.fine("Client server started");
+
 		log.info("BitBox Peer online.");
 	}
 
     private void regularlySynchronise() {
-        CfgValue<Integer> syncInterval = CfgValue.createInt("syncInterval");
         while (true) {
             try {
-                Thread.sleep(syncInterval.get() * 1000);
+                Thread.sleep(Configuration.getSyncInterval() * 1000);
             } catch (InterruptedException e) {
                 log.warning("Synchronise thread interrupted");
             }
             synchroniseFiles();
             rwManager.reportDownloads();
         }
-    }
-
-    private HostPort calculateHostPort() {
-        return new HostPort(advertisedName.get(), port.get());
-    }
-
-    private void resetConnection() {
-        connection.deactivate();
-        connection = new ConnectionHandler();
     }
 }

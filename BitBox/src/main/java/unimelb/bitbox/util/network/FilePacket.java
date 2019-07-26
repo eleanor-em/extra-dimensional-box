@@ -4,6 +4,7 @@ import unimelb.bitbox.messages.FileBytesRequest;
 import unimelb.bitbox.messages.FileBytesResponse;
 import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.server.PeerServer;
+import unimelb.bitbox.util.config.Configuration;
 import unimelb.bitbox.util.fs.FileDescriptor;
 
 import java.io.IOException;
@@ -34,7 +35,7 @@ public class FilePacket {
     public FilePacket(Peer peer, FileDescriptor fileDescriptor, long position, long length) {
         transfer = new FileTransfer(peer, fileDescriptor);
         this.position = position;
-        this.length = Math.min(PeerServer.maxBlockSize(), length);
+        this.length = Math.min(Configuration.getBlockSize(), length);
     }
 
     public Peer peer() {

@@ -5,6 +5,7 @@ import unimelb.bitbox.messages.Message;
 import unimelb.bitbox.messages.MessageType;
 import unimelb.bitbox.messages.ReceivedMessage;
 import unimelb.bitbox.server.PeerServer;
+import unimelb.bitbox.util.config.Configuration;
 import unimelb.bitbox.util.network.HostPort;
 
 import java.io.BufferedReader;
@@ -188,7 +189,7 @@ public class Peer {
             return;
         }
 
-        message.setFriendlyName(name + "-" + PeerServer.hostPort());
+        message.setFriendlyName(name + "-" + Configuration.getHostPort());
         outConn.addMessage(new OutgoingMessage(message.networkEncode(), onSent));
         PeerServer.log().fine(getForeignName() + " sent: " + message.toString());
     }

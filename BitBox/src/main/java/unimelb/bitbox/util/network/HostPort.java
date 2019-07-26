@@ -33,6 +33,13 @@ public class HostPort implements IJSONData {
         return host.andThen(hostVal -> port.map(portVal -> new HostPort(hostVal, portVal)));
     }
 
+    public static Result<HostPort, HostPortParseException> fromAddress(String address, int defaultPort) {
+        if (!address.contains(":")) {
+            address += ":" + defaultPort;
+        }
+        return fromAddress(address);
+    }
+
     /**
      * Create a HostPort object from a string of the form `host:port`.
      */

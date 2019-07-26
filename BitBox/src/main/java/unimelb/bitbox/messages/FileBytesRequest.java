@@ -1,6 +1,6 @@
 package unimelb.bitbox.messages;
 
-import unimelb.bitbox.server.PeerServer;
+import unimelb.bitbox.util.config.Configuration;
 import unimelb.bitbox.util.fs.FileDescriptor;
 
 /**
@@ -16,7 +16,7 @@ public class FileBytesRequest extends Message {
     public FileBytesRequest(FileDescriptor fileDescriptor, long position) {
         super("BYTES:" + fileDescriptor + ":" + position);
 
-        long length = Math.min(fileDescriptor.fileSize() - position, PeerServer.maxBlockSize());
+        long length = Math.min(fileDescriptor.fileSize() - position, Configuration.getBlockSize());
 
         document.append("command", MessageType.FILE_BYTES_REQUEST);
         document.join(fileDescriptor.toJSON());

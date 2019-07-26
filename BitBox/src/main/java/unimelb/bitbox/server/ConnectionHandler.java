@@ -6,7 +6,7 @@ import unimelb.bitbox.messages.HandshakeRequest;
 import unimelb.bitbox.messages.Message;
 import unimelb.bitbox.peers.Peer;
 import unimelb.bitbox.peers.PeerType;
-import unimelb.bitbox.util.config.CfgValue;
+import unimelb.bitbox.util.config.Configuration;
 import unimelb.bitbox.util.network.HostPort;
 import unimelb.bitbox.util.network.IJSONData;
 import unimelb.bitbox.util.network.JSONDocument;
@@ -18,10 +18,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -36,8 +33,6 @@ public class ConnectionHandler implements IJSONData {
     // Settings
     private static final int PEER_RETRY_TIME = 60;
     private static final String DEFAULT_NAME = "Anonymous";
-    private static final CfgValue<Integer> maxIncomingConnections = CfgValue.createInt("maximumConnections");
-    private final int port;
 
     // Objects for use by this class
     private ServerSocket socket = null;
@@ -53,42 +48,18 @@ public class ConnectionHandler implements IJSONData {
     private final ExecutorService executor = Executors.newCachedThreadPool();
 
     ConnectionHandler() {
-        port = PeerServer.hostPort().port;
-
         createNames();
 
         executor.submit(this::connectToPeers);
         executor.submit(this::acceptConnectionsPersistent);
     }
 
-    void deactivate() {
-        active.set(false);
-        try {
-            socket.close();
-        } catch (IOException e) {
-            PeerServer.log().severe("Failed closing socket");
-            e.printStackTrace();
-        }
-
-        executor.shutdownNow();
-        closeAllConnections();
-    }
-
-    private void addPeerAddress(String address) {
-        HostPort.fromAddress(address)
-                .match(peerHostPort -> {
-                           PeerServer.log().fine("Adding address " + address + " to connection list");
-                           addPeerAddress(peerHostPort);
-                       }, ignored -> PeerServer.log().warning("Tried to add invalid address `" + address + "`"));
-    }
     void addPeerAddress(HostPort peerHostPort) {
         peerAddresses.add(peerHostPort);
     }
 
-    void addPeerAddressAll(String[] addresses) {
-        for (String address : addresses) {
-            addPeerAddress(address);
-        }
+    void addPeerAddressAll(Collection<HostPort> addresses) {
+        peerAddresses.addAll(addresses);
     }
 
     void retryPeers() {
@@ -126,9 +97,6 @@ public class ConnectionHandler implements IJSONData {
         }
     }
 
-    private void closeAllConnections() {
-        peers.forEach(this::closeConnection);
-    }
 
     private boolean hasPeer(HostPort hostPort) {
         return peers.stream().anyMatch(peer -> peer.matches(hostPort));
@@ -140,7 +108,7 @@ public class ConnectionHandler implements IJSONData {
                     .findFirst());
     }
 
-    List<Peer> getActivePeers() {
+    public List<Peer> getActivePeers() {
         return peers.stream()
                 .filter(Peer::isActive)
                 .collect(Collectors.toList());
@@ -151,7 +119,7 @@ public class ConnectionHandler implements IJSONData {
     }
 
     private boolean canStorePeer() {
-        return getActivePeers().size() < maxIncomingConnections.get();
+        return getActivePeers().size() < Configuration.getMaximumConnections();
     }
 
     private String getAnyName() {
@@ -162,7 +130,7 @@ public class ConnectionHandler implements IJSONData {
 
     private void acceptConnections() {
         // Need to set and then await in case there was already a socket created
-        PeerServer.log().fine("Listening on port " + port);
+        PeerServer.log().fine("Listening on port " + Configuration.getPort());
 
         while (!socket.isClosed()) {
             try {
@@ -174,7 +142,7 @@ public class ConnectionHandler implements IJSONData {
                 if (canStorePeer()) {
                     final Peer peer = new Peer(getAnyName(), clientSocket, PeerType.INCOMING);
                     addPeer(peer);
-                    PeerServer.log().fine("Connected to peer " + peer);
+                    PeerServer.log().info("Connected to peer " + peer);
                 } else {
                     // if not, write a CONNECTION_REFUSED message and close the connection
                     try (var writer = new OutputStreamWriter(clientSocket.getOutputStream(), StandardCharsets.UTF_8);
@@ -194,7 +162,7 @@ public class ConnectionHandler implements IJSONData {
                 e.printStackTrace();
             }
         }
-        PeerServer.log().fine("No longer listening on port " + this.port);
+        PeerServer.log().fine("No longer listening on port " + Configuration.getPort());
     }
 
     private Maybe<Peer> tryPeer(HostPort peerHostPort) {
@@ -211,7 +179,7 @@ public class ConnectionHandler implements IJSONData {
             Peer peer = new Peer(name, socket, PeerType.OUTGOING);
             peer.sendMessage(new HandshakeRequest());
             addPeer(peer);
-            PeerServer.log().fine("Connected to peer " + name + " @ " + peerHostPort);
+            PeerServer.log().info("Connected to peer " + name + " @ " + peerHostPort);
             return Maybe.just(peer);
         } catch (IOException e) {
             PeerServer.log().warning("Connection to peer `" + peerHostPort + "` failed: " + e.getMessage());
@@ -222,7 +190,7 @@ public class ConnectionHandler implements IJSONData {
 
     private void acceptConnectionsPersistent() {
         try {
-            socket = new ServerSocket(port);
+            socket = new ServerSocket(Configuration.getPort());
             acceptConnections();
         } catch (Exception e) {
             PeerServer.log().severe("Accepting connections failed: " + e.getMessage());

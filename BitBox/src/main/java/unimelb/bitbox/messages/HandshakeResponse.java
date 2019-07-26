@@ -1,7 +1,7 @@
 package unimelb.bitbox.messages;
 
 import unimelb.bitbox.peers.Peer;
-import unimelb.bitbox.server.PeerServer;
+import unimelb.bitbox.util.config.Configuration;
 import unimelb.bitbox.util.network.HostPort;
 
 /**
@@ -17,7 +17,7 @@ public class HandshakeResponse extends Response {
         this.hostPort = hostPort;
 
         document.append("command", MessageType.HANDSHAKE_RESPONSE);
-        document.append("hostPort", PeerServer.hostPort().toJSON());
+        document.append("hostPort", Configuration.getHostPort().toJSON());
     }
 
     @Override

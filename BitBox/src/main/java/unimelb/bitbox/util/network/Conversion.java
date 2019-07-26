@@ -21,4 +21,8 @@ public class Conversion {
 
         return String.format("%.1f %s", size, suffixes[suffixIndex]);
     }
+
+    public static boolean isInteger(String s) {
+        return s.matches("-?(0|[1-9]\\d*)");
+    }
 }
